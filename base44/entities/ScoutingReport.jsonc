@@ -49,6 +49,13 @@
               "special",
               "mistake"
             ]
+          },
+          "verdict": {
+            "type": "string",
+            "enum": [
+              "good",
+              "bad"
+            ]
           }
         }
       }

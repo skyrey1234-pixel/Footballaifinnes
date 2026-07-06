@@ -113,7 +113,7 @@ export default function Session() {
               </div>
               <div className="space-y-3 max-h-[420px] overflow-y-auto pr-1">
                 {report.highlights.map((h, i) => (
-                  <HighlightCard key={i} highlight={h} onJump={(seconds) => setSeek({ seconds, key: Date.now() })} />
+                  <HighlightCard key={i} highlight={h} session={session} onJump={(seconds) => setSeek({ seconds, key: Date.now() })} />
                 ))}
               </div>
             </div>

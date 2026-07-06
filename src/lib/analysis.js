@@ -18,7 +18,8 @@ const REPORT_SCHEMA = {
           seconds: { type: "number", description: "timestamp in total seconds" },
           title: { type: "string" },
           note: { type: "string", description: "coaching note about this moment" },
-          category: { type: "string", enum: ["offense", "defense", "special", "mistake"] }
+          category: { type: "string", enum: ["offense", "defense", "special", "mistake"] },
+          verdict: { type: "string", enum: ["good", "bad"], description: "whether this play went well or went wrong for the opponent's perspective being scouted" }
         }
       }
     }
@@ -36,7 +37,7 @@ Cover in depth:
 4. MISTAKES — errors, missed assignments, and what could have been done better against them.
 5. PREDICTIONS — what they are most likely to do in the second half / next matchup and specific counters to call.
 
-Also produce 6-12 timestamped highlight moments from the footage with precise timestamps and sharp coaching notes. Write everything in confident, practical coach-speak using markdown with bold key terms and bullet points.`;
+Also produce 6-12 timestamped highlight moments from the footage with precise timestamps in VIDEO time (so the clip can be played at that exact moment), sharp coaching notes, and a verdict of "good" or "bad" for whether the play was executed well or went wrong. Write everything in confident, practical coach-speak using markdown with bold key terms and bullet points.`;
 
   const params = {
     prompt,
