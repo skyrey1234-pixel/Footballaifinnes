@@ -1,0 +1,42 @@
+{
+  "name": "GameSession",
+  "type": "object",
+  "properties": {
+    "opponent_name": {
+      "type": "string",
+      "description": "Name of the opposing team"
+    },
+    "game_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "source_type": {
+      "type": "string",
+      "enum": [
+        "upload",
+        "youtube"
+      ],
+      "default": "upload"
+    },
+    "video_url": {
+      "type": "string",
+      "description": "Uploaded video file URL"
+    },
+    "youtube_video_id": {
+      "type": "string",
+      "description": "YouTube video ID when source is a link"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "analyzing",
+        "complete",
+        "failed"
+      ],
+      "default": "analyzing"
+    }
+  },
+  "required": [
+    "opponent_name"
+  ]
+}

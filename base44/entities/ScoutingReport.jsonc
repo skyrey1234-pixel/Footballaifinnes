@@ -1,0 +1,60 @@
+{
+  "name": "ScoutingReport",
+  "type": "object",
+  "properties": {
+    "session_id": {
+      "type": "string",
+      "description": "ID of the related GameSession"
+    },
+    "executive_summary": {
+      "type": "string"
+    },
+    "offense_analysis": {
+      "type": "string"
+    },
+    "defense_analysis": {
+      "type": "string"
+    },
+    "special_situations": {
+      "type": "string"
+    },
+    "mistakes": {
+      "type": "string"
+    },
+    "predictions": {
+      "type": "string"
+    },
+    "highlights": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "timestamp": {
+            "type": "string"
+          },
+          "seconds": {
+            "type": "number"
+          },
+          "title": {
+            "type": "string"
+          },
+          "note": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "offense",
+              "defense",
+              "special",
+              "mistake"
+            ]
+          }
+        }
+      }
+    }
+  },
+  "required": [
+    "session_id"
+  ]
+}
