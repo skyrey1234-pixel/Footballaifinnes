@@ -22,7 +22,8 @@ const REPORT_SCHEMA = {
         }
       }
     }
-  }
+  },
+  required: ["executive_summary", "offense_analysis", "defense_analysis", "special_situations", "mistakes", "predictions", "highlights"]
 };
 
 export async function runAnalysis(session) {
@@ -44,13 +45,21 @@ Also produce 6-12 timestamped highlight moments from the footage with precise ti
   };
 
   if (session.source_type === 'youtube') {
-    params.prompt += `\n\nThe game footage is this YouTube video: https://www.youtube.com/watch?v=${session.youtube_video_id} — analyze this specific game.`;
+    params.prompt += `\n\nThe game footage is this YouTube video: https://www.youtube.com/watch?v=${session.youtube_video_id}
+
+Search the web to identify exactly which game this video shows (teams, date, final score). Then build the full scouting report using play-by-play data, drive charts, game recaps, and box scores for that specific game, combined with your expert film knowledge of these teams' schemes and tendencies. For highlights, use key moments of the game with their approximate game-clock timing (use 0 for seconds if unknown).
+
+CRITICAL: You MUST completely fill EVERY field of the report with detailed, specific analysis. Never leave any field empty or null.`;
     params.add_context_from_internet = true;
   } else {
     params.file_urls = [session.video_url];
+    params.prompt += `\n\nCRITICAL: You MUST completely fill EVERY field of the report with detailed, specific analysis based on the attached footage. Never leave any field empty or null.`;
   }
 
   const result = await base44.integrations.Core.InvokeLLM(params);
+  if (!result || !result.executive_summary) {
+    throw new Error('Analysis returned an empty report');
+  }
   const report = await base44.entities.ScoutingReport.create({ session_id: session.id, ...result });
   await base44.entities.GameSession.update(session.id, { status: 'complete' });
   return report;
