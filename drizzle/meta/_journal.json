@@ -15,6 +15,13 @@
       "when": 1783796710074,
       "tag": "0001_quiet_agent_brand",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1783800266389,
+      "tag": "0002_careful_shriek",
+      "breakpoints": true
     }
   ]
 }

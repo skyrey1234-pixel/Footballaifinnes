@@ -59,3 +59,22 @@ export const scoutingReports = mysqlTable("scouting_reports", {
 
 export type ScoutingReport = typeof scoutingReports.$inferSelect;
 export type InsertScoutingReport = typeof scoutingReports.$inferInsert;
+
+// Player tendency profiles table
+export const playerProfiles = mysqlTable("player_profiles", {
+  id: int("id").autoincrement().primaryKey(),
+  sessionId: int("sessionId").notNull(),
+  opponentName: varchar("opponentName", { length: 255 }).notNull(),
+  playerNumber: varchar("playerNumber", { length: 10 }).notNull(),
+  playerName: varchar("playerName", { length: 255 }),
+  position: varchar("position", { length: 64 }),
+  tendencies: json("tendencies"), // Array of tendency objects
+  strengths: text("strengths"),
+  weaknesses: text("weaknesses"),
+  threatLevel: mysqlEnum("threatLevel", ["low", "medium", "high", "elite"]).default("medium").notNull(),
+  notes: text("notes"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type PlayerProfile = typeof playerProfiles.$inferSelect;
+export type InsertPlayerProfile = typeof playerProfiles.$inferInsert;

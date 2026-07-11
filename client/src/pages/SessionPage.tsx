@@ -5,15 +5,35 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ArrowLeft, Loader2, RefreshCw } from "lucide-react";
+import { ArrowLeft, Loader2, RefreshCw, Download, Image } from "lucide-react";
 import { useLocation, useParams } from "wouter";
 import ReportView from "@/components/report/ReportView";
 import FilmBreakdown from "@/components/film/FilmBreakdown";
+import PlayerProfiles from "@/components/players/PlayerProfiles";
+import { toast } from "sonner";
 
 export default function SessionPage() {
   const params = useParams<{ id: string }>();
   const sessionId = parseInt(params.id || "0");
   const [, setLocation] = useLocation();
+
+  const exportPdfMutation = trpc.reports.exportPdf.useMutation({
+    onSuccess: (data) => {
+      window.open(data.url, "_blank");
+      toast.success("Report exported! Opening in new tab — use Print > Save as PDF.");
+    },
+    onError: () => toast.error("Failed to export report"),
+  });
+
+  const diagramMutation = trpc.reports.generateDiagram.useMutation({
+    onSuccess: (data) => {
+      if (data.imageUrl) {
+        window.open(data.imageUrl, "_blank");
+        toast.success("Play diagram generated!");
+      }
+    },
+    onError: () => toast.error("Failed to generate diagram"),
+  });
 
   const { data: session, isLoading: sessionLoading } = trpc.sessions.get.useQuery(
     { id: sessionId },
@@ -103,16 +123,49 @@ export default function SessionPage() {
                 NEW
               </Badge>
             </TabsTrigger>
+            <TabsTrigger value="players" className="gap-2">
+              Player Profiles
+            </TabsTrigger>
           </TabsList>
+
+          {/* Action Buttons */}
+          <div className="flex items-center gap-2 mt-4">
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-2"
+              onClick={() => exportPdfMutation.mutate({ sessionId })}
+              disabled={exportPdfMutation.isPending}
+            >
+              {exportPdfMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Download className="h-3 w-3" />}
+              Export PDF
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-2"
+              onClick={() => {
+                const desc = report.executiveSummary?.slice(0, 200) || "Standard football formation";
+                diagramMutation.mutate({ sessionId, playDescription: desc });
+              }}
+              disabled={diagramMutation.isPending}
+            >
+              {diagramMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Image className="h-3 w-3" />}
+              Generate Play Diagram
+            </Button>
+          </div>
+
           <TabsContent value="report" className="mt-6">
             <ReportView session={session} report={report} />
           </TabsContent>
           <TabsContent value="film" className="mt-6">
             <FilmBreakdown session={session} report={report} />
           </TabsContent>
+          <TabsContent value="players" className="mt-6">
+            <PlayerProfiles sessionId={sessionId} opponentName={session.opponentName} />
+          </TabsContent>
         </Tabs>
       )}
     </div>
   );
 }
-

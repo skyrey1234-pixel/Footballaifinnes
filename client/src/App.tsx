@@ -8,6 +8,7 @@ import DashboardLayout from "./components/DashboardLayout";
 import Dashboard from "./pages/Dashboard";
 import NewSession from "./pages/NewSession";
 import SessionPage from "./pages/SessionPage";
+import SeasonDashboard from "./pages/SeasonDashboard";
 
 function Router() {
   return (
@@ -15,6 +16,7 @@ function Router() {
       <Switch>
         <Route path="/" component={Dashboard} />
         <Route path="/new" component={NewSession} />
+        <Route path="/season" component={SeasonDashboard} />
         <Route path="/session/:id" component={SessionPage} />
         <Route path="/404" component={NotFound} />
         <Route component={NotFound} />

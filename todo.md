@@ -18,3 +18,8 @@
 - [x] Role-based access: admin can create/delete, viewer can read/chat
 - [x] Empty state CTA on dashboard when no sessions exist
 - [x] Status badges: analyzing, complete, failed
+- [x] PDF Export — HTML report export with print-to-PDF workflow
+- [x] Fix AI annotation timestamps — improved LLM prompt + YouTube seconds parameter
+- [x] Season Dashboard — opponent history, stats, and game-by-game breakdown
+- [x] AI Play Diagram Generator — backend + button integration
+- [x] Player Tendency Profiles — AI-generated scouting cards with tendencies, strengths, weaknesses

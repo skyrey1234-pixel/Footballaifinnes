@@ -16,6 +16,32 @@ type Highlight = {
   verdict: string;
 };
 
+// Parse timestamp string "MM:SS" to seconds as fallback
+function parseTimestamp(ts: string): number {
+  const parts = ts.split(":");
+  if (parts.length === 2) {
+    const mins = parseInt(parts[0], 10) || 0;
+    const secs = parseInt(parts[1], 10) || 0;
+    return mins * 60 + secs;
+  }
+  if (parts.length === 3) {
+    const hrs = parseInt(parts[0], 10) || 0;
+    const mins = parseInt(parts[1], 10) || 0;
+    const secs = parseInt(parts[2], 10) || 0;
+    return hrs * 3600 + mins * 60 + secs;
+  }
+  return 0;
+}
+
+// Get accurate seconds from a highlight, using parsed timestamp as fallback
+function getHighlightSeconds(h: Highlight): number {
+  // If seconds is 0 or missing but timestamp exists, parse from timestamp
+  if ((!h.seconds || h.seconds === 0) && h.timestamp) {
+    return parseTimestamp(h.timestamp);
+  }
+  return h.seconds || 0;
+}
+
 type Annotation = {
   type: "circle" | "arrow" | "zone" | "label";
   x: number;
@@ -60,6 +86,13 @@ const filterTabs = [
 
 export default function FilmBreakdown({ session, report }: FilmBreakdownProps) {
   const highlights = (report.highlights as Highlight[]) || [];
+  // Ensure all highlights have accurate seconds values
+  const processedHighlights = useMemo(() => {
+    return highlights.map(h => ({
+      ...h,
+      seconds: getHighlightSeconds(h),
+    }));
+  }, [highlights]);
   const [activeFilter, setActiveFilter] = useState("all");
   const [expandedHighlight, setExpandedHighlight] = useState<number | null>(null);
   const [annotationCache, setAnnotationCache] = useState<Record<number, AnnotationData>>({});
@@ -69,17 +102,17 @@ export default function FilmBreakdown({ session, report }: FilmBreakdownProps) {
   const annotateMutation = trpc.ai.annotateHighlight.useMutation();
 
   const filteredHighlights = useMemo(() => {
-    if (activeFilter === "all") return highlights;
-    if (activeFilter === "mistake") return highlights.filter(h => h.verdict === "bad" || h.category === "mistake");
-    if (activeFilter === "good") return highlights.filter(h => h.verdict === "good");
-    return highlights.filter(h => h.category === activeFilter);
-  }, [highlights, activeFilter]);
+    if (activeFilter === "all") return processedHighlights;
+    if (activeFilter === "mistake") return processedHighlights.filter(h => h.verdict === "bad" || h.category === "mistake");
+    if (activeFilter === "good") return processedHighlights.filter(h => h.verdict === "good");
+    return processedHighlights.filter(h => h.category === activeFilter);
+  }, [processedHighlights, activeFilter]);
 
   const stats = useMemo(() => ({
-    total: highlights.length,
-    mistakes: highlights.filter(h => h.verdict === "bad" || h.category === "mistake").length,
-    good: highlights.filter(h => h.verdict === "good").length,
-  }), [highlights]);
+    total: processedHighlights.length,
+    mistakes: processedHighlights.filter(h => h.verdict === "bad" || h.category === "mistake").length,
+    good: processedHighlights.filter(h => h.verdict === "good").length,
+  }), [processedHighlights]);
 
   const handleAnnotate = async (index: number, highlight: Highlight) => {
     if (annotationCache[index]) {
@@ -154,7 +187,7 @@ export default function FilmBreakdown({ session, report }: FilmBreakdownProps) {
       {/* Highlight Cards */}
       <div className="space-y-4">
         {filteredHighlights.map((highlight, idx) => {
-          const originalIndex = highlights.indexOf(highlight);
+          const originalIndex = processedHighlights.indexOf(highlight);
           const isExpanded = expandedHighlight === originalIndex;
           const annotations = annotationCache[originalIndex];
           const overlayVisible = showOverlay[originalIndex] ?? true;

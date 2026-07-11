@@ -1,6 +1,7 @@
 import { eq, desc } from "drizzle-orm";
+import { sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, users, gameSessions, scoutingReports, type InsertGameSession, type InsertScoutingReport } from "../drizzle/schema";
+import { InsertUser, users, gameSessions, scoutingReports, playerProfiles, type InsertGameSession, type InsertScoutingReport, type InsertPlayerProfile } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -138,4 +139,80 @@ export async function getReportBySessionId(sessionId: number) {
   if (!db) return undefined;
   const result = await db.select().from(scoutingReports).where(eq(scoutingReports.sessionId, sessionId)).limit(1);
   return result.length > 0 ? result[0] : undefined;
+}
+
+// ===== Season Dashboard Queries =====
+
+export async function getSeasonStats() {
+  const db = await getDb();
+  if (!db) return { totalGames: 0, completed: 0, opponents: [] };
+  
+  const sessions = await db.select().from(gameSessions).orderBy(desc(gameSessions.createdAt));
+  const completed = sessions.filter(s => s.status === "complete");
+  
+  // Group by opponent
+  const opponentMap = new Map<string, { name: string; games: number; lastScouted: Date }>();
+  for (const s of sessions) {
+    const existing = opponentMap.get(s.opponentName);
+    if (existing) {
+      existing.games++;
+      if (s.createdAt > existing.lastScouted) existing.lastScouted = s.createdAt;
+    } else {
+      opponentMap.set(s.opponentName, { name: s.opponentName, games: 1, lastScouted: s.createdAt });
+    }
+  }
+  
+  return {
+    totalGames: sessions.length,
+    completed: completed.length,
+    opponents: Array.from(opponentMap.values()),
+  };
+}
+
+export async function getOpponentTrends(opponentName: string) {
+  const db = await getDb();
+  if (!db) return [];
+  
+  const sessions = await db.select().from(gameSessions)
+    .where(eq(gameSessions.opponentName, opponentName))
+    .orderBy(desc(gameSessions.createdAt));
+  
+  const results = [];
+  for (const session of sessions) {
+    const report = await db.select().from(scoutingReports).where(eq(scoutingReports.sessionId, session.id)).limit(1);
+    results.push({
+      session,
+      report: report.length > 0 ? report[0] : null,
+    });
+  }
+  return results;
+}
+
+// ===== Player Profiles =====
+
+export async function createPlayerProfile(data: InsertPlayerProfile) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const result = await db.insert(playerProfiles).values(data);
+  return result[0].insertId;
+}
+
+export async function getPlayerProfilesBySession(sessionId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return await db.select().from(playerProfiles).where(eq(playerProfiles.sessionId, sessionId));
+}
+
+export async function getPlayerProfilesByOpponent(opponentName: string) {
+  const db = await getDb();
+  if (!db) return [];
+  return await db.select().from(playerProfiles)
+    .where(eq(playerProfiles.opponentName, opponentName))
+    .orderBy(desc(playerProfiles.createdAt));
+}
+
+export async function deletePlayerProfile(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.delete(playerProfiles).where(eq(playerProfiles.id, id));
 }
