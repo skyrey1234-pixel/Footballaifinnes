@@ -1,0 +1,20 @@
+# TacticalEdge AI — Project TODO
+
+- [x] Database schema: gameSessions and scoutingReports tables
+- [x] Dark theme setup (#0D1117 bg, #00FF87 accent, Space Grotesk + Inter fonts)
+- [x] Backend: game session CRUD (create, list, get, delete)
+- [x] Backend: video file upload to S3 with progress
+- [x] Backend: AI scouting report generation via LLM (structured JSON)
+- [x] Backend: AI film annotation generation via LLM
+- [x] Backend: in-report AI chat endpoint
+- [x] Frontend: DashboardLayout with sidebar (Sessions, New Analysis)
+- [x] Frontend: Dashboard page — session list with status badges (analyzing/complete/failed)
+- [x] Frontend: New Session page — opponent name, date, YouTube or upload source
+- [x] Frontend: Session page — tabbed layout (Scouting Report / AI Film Breakdown)
+- [x] Frontend: Scouting Report tab — video player, report sections, key moments sidebar, AI chat
+- [x] Frontend: AI Film Breakdown tab — annotated clip viewer with SVG overlays
+- [x] SVG annotation canvas — circles, arrows, zones, labels (red/green/blue/yellow/white)
+- [x] Coaching callout banner and alternative play panel per highlight
+- [x] Role-based access: admin can create/delete, viewer can read/chat
+- [x] Empty state CTA on dashboard when no sessions exist
+- [x] Status badges: analyzing, complete, failed
