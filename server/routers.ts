@@ -527,6 +527,200 @@ Generate 3-6 key player profiles. Focus on the most impactful players mentioned 
         return { success: true };
       }),
   }),
+
+  gamePlan: router({
+    generate: protectedProcedure
+      .input(z.object({
+        sessionId: z.number(),
+        teamStrengths: z.string().optional(),
+        teamFormation: z.string().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        const session = await db.getGameSession(input.sessionId);
+        const report = await db.getReportBySessionId(input.sessionId);
+        if (!session || !report) throw new TRPCError({ code: "NOT_FOUND", message: "Session or report not found" });
+
+        const playerProfiles = await db.getPlayerProfilesBySession(input.sessionId);
+        const playerContext = playerProfiles.length > 0
+          ? `\n\nKey Player Profiles:\n${playerProfiles.map(p => `- ${p.playerNumber} ${p.playerName || ""} (${p.position}) — Threat: ${p.threatLevel}. Weaknesses: ${p.weaknesses || "Unknown"}`).join("\n")}`
+          : "";
+
+        const prompt = `You are an elite offensive and defensive coordinator preparing a game plan against "${session.opponentName}".
+
+SCOUTING INTEL:
+Executive Summary: ${report.executiveSummary || "N/A"}
+Opponent Offense: ${report.offenseAnalysis || "N/A"}
+Opponent Defense: ${report.defenseAnalysis || "N/A"}
+Special Situations: ${report.specialSituations || "N/A"}
+Opponent Mistakes: ${report.mistakes || "N/A"}
+Predictions: ${report.predictions || "N/A"}
+${playerContext}
+${input.teamStrengths ? `\nOUR TEAM STRENGTHS: ${input.teamStrengths}` : ""}
+${input.teamFormation ? `\nOUR BASE FORMATION: ${input.teamFormation}` : ""}
+
+Generate a COMPLETE GAME PLAN as JSON with this exact structure:
+{
+  "overview": "2-3 sentence game plan philosophy for this matchup",
+  "scriptedPlays": [
+    {
+      "playNumber": 1,
+      "name": "Play name (e.g., 'Trips Right Mesh Concept')",
+      "formation": "Formation (e.g., '11 Personnel Trips Right')",
+      "type": "run" | "pass" | "play-action" | "screen" | "rpo",
+      "target": "What this play attacks (e.g., 'Weak side linebacker in Cover 3')",
+      "why": "Why this works against this specific opponent"
+    }
+  ],
+  "redZonePackage": [
+    {
+      "name": "Play name",
+      "formation": "Formation",
+      "situation": "Goal line / Inside 10 / Inside 20",
+      "target": "What defensive weakness it exploits",
+      "why": "Why this works in the red zone against them"
+    }
+  ],
+  "thirdDownConversions": [
+    {
+      "situation": "3rd and short (1-3) / 3rd and medium (4-6) / 3rd and long (7+)",
+      "name": "Play name",
+      "concept": "Route concept or run scheme",
+      "target": "Defensive tendency being exploited",
+      "expectedResult": "What should happen if executed correctly"
+    }
+  ],
+  "defensiveAdjustments": [
+    {
+      "situation": "When they line up in X / When they motion / When it's 1st down / etc.",
+      "adjustment": "What we do (e.g., 'Shift to Cover 2 Man')",
+      "keyPlayer": "Who needs to execute (e.g., 'Mike LB keys on RB')",
+      "why": "Why this stops their tendency"
+    }
+  ],
+  "keyMatchups": [
+    {
+      "ourPlayer": "Position/role (e.g., 'CB1')",
+      "theirPlayer": "Opponent player (e.g., '#7 WR')",
+      "strategy": "How to win this matchup",
+      "alert": "What to watch for"
+    }
+  ],
+  "halftimeChecklist": [
+    "Question or check to evaluate at halftime (e.g., 'Are they still running Cover 3 on 1st down?')",
+    "If X is happening, switch to Y"
+  ]
+}
+
+Generate exactly 15 scripted plays, 5 red zone plays, 6 third down conversions (2 per distance), 6 defensive adjustments, 4 key matchups, and 6 halftime checklist items. Make every recommendation SPECIFIC to this opponent's tendencies and weaknesses. Return ONLY valid JSON.`;
+
+        const response = await invokeLLM({
+          messages: [
+            { role: "system", content: "You are an elite football coordinator. Generate game plans that are specific, actionable, and grounded in the scouting data provided. Return only valid JSON." },
+            { role: "user", content: prompt },
+          ],
+          response_format: {
+            type: "json_schema",
+            json_schema: {
+              name: "game_plan",
+              strict: true,
+              schema: {
+                type: "object",
+                properties: {
+                  overview: { type: "string" },
+                  scriptedPlays: {
+                    type: "array",
+                    items: {
+                      type: "object",
+                      properties: {
+                        playNumber: { type: "number" },
+                        name: { type: "string" },
+                        formation: { type: "string" },
+                        type: { type: "string" },
+                        target: { type: "string" },
+                        why: { type: "string" },
+                      },
+                      required: ["playNumber", "name", "formation", "type", "target", "why"],
+                      additionalProperties: false,
+                    },
+                  },
+                  redZonePackage: {
+                    type: "array",
+                    items: {
+                      type: "object",
+                      properties: {
+                        name: { type: "string" },
+                        formation: { type: "string" },
+                        situation: { type: "string" },
+                        target: { type: "string" },
+                        why: { type: "string" },
+                      },
+                      required: ["name", "formation", "situation", "target", "why"],
+                      additionalProperties: false,
+                    },
+                  },
+                  thirdDownConversions: {
+                    type: "array",
+                    items: {
+                      type: "object",
+                      properties: {
+                        situation: { type: "string" },
+                        name: { type: "string" },
+                        concept: { type: "string" },
+                        target: { type: "string" },
+                        expectedResult: { type: "string" },
+                      },
+                      required: ["situation", "name", "concept", "target", "expectedResult"],
+                      additionalProperties: false,
+                    },
+                  },
+                  defensiveAdjustments: {
+                    type: "array",
+                    items: {
+                      type: "object",
+                      properties: {
+                        situation: { type: "string" },
+                        adjustment: { type: "string" },
+                        keyPlayer: { type: "string" },
+                        why: { type: "string" },
+                      },
+                      required: ["situation", "adjustment", "keyPlayer", "why"],
+                      additionalProperties: false,
+                    },
+                  },
+                  keyMatchups: {
+                    type: "array",
+                    items: {
+                      type: "object",
+                      properties: {
+                        ourPlayer: { type: "string" },
+                        theirPlayer: { type: "string" },
+                        strategy: { type: "string" },
+                        alert: { type: "string" },
+                      },
+                      required: ["ourPlayer", "theirPlayer", "strategy", "alert"],
+                      additionalProperties: false,
+                    },
+                  },
+                  halftimeChecklist: {
+                    type: "array",
+                    items: { type: "string" },
+                  },
+                },
+                required: ["overview", "scriptedPlays", "redZonePackage", "thirdDownConversions", "defensiveAdjustments", "keyMatchups", "halftimeChecklist"],
+                additionalProperties: false,
+              },
+            },
+          },
+        });
+
+        const content = typeof response.choices?.[0]?.message?.content === "string" ? response.choices[0].message.content : "{}";
+        try {
+          return JSON.parse(content);
+        } catch {
+          throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Failed to generate game plan" });
+        }
+      }),
+  }),
 });
 
 export type AppRouter = typeof appRouter;

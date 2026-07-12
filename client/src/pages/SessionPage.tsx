@@ -5,11 +5,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ArrowLeft, Loader2, RefreshCw, Download, Image } from "lucide-react";
+import { ArrowLeft, Loader2, RefreshCw, Download, Image, Swords } from "lucide-react";
 import { useLocation, useParams } from "wouter";
 import ReportView from "@/components/report/ReportView";
 import FilmBreakdown from "@/components/film/FilmBreakdown";
 import PlayerProfiles from "@/components/players/PlayerProfiles";
+import { GamePlanGenerator } from "@/components/gameplan/GamePlanGenerator";
 import { toast } from "sonner";
 
 export default function SessionPage() {
@@ -126,6 +127,13 @@ export default function SessionPage() {
             <TabsTrigger value="players" className="gap-2">
               Player Profiles
             </TabsTrigger>
+            <TabsTrigger value="gameplan" className="gap-2">
+              <Swords className="h-3 w-3" />
+              Game Plan
+              <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-[#00FF87]/50 text-[#00FF87]">
+                NEW
+              </Badge>
+            </TabsTrigger>
           </TabsList>
 
           {/* Action Buttons */}
@@ -163,6 +171,9 @@ export default function SessionPage() {
           </TabsContent>
           <TabsContent value="players" className="mt-6">
             <PlayerProfiles sessionId={sessionId} opponentName={session.opponentName} />
+          </TabsContent>
+          <TabsContent value="gameplan" className="mt-6">
+            <GamePlanGenerator sessionId={sessionId} opponentName={session.opponentName} />
           </TabsContent>
         </Tabs>
       )}
