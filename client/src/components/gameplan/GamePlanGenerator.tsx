@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { trpc } from "@/lib/trpc";
+import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
@@ -23,7 +24,9 @@ export function GamePlanGenerator({ sessionId, opponentName }: GamePlanProps) {
 
   // Check subscription tier
   const { data: subscription, isLoading: subLoading } = trpc.stripe.getSubscription.useQuery();
-  const hasAccess = subscription?.tier === "strategist" || subscription?.tier === "program";
+  const { user } = useAuth();
+  const isAdmin = user?.role === "admin";
+  const hasAccess = isAdmin || subscription?.tier === "strategist" || subscription?.tier === "program";
 
   const generateMutation = trpc.gamePlan.generate.useMutation({
     onSuccess: (data) => setGamePlan(data),

@@ -539,9 +539,10 @@ Generate 3-6 key player profiles. Focus on the most impactful players mentioned 
       }))
       .mutation(async ({ ctx, input }) => {
         // Server-side tier enforcement
-        const user = await db.getUserById(ctx.user.id);
-        const tier = (user as any)?.subscriptionTier || "free";
-        if (!canAccessFeature(tier, "game_plan")) {
+        const dbUser = await db.getUserById(ctx.user.id);
+        const tier = (dbUser as any)?.subscriptionTier || "free";
+        const isAdmin = (dbUser as any)?.role === "admin";
+        if (!isAdmin && !canAccessFeature(tier, "game_plan")) {
           throw new TRPCError({
             code: "FORBIDDEN",
             message: "Game Plan Generator requires the Strategist plan or higher. Please upgrade to access this feature.",
