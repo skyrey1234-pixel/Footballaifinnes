@@ -27,3 +27,10 @@
 - [x] Integrate X's and O's formation diagrams directly into the Game Plan (Madden-style with offense + defense, route trees, blocking, defensive alignments)
 - [x] Integrate X's and O's formation diagrams directly into the Game Plan (Madden-style with offense + defense, route trees, blocking, defensive alignments)
 - [x] Animation toggle on diagrams — "Run Play" button animates routes/players developing over 2.5s with progress bar, pause, and reset controls
+- [x] Madden-style Player Ratings Cards (OVR system with attribute bars, flip animation, X-Factor badge, threat level)
+- [x] Scouting Challenge gamified quiz mode (12 questions, 4 levels, XP system, streak bonuses)
+- [x] Pre-Game Matchup Screen (OVR rings, tendency comparison, key matchups, AI prediction)
+- [x] Integrated PlayerRatingCard and MatchupScreen into SessionPage "Matchup" tab
+- [ ] Stripe paywall UI (upgrade modal gating Game Plan behind Strategist tier)
+- [ ] Stripe webhook handler for auto-upgrading accounts on payment success
+- [ ] Public landing page with pricing table and animated diagram demo

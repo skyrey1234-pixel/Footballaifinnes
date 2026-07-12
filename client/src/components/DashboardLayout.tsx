@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/sidebar";
 import { startLogin } from "@/const";
 import { useIsMobile } from "@/hooks/useMobile";
-import { LayoutDashboard, PlusCircle, LogOut, PanelLeft, Crosshair, TrendingUp } from "lucide-react";
+import { LayoutDashboard, PlusCircle, LogOut, PanelLeft, Crosshair, TrendingUp, Gamepad2 } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { DashboardLayoutSkeleton } from './DashboardLayoutSkeleton';
@@ -31,6 +31,7 @@ const menuItems = [
   { icon: LayoutDashboard, label: "Sessions", path: "/" },
   { icon: PlusCircle, label: "New Analysis", path: "/new" },
   { icon: TrendingUp, label: "Season Intel", path: "/season" },
+  { icon: Gamepad2, label: "Scouting Challenge", path: "/challenge" },
 ];
 
 const SIDEBAR_WIDTH_KEY = "sidebar-width";

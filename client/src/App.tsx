@@ -9,6 +9,7 @@ import Dashboard from "./pages/Dashboard";
 import NewSession from "./pages/NewSession";
 import SessionPage from "./pages/SessionPage";
 import SeasonDashboard from "./pages/SeasonDashboard";
+import ScoutingChallenge from "./pages/ScoutingChallenge";
 
 function Router() {
   return (
@@ -17,6 +18,7 @@ function Router() {
         <Route path="/" component={Dashboard} />
         <Route path="/new" component={NewSession} />
         <Route path="/season" component={SeasonDashboard} />
+        <Route path="/challenge" component={ScoutingChallenge} />
         <Route path="/session/:id" component={SessionPage} />
         <Route path="/404" component={NotFound} />
         <Route component={NotFound} />
