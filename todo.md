@@ -24,3 +24,5 @@
 - [x] AI Play Diagram Generator — backend + button integration
 - [x] Player Tendency Profiles — AI-generated scouting cards with tendencies, strengths, weaknesses
 - [x] Game Plan Generator — AI generates full game plan from scouting report (scripted plays, red zone, 3rd down, defensive adjustments, key matchups, halftime checklist)
+- [ ] Integrate X's and O's formation diagrams directly into the Game Plan (visual SVG diagrams per play)
+- [x] Integrate X's and O's formation diagrams directly into the Game Plan (Madden-style with offense + defense, route trees, blocking, defensive alignments)

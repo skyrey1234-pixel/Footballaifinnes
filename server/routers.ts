@@ -560,9 +560,10 @@ ${input.teamFormation ? `\nOUR BASE FORMATION: ${input.teamFormation}` : ""}
 
 Generate a COMPLETE GAME PLAN as a JSON object. Include these keys:
 - "overview": string (2-3 sentence game plan philosophy)
-- "scriptedPlays": array of 15 objects each with keys: playNumber (number), name (string), formation (string), type (string: run/pass/play-action/screen/rpo), target (string), why (string)
-- "redZonePackage": array of 5 objects each with keys: name (string), formation (string), situation (string), target (string), why (string)
-- "thirdDownConversions": array of 6 objects each with keys: situation (string), name (string), concept (string), target (string), expectedResult (string)
+- "opponentDefenseScheme": string (the opponent's base defensive scheme, e.g. "4-3", "3-4", "nickel", "dime")
+- "scriptedPlays": array of 15 objects each with keys: playNumber (number), name (string), formation (string), type (string: run/pass/play-action/screen/rpo), target (string), why (string), defenseExpected (string: what defense you expect them to run on this play, e.g. "4-3 cover 2", "nickel blitz", "3-4 cover 3")
+- "redZonePackage": array of 5 objects each with keys: name (string), formation (string), situation (string), target (string), why (string), defenseExpected (string)
+- "thirdDownConversions": array of 6 objects each with keys: situation (string), name (string), formation (string), concept (string), target (string), expectedResult (string), defenseExpected (string)
 - "defensiveAdjustments": array of 6 objects each with keys: situation (string), adjustment (string), keyPlayer (string), why (string)
 - "keyMatchups": array of 4 objects each with keys: ourPlayer (string), theirPlayer (string), strategy (string), alert (string)
 - "halftimeChecklist": array of 6 strings
@@ -591,6 +592,7 @@ Make every recommendation SPECIFIC to this opponent. Return ONLY valid JSON, no 
           const parsed = JSON.parse(content);
           return {
             overview: parsed.overview || "Game plan generated successfully.",
+            opponentDefenseScheme: parsed.opponentDefenseScheme || "4-3",
             scriptedPlays: parsed.scriptedPlays || [],
             redZonePackage: parsed.redZonePackage || [],
             thirdDownConversions: parsed.thirdDownConversions || [],

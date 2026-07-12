@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, Swords, Target, ShieldAlert, Users, ClipboardCheck, Zap } from "lucide-react";
+import { FormationDiagram } from "./FormationDiagram";
 
 interface GamePlanProps {
   sessionId: number;
@@ -149,10 +150,22 @@ export function GamePlanGenerator({ sessionId, opponentName }: GamePlanProps) {
               <h3 className="text-lg font-bold text-white">First 15 Scripted Plays</h3>
               <p className="text-sm text-gray-400">Opening drive script designed to exploit their defensive weaknesses</p>
               <div className="space-y-2">
-                {gamePlan.scriptedPlays?.map((play: any, i: number) => (
-                  <div key={i} className="bg-[#161B22] border border-[#30363D] rounded-lg p-4 hover:border-[#00FF87]/30 transition-colors">
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex items-start gap-3">
+               {gamePlan.scriptedPlays?.map((play: any, i: number) => (
+                 <div key={i} className="bg-[#161B22] border border-[#30363D] rounded-lg p-4 hover:border-[#00FF87]/30 transition-colors">
+                    <div className="flex items-start gap-4">
+                      {/* Formation Diagram */}
+                     <div className="shrink-0 hidden md:block">
+                       <FormationDiagram
+                         formation={play.formation || ""}
+                         playName={play.name || ""}
+                         playType={play.type || "pass"}
+                         target={play.target}
+                         compact
+                          defenseScheme={play.defenseExpected || gamePlan.opponentDefenseScheme || "4-3"}
+                       />
+                      </div>
+                      <div className="flex items-start justify-between gap-4 flex-1">
+                        <div className="flex items-start gap-3">
                         <span className="bg-[#00FF87]/10 text-[#00FF87] font-bold text-sm w-8 h-8 rounded-full flex items-center justify-center shrink-0">
                           {play.playNumber}
                         </span>
@@ -161,11 +174,13 @@ export function GamePlanGenerator({ sessionId, opponentName }: GamePlanProps) {
                           <p className="text-sm text-gray-400 mt-0.5">{play.formation}</p>
                           <p className="text-sm text-gray-300 mt-2"><span className="text-[#00FF87]">Target:</span> {play.target}</p>
                           <p className="text-sm text-gray-400 mt-1"><span className="text-gray-300">Why:</span> {play.why}</p>
+                          {play.defenseExpected && <p className="text-sm text-red-400/80 mt-1"><span className="text-red-400">vs:</span> {play.defenseExpected}</p>}
                         </div>
+                        </div>
+                        <Badge className={`${typeColors[play.type] || "bg-gray-500/20 text-gray-400"} shrink-0`}>
+                          {play.type}
+                        </Badge>
                       </div>
-                      <Badge className={`${typeColors[play.type] || "bg-gray-500/20 text-gray-400"} shrink-0`}>
-                        {play.type}
-                      </Badge>
                     </div>
                   </div>
                 ))}
@@ -179,7 +194,19 @@ export function GamePlanGenerator({ sessionId, opponentName }: GamePlanProps) {
               <div className="space-y-2">
                 {gamePlan.redZonePackage?.map((play: any, i: number) => (
                   <div key={i} className="bg-[#161B22] border border-[#30363D] rounded-lg p-4 hover:border-red-500/30 transition-colors">
-                    <div className="flex items-start gap-3">
+                    <div className="flex items-start gap-4">
+                      {/* Formation Diagram */}
+                      <div className="shrink-0 hidden md:block">
+                        <FormationDiagram
+                          formation={play.formation || ""}
+                          playName={play.name || ""}
+                          playType="pass"
+                          target={play.target}
+                          compact
+                          defenseScheme={play.defenseExpected || gamePlan.opponentDefenseScheme || "4-3"}
+                        />
+                      </div>
+                      <div className="flex items-start gap-3 flex-1">
                       <span className="bg-red-500/10 text-red-400 font-bold text-sm w-8 h-8 rounded-full flex items-center justify-center shrink-0">
                         {i + 1}
                       </span>
@@ -191,6 +218,7 @@ export function GamePlanGenerator({ sessionId, opponentName }: GamePlanProps) {
                         <p className="text-sm text-gray-400 mt-0.5">{play.formation}</p>
                         <p className="text-sm text-gray-300 mt-2"><span className="text-red-400">Target:</span> {play.target}</p>
                         <p className="text-sm text-gray-400 mt-1"><span className="text-gray-300">Why:</span> {play.why}</p>
+                      </div>
                       </div>
                     </div>
                   </div>
@@ -205,7 +233,19 @@ export function GamePlanGenerator({ sessionId, opponentName }: GamePlanProps) {
               <div className="space-y-2">
                 {gamePlan.thirdDownConversions?.map((play: any, i: number) => (
                   <div key={i} className="bg-[#161B22] border border-[#30363D] rounded-lg p-4 hover:border-yellow-500/30 transition-colors">
-                    <div className="flex items-start gap-3">
+                    <div className="flex items-start gap-4">
+                      {/* Formation Diagram */}
+                      <div className="shrink-0 hidden md:block">
+                        <FormationDiagram
+                          formation={play.formation || play.concept || ""}
+                          playName={play.name || ""}
+                          playType="pass"
+                          target={play.target}
+                          compact
+                          defenseScheme={play.defenseExpected || gamePlan.opponentDefenseScheme || "nickel"}
+                        />
+                      </div>
+                      <div className="flex items-start gap-3 flex-1">
                       <span className="bg-yellow-500/10 text-yellow-400 font-bold text-sm w-8 h-8 rounded-full flex items-center justify-center shrink-0">
                         {i + 1}
                       </span>
@@ -217,6 +257,7 @@ export function GamePlanGenerator({ sessionId, opponentName }: GamePlanProps) {
                         <p className="text-sm text-gray-300 mt-2"><span className="text-yellow-400">Concept:</span> {play.concept}</p>
                         <p className="text-sm text-gray-300 mt-1"><span className="text-yellow-400">Target:</span> {play.target}</p>
                         <p className="text-sm text-gray-400 mt-1"><span className="text-gray-300">Expected:</span> {play.expectedResult}</p>
+                        </div>
                       </div>
                     </div>
                   </div>
