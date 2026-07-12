@@ -10,20 +10,26 @@ import NewSession from "./pages/NewSession";
 import SessionPage from "./pages/SessionPage";
 import SeasonDashboard from "./pages/SeasonDashboard";
 import ScoutingChallenge from "./pages/ScoutingChallenge";
+import Landing from "./pages/Landing";
 
 function Router() {
   return (
-    <DashboardLayout>
-      <Switch>
-        <Route path="/" component={Dashboard} />
-        <Route path="/new" component={NewSession} />
-        <Route path="/season" component={SeasonDashboard} />
-        <Route path="/challenge" component={ScoutingChallenge} />
-        <Route path="/session/:id" component={SessionPage} />
-        <Route path="/404" component={NotFound} />
-        <Route component={NotFound} />
-      </Switch>
-    </DashboardLayout>
+    <Switch>
+      <Route path="/landing" component={Landing} />
+      <Route>
+        <DashboardLayout>
+          <Switch>
+            <Route path="/" component={Dashboard} />
+            <Route path="/new" component={NewSession} />
+            <Route path="/season" component={SeasonDashboard} />
+            <Route path="/challenge" component={ScoutingChallenge} />
+            <Route path="/session/:id" component={SessionPage} />
+            <Route path="/404" component={NotFound} />
+            <Route component={NotFound} />
+          </Switch>
+        </DashboardLayout>
+      </Route>
+    </Switch>
   );
 }
 

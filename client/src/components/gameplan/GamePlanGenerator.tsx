@@ -5,8 +5,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Swords, Target, ShieldAlert, Users, ClipboardCheck, Zap } from "lucide-react";
+import { Loader2, Swords, Target, ShieldAlert, Users, ClipboardCheck, Zap, Lock } from "lucide-react";
 import { FormationDiagram } from "./FormationDiagram";
+import UpgradeModal from "@/components/UpgradeModal";
 
 interface GamePlanProps {
   sessionId: number;
@@ -18,12 +19,21 @@ export function GamePlanGenerator({ sessionId, opponentName }: GamePlanProps) {
   const [teamFormation, setTeamFormation] = useState("");
   const [gamePlan, setGamePlan] = useState<any>(null);
   const [activeTab, setActiveTab] = useState("scripted");
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+
+  // Check subscription tier
+  const { data: subscription, isLoading: subLoading } = trpc.stripe.getSubscription.useQuery();
+  const hasAccess = subscription?.tier === "strategist" || subscription?.tier === "program";
 
   const generateMutation = trpc.gamePlan.generate.useMutation({
     onSuccess: (data) => setGamePlan(data),
   });
 
   const handleGenerate = () => {
+    if (!hasAccess) {
+      setShowUpgradeModal(true);
+      return;
+    }
     generateMutation.mutate({
       sessionId,
       teamStrengths: teamStrengths || undefined,
@@ -41,8 +51,54 @@ export function GamePlanGenerator({ sessionId, opponentName }: GamePlanProps) {
 
   return (
     <div className="space-y-6">
+      <UpgradeModal
+        isOpen={showUpgradeModal}
+        onClose={() => setShowUpgradeModal(false)}
+        requiredTier="strategist"
+        featureName="Game Plan Generator"
+      />
+
+      {/* Locked state — show paywall gate when user doesn't have access */}
+      {!subLoading && !hasAccess && !gamePlan && (
+        <div className="relative">
+          {/* Blurred preview */}
+          <div className="filter blur-sm opacity-40 pointer-events-none">
+            <div className="bg-[#161B22] border border-[#30363D] rounded-lg p-6 space-y-4">
+              <h3 className="text-lg font-semibold text-white">Customize Your Game Plan</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="h-10 bg-gray-800 rounded" />
+                <div className="h-10 bg-gray-800 rounded" />
+              </div>
+              <div className="h-32 bg-gray-800 rounded" />
+            </div>
+          </div>
+          {/* Overlay CTA */}
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="text-center p-8 bg-[#0d1117]/90 border border-[#00FF87]/30 rounded-2xl max-w-md">
+              <Lock className="h-10 w-10 text-[#00FF87] mx-auto mb-4" />
+              <h3 className="text-xl font-bold text-white mb-2">Unlock Game Plan Generator</h3>
+              <p className="text-sm text-gray-400 mb-6">
+                AI-generated game plans with scripted plays, red zone packages, and animated diagrams require the Strategist plan.
+              </p>
+              <Button
+                onClick={() => setShowUpgradeModal(true)}
+                className="bg-[#00FF87] text-black font-bold hover:bg-[#00cc6a] h-12 px-8"
+              >
+                Upgrade to Strategist — $199/mo
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {subLoading && (
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="h-6 w-6 animate-spin text-[#00FF87]" />
+        </div>
+      )}
+
       {/* Header */}
-      <div className="flex items-center justify-between">
+      {(hasAccess || gamePlan) && <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold text-white flex items-center gap-2">
             <Swords className="h-6 w-6 text-[#00FF87]" />
@@ -52,7 +108,7 @@ export function GamePlanGenerator({ sessionId, opponentName }: GamePlanProps) {
             AI-generated game plan based on scouting report for {opponentName}
           </p>
         </div>
-      </div>
+      </div>}
 
       {/* Input Section */}
       {!gamePlan && (

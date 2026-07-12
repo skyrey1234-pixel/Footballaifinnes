@@ -31,6 +31,6 @@
 - [x] Scouting Challenge gamified quiz mode (12 questions, 4 levels, XP system, streak bonuses)
 - [x] Pre-Game Matchup Screen (OVR rings, tendency comparison, key matchups, AI prediction)
 - [x] Integrated PlayerRatingCard and MatchupScreen into SessionPage "Matchup" tab
-- [ ] Stripe paywall UI (upgrade modal gating Game Plan behind Strategist tier)
-- [ ] Stripe webhook handler for auto-upgrading accounts on payment success
-- [ ] Public landing page with pricing table and animated diagram demo
+- [x] Stripe paywall UI (upgrade modal gating Game Plan behind Strategist tier)
+- [x] Stripe webhook handler for auto-upgrading accounts on payment success
+- [x] Public landing page with pricing table and animated diagram demo at /landing

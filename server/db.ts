@@ -89,6 +89,34 @@ export async function getUserByOpenId(openId: string) {
   return result.length > 0 ? result[0] : undefined;
 }
 
+// ===== Subscription Helpers =====
+
+export async function getUserById(userId: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(users).where(eq(users.id, userId)).limit(1);
+  return result.length > 0 ? result[0] : undefined;
+}
+
+export async function updateUserSubscription(userId: number, data: {
+  stripeCustomerId?: string;
+  stripeSubscriptionId?: string;
+  subscriptionTier?: "free" | "scout" | "strategist" | "program";
+  subscriptionStatus?: "active" | "past_due" | "canceled" | "unpaid";
+  subscriptionEndsAt?: Date | null;
+}) {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(users).set(data).where(eq(users.id, userId));
+}
+
+export async function getUserByStripeCustomerId(customerId: string) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(users).where(eq(users.stripeCustomerId, customerId)).limit(1);
+  return result.length > 0 ? result[0] : undefined;
+}
+
 // ===== Game Sessions =====
 
 export async function createGameSession(data: InsertGameSession) {

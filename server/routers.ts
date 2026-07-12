@@ -537,7 +537,17 @@ Generate 3-6 key player profiles. Focus on the most impactful players mentioned 
         teamStrengths: z.string().optional(),
         teamFormation: z.string().optional(),
       }))
-      .mutation(async ({ input }) => {
+      .mutation(async ({ ctx, input }) => {
+        // Server-side tier enforcement
+        const user = await db.getUserById(ctx.user.id);
+        const tier = (user as any)?.subscriptionTier || "free";
+        if (!canAccessFeature(tier, "game_plan")) {
+          throw new TRPCError({
+            code: "FORBIDDEN",
+            message: "Game Plan Generator requires the Strategist plan or higher. Please upgrade to access this feature.",
+          });
+        }
+
         const session = await db.getGameSession(input.sessionId);
         const report = await db.getReportBySessionId(input.sessionId);
         if (!session || !report) throw new TRPCError({ code: "NOT_FOUND", message: "Session or report not found" });
@@ -712,3 +722,4 @@ Generate between 6 and 12 highlights. Make the analysis specific, tactical, and 
     await db.updateGameSessionStatus(sessionId, "failed");
   }
 }
+import { canAccessFeature } from "./stripe";

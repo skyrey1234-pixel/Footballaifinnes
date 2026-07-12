@@ -30,13 +30,13 @@ export const stripeRouter = router({
 
       try {
         const session = await createCheckoutSession(
-          undefined, // No existing customer
+          (ctx.user as any).stripeCustomerId || undefined,
           priceId,
           input.successUrl,
           input.cancelUrl,
           ctx.user.id.toString(),
-          ctx.user.email || undefined,
-          ctx.user.name || undefined
+          (ctx.user as any).email || undefined,
+          (ctx.user as any).name || undefined
         );
 
         if (!session.url) {
@@ -58,12 +58,11 @@ export const stripeRouter = router({
 
   // Get user's subscription status
   getSubscription: protectedProcedure.query(async ({ ctx }) => {
-    // In a real app, you'd fetch this from the database
-    // For now, return the user's current tier
+    const user = await db.getUserById(ctx.user.id);
     return {
-      tier: "free", // Default to free tier
-      status: "active",
-      endsAt: null,
+      tier: (user as any)?.subscriptionTier || "free",
+      status: (user as any)?.subscriptionStatus || "active",
+      endsAt: (user as any)?.subscriptionEndsAt || null,
     };
   }),
 
