@@ -36,5 +36,6 @@
 - [x] Public landing page with pricing table and animated diagram demo at /landing
 - [x] BUG FIX: Game Plan Generator — switched from json_object to json_schema format (fixes web_search conflict), added error display with Retry button, specified model explicitly
 - [x] BUG FIX: Film Breakdown timestamps — redistributed existing report timestamps evenly across estimated video duration, added Re-Analyze button for admins, improved LLM prompt with video duration estimation from YouTube metadata
-- [ ] IMPROVEMENT: Add real video timestamp extraction (transcript-based or frame analysis) for precise highlight-to-video alignment
-- [ ] IMPROVEMENT: Auto-redirect unauthenticated users to /landing page instead of login wall
+- [x] IMPROVEMENT: Auto-redirect unauthenticated users to /landing page instead of login wall
+- [x] SEO: Added meta description (150 chars), meta keywords (7 keywords), title updated to 53 chars, H1 and H2 already present on landing page
+- [ ] FUTURE: Add real video timestamp extraction (transcript-based or frame analysis) for precise highlight-to-video alignment when YouTube API key is available
