@@ -6,7 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Swords, Target, ShieldAlert, Users, ClipboardCheck, Zap, Lock } from "lucide-react";
+import { Loader2, Swords, Target, ShieldAlert, Users, ClipboardCheck, Zap, Lock, RefreshCw } from "lucide-react";
 import { FormationDiagram } from "./FormationDiagram";
 import UpgradeModal from "@/components/UpgradeModal";
 
@@ -33,6 +33,7 @@ export function GamePlanGenerator({ sessionId, opponentName }: GamePlanProps) {
   });
 
   const handleGenerate = () => {
+    generateMutation.reset();
     if (!hasAccess) {
       setShowUpgradeModal(true);
       return;
@@ -157,6 +158,21 @@ export function GamePlanGenerator({ sessionId, opponentName }: GamePlanProps) {
               </>
             )}
           </Button>
+
+          {generateMutation.isError && (
+            <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-4 mt-4">
+              <p className="text-red-400 text-sm font-medium">Generation Failed</p>
+              <p className="text-red-300/80 text-sm mt-1">{generateMutation.error?.message || "An unexpected error occurred. Please try again."}</p>
+              <Button
+                onClick={handleGenerate}
+                variant="outline"
+                className="mt-3 border-red-500/30 text-red-400 hover:bg-red-500/10"
+                size="sm"
+              >
+                <RefreshCw className="h-3 w-3 mr-1" /> Retry
+              </Button>
+            </div>
+          )}
         </div>
       )}
 

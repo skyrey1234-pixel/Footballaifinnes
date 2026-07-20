@@ -76,6 +76,22 @@ export const appRouter = router({
         await db.deleteGameSession(input.id);
         return { success: true };
       }),
+
+    reanalyze: adminProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input }) => {
+        const session = await db.getGameSession(input.id);
+        if (!session) throw new TRPCError({ code: "NOT_FOUND" });
+        // Delete existing report
+        await db.deleteReportBySessionId(input.id);
+        // Reset status
+        await db.updateGameSessionStatus(input.id, "analyzing");
+        // Re-trigger analysis
+        generateReport(input.id, session.opponentName, session.sourceType, session.youtubeVideoId || null).catch(err => {
+          console.error("[Re-Analysis] Failed:", err);
+        });
+        return { success: true, message: "Re-analysis started" };
+      }),
   }),
 
   reports: router({
@@ -558,7 +574,7 @@ Generate 3-6 key player profiles. Focus on the most impactful players mentioned 
           ? `\n\nKey Player Profiles:\n${playerProfiles.map(p => `- ${p.playerNumber} ${p.playerName || ""} (${p.position}) — Threat: ${p.threatLevel}. Weaknesses: ${p.weaknesses || "Unknown"}`).join("\n")}`
           : "";
 
-        const prompt = `You are an elite football coordinator preparing a game plan against "${session.opponentName}".
+        const prompt = `You are an elite football coordinator preparing a game plan against "${session.opponentName}". 
 
 SCOUTING INTEL:
 Executive Summary: ${report.executiveSummary || "N/A"}
@@ -571,26 +587,114 @@ ${playerContext}
 ${input.teamStrengths ? `\nOUR TEAM STRENGTHS: ${input.teamStrengths}` : ""}
 ${input.teamFormation ? `\nOUR BASE FORMATION: ${input.teamFormation}` : ""}
 
-Generate a COMPLETE GAME PLAN as a JSON object. Include these keys:
-- "overview": string (2-3 sentence game plan philosophy)
-- "opponentDefenseScheme": string (the opponent's base defensive scheme, e.g. "4-3", "3-4", "nickel", "dime")
-- "scriptedPlays": array of 15 objects each with keys: playNumber (number), name (string), formation (string), type (string: run/pass/play-action/screen/rpo), target (string), why (string), defenseExpected (string: what defense you expect them to run on this play, e.g. "4-3 cover 2", "nickel blitz", "3-4 cover 3")
-- "redZonePackage": array of 5 objects each with keys: name (string), formation (string), situation (string), target (string), why (string), defenseExpected (string)
-- "thirdDownConversions": array of 6 objects each with keys: situation (string), name (string), formation (string), concept (string), target (string), expectedResult (string), defenseExpected (string)
-- "defensiveAdjustments": array of 6 objects each with keys: situation (string), adjustment (string), keyPlayer (string), why (string)
-- "keyMatchups": array of 4 objects each with keys: ourPlayer (string), theirPlayer (string), strategy (string), alert (string)
-- "halftimeChecklist": array of 6 strings
-
-Make every recommendation SPECIFIC to this opponent. Return ONLY valid JSON, no markdown.`;
+Generate a COMPLETE GAME PLAN. Make every recommendation SPECIFIC to this opponent based on the scouting intel above.`;
 
         try {
           const response = await invokeLLM({
+            model: "gpt-5-mini",
             messages: [
-              { role: "system", content: "You are an elite football coordinator. Return only valid JSON with no markdown formatting or code blocks." },
+              { role: "system", content: "You are an elite football coordinator. Generate detailed, specific game plans." },
               { role: "user", content: prompt },
             ],
-            response_format: { type: "json_object" },
-            maxTokens: 8000,
+            response_format: {
+              type: "json_schema",
+              json_schema: {
+                name: "game_plan",
+                strict: true,
+                schema: {
+                  type: "object",
+                  properties: {
+                    overview: { type: "string", description: "2-3 sentence game plan philosophy" },
+                    opponentDefenseScheme: { type: "string", description: "Opponent base defensive scheme e.g. 4-3, 3-4, nickel" },
+                    scriptedPlays: {
+                      type: "array",
+                      items: {
+                        type: "object",
+                        properties: {
+                          playNumber: { type: "number" },
+                          name: { type: "string" },
+                          formation: { type: "string" },
+                          type: { type: "string", description: "run, pass, play-action, screen, or rpo" },
+                          target: { type: "string" },
+                          why: { type: "string" },
+                          defenseExpected: { type: "string" },
+                        },
+                        required: ["playNumber", "name", "formation", "type", "target", "why", "defenseExpected"],
+                        additionalProperties: false,
+                      },
+                    },
+                    redZonePackage: {
+                      type: "array",
+                      items: {
+                        type: "object",
+                        properties: {
+                          name: { type: "string" },
+                          formation: { type: "string" },
+                          situation: { type: "string" },
+                          target: { type: "string" },
+                          why: { type: "string" },
+                          defenseExpected: { type: "string" },
+                        },
+                        required: ["name", "formation", "situation", "target", "why", "defenseExpected"],
+                        additionalProperties: false,
+                      },
+                    },
+                    thirdDownConversions: {
+                      type: "array",
+                      items: {
+                        type: "object",
+                        properties: {
+                          situation: { type: "string" },
+                          name: { type: "string" },
+                          formation: { type: "string" },
+                          concept: { type: "string" },
+                          target: { type: "string" },
+                          expectedResult: { type: "string" },
+                          defenseExpected: { type: "string" },
+                        },
+                        required: ["situation", "name", "formation", "concept", "target", "expectedResult", "defenseExpected"],
+                        additionalProperties: false,
+                      },
+                    },
+                    defensiveAdjustments: {
+                      type: "array",
+                      items: {
+                        type: "object",
+                        properties: {
+                          situation: { type: "string" },
+                          adjustment: { type: "string" },
+                          keyPlayer: { type: "string" },
+                          why: { type: "string" },
+                        },
+                        required: ["situation", "adjustment", "keyPlayer", "why"],
+                        additionalProperties: false,
+                      },
+                    },
+                    keyMatchups: {
+                      type: "array",
+                      items: {
+                        type: "object",
+                        properties: {
+                          ourPlayer: { type: "string" },
+                          theirPlayer: { type: "string" },
+                          strategy: { type: "string" },
+                          alert: { type: "string" },
+                        },
+                        required: ["ourPlayer", "theirPlayer", "strategy", "alert"],
+                        additionalProperties: false,
+                      },
+                    },
+                    halftimeChecklist: {
+                      type: "array",
+                      items: { type: "string" },
+                    },
+                  },
+                  required: ["overview", "opponentDefenseScheme", "scriptedPlays", "redZonePackage", "thirdDownConversions", "defensiveAdjustments", "keyMatchups", "halftimeChecklist"],
+                  additionalProperties: false,
+                },
+              },
+            },
+            maxTokens: 16000,
           });
 
           let content = typeof response.choices?.[0]?.message?.content === "string"
@@ -613,8 +717,9 @@ Make every recommendation SPECIFIC to this opponent. Return ONLY valid JSON, no 
             keyMatchups: parsed.keyMatchups || [],
             halftimeChecklist: parsed.halftimeChecklist || [],
           };
-        } catch {
-          throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Failed to generate game plan. Please try again." });
+        } catch (error: any) {
+          console.error("[GamePlan] Generation failed:", error?.message || error);
+          throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: `Failed to generate game plan: ${error?.message || "Unknown error"}. Please try again.` });
         }
       }),
   }),
@@ -626,41 +731,55 @@ export type AppRouter = typeof appRouter;
 
 async function generateReport(sessionId: number, opponentName: string, sourceType: string, youtubeVideoId: string | null) {
   try {
-    const prompt = `You are an elite football scouting analyst. Generate a comprehensive scouting report for the opponent "${opponentName}".
-${sourceType === "youtube" && youtubeVideoId ? `YouTube Video ID: ${youtubeVideoId}` : ""}
-
-Generate a detailed scouting report as a JSON object with this exact structure:
-{
-  "executive_summary": "2-3 paragraph overview of the opponent's strengths, weaknesses, and overall game plan",
-  "offense_analysis": "Detailed analysis of offensive formations, personnel groupings, run/pass tendencies, route concepts, and key playmakers",
-  "defense_analysis": "Coverage shells (Cover 1/2/3/4), blitz packages, front alignments, and defensive tendencies",
-  "special_situations": "Red zone, 3rd down, 2-minute drill, and goal line tendencies",
-  "mistakes": "Key mistakes, blown coverages, missed assignments, and exploitable weaknesses",
-  "predictions": "Predicted game plan, likely adjustments, and recommended counter-strategies",
-  "highlights": [
-    {
-      "timestamp": "MM:SS format (must match the seconds field exactly, e.g. 02:35 means seconds=155)",
-      "seconds": "integer - the exact second in the video where this play occurs. CRITICAL: this must be accurate and match the timestamp field. For a 60-minute game, distribute highlights across the full duration (e.g. first highlight around 1-5 min, last highlight around 50-58 min). Each highlight must have a UNIQUE seconds value.",
-      "title": "Short title of the play",
-      "note": "Detailed description of what happened",
-      "category": "offense" | "defense" | "special" | "mistake",
-      "verdict": "good" | "bad"
+    // Try to get video duration for better timestamp distribution
+    let videoDurationSecs = 0;
+    if (sourceType === "youtube" && youtubeVideoId) {
+      try {
+        // Use noembed to get video title confirmation, then estimate duration
+        // High school football game recaps on YouTube are typically 5-25 minutes
+        // Full games are 45-90 minutes. We'll use a reasonable default.
+        const oembed = await fetch(`https://noembed.com/embed?url=https://www.youtube.com/watch?v=${youtubeVideoId}`);
+        const oembedData = await oembed.json();
+        const title = (oembedData.title || "").toLowerCase();
+        // Estimate duration based on title keywords
+        if (title.includes("full game") || title.includes("complete game")) {
+          videoDurationSecs = 5400; // ~90 min
+        } else if (title.includes("highlights") || title.includes("recap")) {
+          videoDurationSecs = 600; // ~10 min
+        } else if (title.includes("game of the week") || title.includes("friday night")) {
+          videoDurationSecs = 1800; // ~30 min for broadcast recap
+        } else {
+          videoDurationSecs = 1200; // Default ~20 min
+        }
+        console.log(`[Report] Video "${oembedData.title}" estimated duration: ${videoDurationSecs}s`);
+      } catch {
+        videoDurationSecs = 1200; // Default 20 min
+      }
     }
-  ]
-}
 
-IMPORTANT TIMESTAMP RULES:
-- Each highlight MUST have a unique, realistic timestamp distributed across the game duration
-- For a typical football game (roughly 60 minutes of footage), spread highlights from early (1:00-5:00) to late (50:00-58:00)
-- The "seconds" field MUST be a precise integer that matches the "timestamp" field (e.g. timestamp "12:45" = seconds 765)
-- Never use 0 for seconds. Never duplicate timestamps between highlights.
-- Order highlights chronologically by their seconds value.
+    const durationMin = Math.floor(videoDurationSecs / 60);
+    const prompt = `You are an elite football scouting analyst. Generate a comprehensive scouting report for the opponent "${opponentName}".
+${sourceType === "youtube" && youtubeVideoId ? `Video source: YouTube (ID: ${youtubeVideoId})` : ""}
+${videoDurationSecs > 0 ? `Video duration: approximately ${durationMin} minutes (${videoDurationSecs} seconds total).` : ""}
 
-Generate between 6 and 12 highlights. Make the analysis specific, tactical, and actionable for a coaching staff. Return ONLY valid JSON.`;
+Generate a detailed scouting report. The analysis should cover formations, tendencies, key players, and exploitable weaknesses.
+
+CRITICAL TIMESTAMP RULES FOR HIGHLIGHTS:
+- The video is approximately ${durationMin} minutes long (${videoDurationSecs} seconds)
+- Distribute 8-10 highlights EVENLY across the video duration
+- First highlight should be around ${Math.floor(videoDurationSecs * 0.05)} seconds (${Math.floor(videoDurationSecs * 0.05 / 60)}:${String(Math.floor(videoDurationSecs * 0.05) % 60).padStart(2, '0')})
+- Last highlight should be around ${Math.floor(videoDurationSecs * 0.9)} seconds (${Math.floor(videoDurationSecs * 0.9 / 60)}:${String(Math.floor(videoDurationSecs * 0.9) % 60).padStart(2, '0')})
+- Space highlights roughly ${Math.floor(videoDurationSecs / 10)} seconds apart
+- Each "seconds" value MUST be unique and match its "timestamp" field exactly
+- timestamp format: "MM:SS" where seconds = minutes*60 + seconds (e.g. "05:30" = 330 seconds)
+- NEVER cluster all highlights in the first few minutes — spread them across the ENTIRE video
+
+Make the analysis specific, tactical, and actionable for a coaching staff.`;
 
     const response = await invokeLLM({
+      model: "gpt-5-mini",
       messages: [
-        { role: "system", content: "You are an elite football scouting analyst. Return only valid JSON." },
+        { role: "system", content: "You are an elite football scouting analyst. Generate detailed, specific analysis." },
         { role: "user", content: prompt },
       ],
       response_format: {

@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Eye, EyeOff, RefreshCw, Loader2, ChevronDown, ChevronUp, AlertTriangle, CheckCircle, Star } from "lucide-react";
+import { useAuth } from "@/_core/hooks/useAuth";
 import AnnotationCanvas from "./AnnotationCanvas";
 
 type Highlight = {
@@ -100,6 +101,14 @@ export default function FilmBreakdown({ session, report }: FilmBreakdownProps) {
   const [showAltPlay, setShowAltPlay] = useState<Record<number, boolean>>({});
 
   const annotateMutation = trpc.ai.annotateHighlight.useMutation();
+  const reanalyzeMutation = trpc.sessions.reanalyze.useMutation({
+    onSuccess: () => {
+      // Reload the page to show updated analysis
+      window.location.reload();
+    },
+  });
+  const { user } = useAuth();
+  const isAdmin = user?.role === "admin";
 
   const filteredHighlights = useMemo(() => {
     if (activeFilter === "all") return processedHighlights;
@@ -152,6 +161,24 @@ export default function FilmBreakdown({ session, report }: FilmBreakdownProps) {
   return (
     <div className="space-y-6">
       {/* Stats Bar */}
+      <div className="flex items-center justify-between mb-2">
+        <h3 className="text-lg font-semibold">AI Film Breakdown</h3>
+        {isAdmin && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => reanalyzeMutation.mutate({ id: session.id })}
+            disabled={reanalyzeMutation.isPending}
+            className="text-xs"
+          >
+            {reanalyzeMutation.isPending ? (
+              <><Loader2 className="h-3 w-3 animate-spin mr-1" /> Re-Analyzing...</>
+            ) : (
+              <><RefreshCw className="h-3 w-3 mr-1" /> Re-Analyze Film</>
+            )}
+          </Button>
+        )}
+      </div>
       <div className="grid grid-cols-3 gap-4">
         <Card>
           <CardContent className="p-4 text-center">

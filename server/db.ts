@@ -169,6 +169,12 @@ export async function getReportBySessionId(sessionId: number) {
   return result.length > 0 ? result[0] : undefined;
 }
 
+export async function deleteReportBySessionId(sessionId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.delete(scoutingReports).where(eq(scoutingReports.sessionId, sessionId));
+}
+
 // ===== Season Dashboard Queries =====
 
 export async function getSeasonStats() {
