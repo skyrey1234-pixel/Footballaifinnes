@@ -1,0 +1,28 @@
+# OctagonIQ — Project TODO
+
+- [x] Database schema: fightSessions, fightReports, and weaponProfiles tables
+- [x] Dark theme setup (#0D1117 bg, #FF2D2D accent, Space Grotesk + Inter fonts)
+- [x] Backend: fight session CRUD (create, list, get, delete)
+- [x] Backend: video file upload to S3 with progress
+- [x] Backend: AI fight report generation via LLM (structured JSON)
+- [x] Backend: AI film annotation generation via LLM
+- [x] Backend: in-report AI chat endpoint
+- [x] Frontend: DashboardLayout with sidebar (Breakdowns, New Breakdown)
+- [x] Frontend: Dashboard page — fight list with status badges (analyzing/complete/failed)
+- [x] Frontend: New Breakdown page — fighter name, division, date, YouTube or upload source
+- [x] Frontend: Fight page — tabbed layout (Fight Report / AI Film Breakdown)
+- [x] Frontend: Fight Report tab — video player, report sections, key moments sidebar, AI chat
+- [x] Frontend: AI Film Breakdown tab — annotated clip viewer with SVG overlays
+- [x] SVG annotation canvas — circles, arrows, zones, labels (red/green/blue/yellow/white)
+- [x] Coaching callout banner and alternative-play panel per key moment
+- [x] Role-based access: admin can create/delete, viewer can read/chat
+- [x] Empty state CTA on dashboard when no breakdowns exist
+- [x] Status badges: analyzing, complete, failed
+- [x] PDF Export — HTML report export with print-to-PDF workflow
+- [x] Division Dashboard — fighter history, stats, and fight-by-fight breakdown
+- [x] AI Technique Diagram Generator — backend endpoint (octagon overhead sequence)
+- [x] Weapon Tendency Profiles — AI-generated scouting cards with tendencies, strengths, counters
+- [x] Fight Plan Generator — AI generates a full fight plan from the fight report (striking sequences, finishing sequences, takedown/scramble plan, defensive adjustments, style matchups, between-rounds checklist)
+- [x] Stripe paywall — Fight Plan gated behind Head Coach tier; feature gates for Cornerman / Head Coach / Gym
+- [ ] FUTURE: Real video timestamp extraction (transcript/frame analysis) for precise moment-to-video alignment when the YouTube API key is available
+- [ ] FUTURE: Tale-of-the-tape comparison screen (reach, stance, career stats) between two scouted fighters
