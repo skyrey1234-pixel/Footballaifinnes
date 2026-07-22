@@ -30,12 +30,12 @@ export const users = mysqlTable("users", {
 export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
 
-// Game sessions table
-export const gameSessions = mysqlTable("game_sessions", {
+// Fight sessions table — each session scouts one opponent fighter's tape
+export const fightSessions = mysqlTable("fight_sessions", {
   id: int("id").autoincrement().primaryKey(),
   userId: int("userId").notNull(),
-  opponentName: varchar("opponentName", { length: 255 }).notNull(),
-  gameDate: varchar("gameDate", { length: 32 }),
+  opponentFighter: varchar("opponentFighter", { length: 255 }).notNull(),
+  fightDate: varchar("fightDate", { length: 32 }),
   sourceType: mysqlEnum("sourceType", ["youtube", "upload"]).notNull(),
   youtubeVideoId: varchar("youtubeVideoId", { length: 64 }),
   videoUrl: text("videoUrl"),
@@ -45,34 +45,34 @@ export const gameSessions = mysqlTable("game_sessions", {
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
 
-export type GameSession = typeof gameSessions.$inferSelect;
-export type InsertGameSession = typeof gameSessions.$inferInsert;
+export type FightSession = typeof fightSessions.$inferSelect;
+export type InsertFightSession = typeof fightSessions.$inferInsert;
 
-// Scouting reports table
-export const scoutingReports = mysqlTable("scouting_reports", {
+// Fight breakdowns table — AI-generated tactical breakdown of the opponent
+export const fightBreakdowns = mysqlTable("fight_breakdowns", {
   id: int("id").autoincrement().primaryKey(),
   sessionId: int("sessionId").notNull(),
   executiveSummary: text("executiveSummary"),
-  offenseAnalysis: text("offenseAnalysis"),
-  defenseAnalysis: text("defenseAnalysis"),
-  specialSituations: text("specialSituations"),
-  mistakes: text("mistakes"),
-  predictions: text("predictions"),
+  strikingAnalysis: text("strikingAnalysis"),
+  grapplingAnalysis: text("grapplingAnalysis"),
+  clinchCageAnalysis: text("clinchCageAnalysis"),
+  weaknesses: text("weaknesses"),
+  finishingThreats: text("finishingThreats"),
   highlights: json("highlights"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 
-export type ScoutingReport = typeof scoutingReports.$inferSelect;
-export type InsertScoutingReport = typeof scoutingReports.$inferInsert;
+export type FightBreakdown = typeof fightBreakdowns.$inferSelect;
+export type InsertFightBreakdown = typeof fightBreakdowns.$inferInsert;
 
-// Player tendency profiles table
-export const playerProfiles = mysqlTable("player_profiles", {
+// Fighter tendency profiles table — distinct scouting profiles per fighter/look
+export const fighterProfiles = mysqlTable("fighter_profiles", {
   id: int("id").autoincrement().primaryKey(),
   sessionId: int("sessionId").notNull(),
-  opponentName: varchar("opponentName", { length: 255 }).notNull(),
-  playerNumber: varchar("playerNumber", { length: 10 }).notNull(),
-  playerName: varchar("playerName", { length: 255 }),
-  position: varchar("position", { length: 64 }),
+  opponentFighter: varchar("opponentFighter", { length: 255 }).notNull(),
+  fighterTag: varchar("fighterTag", { length: 24 }).notNull(),
+  fighterName: varchar("fighterName", { length: 255 }),
+  stanceStyle: varchar("stanceStyle", { length: 96 }),
   tendencies: json("tendencies"), // Array of tendency objects
   strengths: text("strengths"),
   weaknesses: text("weaknesses"),
@@ -81,5 +81,5 @@ export const playerProfiles = mysqlTable("player_profiles", {
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 
-export type PlayerProfile = typeof playerProfiles.$inferSelect;
-export type InsertPlayerProfile = typeof playerProfiles.$inferInsert;
+export type FighterProfile = typeof fighterProfiles.$inferSelect;
+export type InsertFighterProfile = typeof fighterProfiles.$inferInsert;

@@ -32,31 +32,31 @@ export const appRouter = router({
 
   sessions: router({
     list: protectedProcedure.query(async () => {
-      return await db.listGameSessions();
+      return await db.listFightSessions();
     }),
 
     get: protectedProcedure
       .input(z.object({ id: z.number() }))
       .query(async ({ input }) => {
-        const session = await db.getGameSession(input.id);
+        const session = await db.getFightSession(input.id);
         if (!session) throw new TRPCError({ code: "NOT_FOUND" });
         return session;
       }),
 
     create: adminProcedure
       .input(z.object({
-        opponentName: z.string().min(1),
-        gameDate: z.string().optional(),
+        opponentFighter: z.string().min(1),
+        fightDate: z.string().optional(),
         sourceType: z.enum(["youtube", "upload"]),
         youtubeVideoId: z.string().optional(),
         videoFileKey: z.string().optional(),
         videoUrl: z.string().optional(),
       }))
       .mutation(async ({ ctx, input }) => {
-        const sessionId = await db.createGameSession({
+        const sessionId = await db.createFightSession({
           userId: ctx.user.id,
-          opponentName: input.opponentName,
-          gameDate: input.gameDate || null,
+          opponentFighter: input.opponentFighter,
+          fightDate: input.fightDate || null,
           sourceType: input.sourceType,
           youtubeVideoId: input.youtubeVideoId || null,
           videoFileKey: input.videoFileKey || null,
@@ -64,7 +64,7 @@ export const appRouter = router({
           status: "analyzing",
         });
         // Trigger async analysis
-        generateReport(sessionId, input.opponentName, input.sourceType, input.youtubeVideoId || null).catch(err => {
+        generateBreakdown(sessionId, input.opponentFighter, input.sourceType, input.youtubeVideoId || null).catch(err => {
           console.error("[Analysis] Failed:", err);
         });
         return { id: sessionId };
@@ -73,21 +73,21 @@ export const appRouter = router({
     delete: adminProcedure
       .input(z.object({ id: z.number() }))
       .mutation(async ({ input }) => {
-        await db.deleteGameSession(input.id);
+        await db.deleteFightSession(input.id);
         return { success: true };
       }),
 
     reanalyze: adminProcedure
       .input(z.object({ id: z.number() }))
       .mutation(async ({ input }) => {
-        const session = await db.getGameSession(input.id);
+        const session = await db.getFightSession(input.id);
         if (!session) throw new TRPCError({ code: "NOT_FOUND" });
-        // Delete existing report
-        await db.deleteReportBySessionId(input.id);
+        // Delete existing breakdown
+        await db.deleteBreakdownBySessionId(input.id);
         // Reset status
-        await db.updateGameSessionStatus(input.id, "analyzing");
+        await db.updateFightSessionStatus(input.id, "analyzing");
         // Re-trigger analysis
-        generateReport(input.id, session.opponentName, session.sourceType, session.youtubeVideoId || null).catch(err => {
+        generateBreakdown(input.id, session.opponentFighter, session.sourceType, session.youtubeVideoId || null).catch(err => {
           console.error("[Re-Analysis] Failed:", err);
         });
         return { success: true, message: "Re-analysis started" };
@@ -98,15 +98,15 @@ export const appRouter = router({
     getBySession: protectedProcedure
       .input(z.object({ sessionId: z.number() }))
       .query(async ({ input }) => {
-        const report = await db.getReportBySessionId(input.sessionId);
+        const report = await db.getBreakdownBySessionId(input.sessionId);
         return report || null;
       }),
 
     exportPdf: protectedProcedure
       .input(z.object({ sessionId: z.number() }))
       .mutation(async ({ input }) => {
-        const session = await db.getGameSession(input.sessionId);
-        const report = await db.getReportBySessionId(input.sessionId);
+        const session = await db.getFightSession(input.sessionId);
+        const report = await db.getBreakdownBySessionId(input.sessionId);
         if (!session || !report) throw new TRPCError({ code: "NOT_FOUND" });
 
         const highlights = (report.highlights as Array<{ timestamp: string; title: string; note: string; category: string; verdict: string }>) || [];
@@ -133,9 +133,9 @@ export const appRouter = router({
 </style>
 </head>
 <body>
-  <h1>Scouting Report: ${session.opponentName}</h1>
+  <h1>Fight Breakdown: ${session.opponentFighter}</h1>
   <div class="meta">
-    <p>Game Date: ${session.gameDate || "Not specified"} | Generated: ${new Date().toLocaleDateString()}</p>
+    <p>Fight Date: ${session.fightDate || "Not specified"} | Generated: ${new Date().toLocaleDateString()}</p>
     <p>Source: ${session.sourceType === "youtube" ? "YouTube Analysis" : "Video Upload"}</p>
   </div>
 
@@ -145,51 +145,51 @@ export const appRouter = router({
   </div>
 
   <div class="section">
-    <h2>Offense Analysis</h2>
-    <p>${report.offenseAnalysis || "N/A"}</p>
+    <h2>Striking Analysis</h2>
+    <p>${report.strikingAnalysis || "N/A"}</p>
   </div>
 
   <div class="section">
-    <h2>Defense Analysis</h2>
-    <p>${report.defenseAnalysis || "N/A"}</p>
+    <h2>Grappling & Wrestling Analysis</h2>
+    <p>${report.grapplingAnalysis || "N/A"}</p>
   </div>
 
   <div class="section">
-    <h2>Special Situations</h2>
-    <p>${report.specialSituations || "N/A"}</p>
+    <h2>Clinch & Cage Control</h2>
+    <p>${report.clinchCageAnalysis || "N/A"}</p>
   </div>
 
   <div class="section">
-    <h2>Mistakes & Exploitable Weaknesses</h2>
-    <p>${report.mistakes || "N/A"}</p>
+    <h2>Weaknesses & Openings</h2>
+    <p>${report.weaknesses || "N/A"}</p>
   </div>
 
   <div class="section">
-    <h2>Predictions & Recommendations</h2>
-    <p>${report.predictions || "N/A"}</p>
+    <h2>Finishing Threats & Game Plan</h2>
+    <p>${report.finishingThreats || "N/A"}</p>
   </div>
 
   <div class="section">
-    <h2>Key Highlights (${highlights.length})</h2>
+    <h2>Key Sequences (${highlights.length})</h2>
     ${highlights.map(h => `
       <div class="highlight">
         <span class="time">${h.timestamp}</span> &mdash; <span class="title">${h.title}</span>
-        <span class="${h.verdict === "good" ? "badge-good" : "badge-bad"}">${h.verdict === "good" ? "Good Play" : "Mistake"}</span>
+        <span class="${h.verdict === "good" ? "badge-good" : "badge-bad"}">${h.verdict === "good" ? "Strength" : "Opening"}</span>
         <br/><span class="note">${h.note}</span>
       </div>
     `).join("")}
   </div>
 
   <div class="footer">
-    <p>Generated by TacticalEdge AI &mdash; AI-Powered Football Scouting</p>
+    <p>Generated by FinesseMMA AI &mdash; AI-Powered UFC Fight Scouting</p>
   </div>
 </body>
 </html>`;
 
         // Store as HTML file that can be printed/saved as PDF from browser
-        const fileKey = `reports/scouting-report-${session.opponentName.replace(/\s+/g, "-").toLowerCase()}-${Date.now()}.html`;
+        const fileKey = `breakdowns/fight-breakdown-${session.opponentFighter.replace(/\s+/g, "-").toLowerCase()}-${Date.now()}.html`;
         const result = await storagePut(fileKey, Buffer.from(html, "utf-8"), "text/html");
-        return { url: result.url, filename: `Scouting-Report-${session.opponentName}.html` };
+        return { url: result.url, filename: `Fight-Breakdown-${session.opponentFighter}.html` };
       }),
 
     generateDiagram: protectedProcedure
@@ -199,20 +199,20 @@ export const appRouter = router({
         formationType: z.enum(["offense", "defense"]).optional(),
       }))
       .mutation(async ({ input }) => {
-        const session = await db.getGameSession(input.sessionId);
+        const session = await db.getFightSession(input.sessionId);
         if (!session) throw new TRPCError({ code: "NOT_FOUND" });
 
-        // Use LLM to generate a detailed image prompt for X's and O's diagram
+        // Use LLM to generate a detailed image prompt for a strike combination map
         const diagramPromptResponse = await invokeLLM({
           messages: [
-            { role: "system", content: "You are a football diagram specialist. Generate a concise image generation prompt for creating a clean X's and O's football play diagram." },
-            { role: "user", content: `Create an image prompt for a football play diagram based on this description: "${input.playDescription}". The diagram should show player positions as X's (offense) and O's (defense), with arrows showing routes/movements. Clean white background, professional coaching diagram style. Keep the prompt under 100 words.` },
+            { role: "system", content: "You are an MMA striking diagram specialist. Generate a concise image generation prompt for a clean strike combination map showing a fighter silhouette and the sequence of strikes." },
+            { role: "user", content: `Create an image prompt for an MMA strike combination diagram based on this description: "${input.playDescription}". The diagram should show a fighter silhouette in the octagon with numbered arrows tracing the strike sequence (jab, cross, hook, kick, level change). Clean dark background, professional coaching diagram style. Keep the prompt under 100 words.` },
           ],
         });
 
         const imagePrompt = typeof diagramPromptResponse.choices?.[0]?.message?.content === "string"
           ? diagramPromptResponse.choices[0].message.content
-          : `Football X's and O's play diagram showing: ${input.playDescription}. Clean white background, professional coaching style with player positions marked as X and O symbols, arrows showing routes and movements.`;
+          : `MMA strike combination map showing: ${input.playDescription}. Clean dark background, professional coaching style with a fighter silhouette and numbered arrows tracing punches and kicks.`;
 
         // Generate the diagram image
         const imageResult = await generateImage({
@@ -234,27 +234,27 @@ export const appRouter = router({
         })).optional(),
       }))
       .mutation(async ({ input }) => {
-        const report = await db.getReportBySessionId(input.sessionId);
-        const session = await db.getGameSession(input.sessionId);
+        const report = await db.getBreakdownBySessionId(input.sessionId);
+        const session = await db.getFightSession(input.sessionId);
         if (!report || !session) throw new TRPCError({ code: "NOT_FOUND" });
 
         const reportContext = `
-Opponent: ${session.opponentName}
-Game Date: ${session.gameDate || "Unknown"}
+Opponent Fighter: ${session.opponentFighter}
+Fight Date: ${session.fightDate || "Unknown"}
 
-SCOUTING REPORT:
+FIGHT BREAKDOWN:
 Executive Summary: ${report.executiveSummary || "N/A"}
-Offense Analysis: ${report.offenseAnalysis || "N/A"}
-Defense Analysis: ${report.defenseAnalysis || "N/A"}
-Special Situations: ${report.specialSituations || "N/A"}
-Mistakes: ${report.mistakes || "N/A"}
-Predictions: ${report.predictions || "N/A"}
+Striking Analysis: ${report.strikingAnalysis || "N/A"}
+Grappling & Wrestling Analysis: ${report.grapplingAnalysis || "N/A"}
+Clinch & Cage Control: ${report.clinchCageAnalysis || "N/A"}
+Weaknesses & Openings: ${report.weaknesses || "N/A"}
+Finishing Threats: ${report.finishingThreats || "N/A"}
 `;
 
         const messages = [
           {
             role: "system" as const,
-            content: `You are an elite football analyst assistant. You have access to the following scouting report and must answer questions based on it. Be specific, tactical, and concise. Reference specific plays, formations, and tendencies from the report.\n\n${reportContext}`,
+            content: `You are an elite MMA coach and fight analyst assistant. You have access to the following fight breakdown and must answer questions based on it. Be specific, tactical, and concise. Reference specific strikes, combinations, takedown setups, and tendencies from the breakdown.\n\n${reportContext}`,
           },
           ...(input.history || []).map(m => ({
             role: m.role as "user" | "assistant",
@@ -281,13 +281,13 @@ Predictions: ${report.predictions || "N/A"}
         }),
       }))
       .mutation(async ({ input }) => {
-        const session = await db.getGameSession(input.sessionId);
+        const session = await db.getFightSession(input.sessionId);
         if (!session) throw new TRPCError({ code: "NOT_FOUND" });
 
-        const prompt = `You are an elite football film analyst. Analyze this play and generate visual annotations for a coaching film overlay.
+        const prompt = `You are an elite MMA film analyst. Analyze this exchange and generate visual annotations for a coaching film overlay.
 
-Play Details:
-- Opponent: ${session.opponentName}
+Exchange Details:
+- Opponent Fighter: ${session.opponentFighter}
 - Timestamp: ${input.highlight.timestamp}
 - Title: ${input.highlight.title}
 - Description: ${input.highlight.note}
@@ -311,22 +311,22 @@ Generate annotations as a JSON object with this exact structure:
     }
   ],
   "coaching_callout": "One sentence explaining the key coaching insight",
-  "alternative_play": "What they should have done instead - 2-3 sentences",
+  "alternative_play": "What our fighter should do to counter or exploit this - 2-3 sentences",
   "verdict": "mistake" | "good_play" | "key_moment"
 }
 
 Color coding rules:
-- red = mistake, blown coverage, wrong route
-- green = good execution, correct play
-- yellow = key player to watch
-- blue = suggested movement, what they should have done
+- red = defensive lapse, dropped hand, exposed opening
+- green = clean technique, effective strike or takedown
+- yellow = key habit or tell to watch
+- blue = suggested counter or angle our fighter should take
 - white = neutral label
 
-Generate 4-8 annotations that tell the story of this play. Return ONLY valid JSON.`;
+Generate 4-8 annotations that tell the story of this exchange. Return ONLY valid JSON.`;
 
         const response = await invokeLLM({
           messages: [
-            { role: "system", content: "You are a football film analyst. Return only valid JSON." },
+            { role: "system", content: "You are an MMA film analyst. Return only valid JSON." },
             { role: "user", content: prompt },
           ],
           response_format: {
@@ -374,11 +374,11 @@ Generate 4-8 annotations that tell the story of this play. Return ONLY valid JSO
         } catch {
           return {
             annotations: [
-              { type: "circle", x: 50, y: 50, radius: 8, color: "yellow", label: "Key Player" },
-              { type: "arrow", x: 30, y: 60, x2: 70, y2: 40, color: "blue", label: "Suggested Route" },
+              { type: "circle", x: 50, y: 50, radius: 8, color: "yellow", label: "Lead Hand" },
+              { type: "arrow", x: 30, y: 60, x2: 70, y2: 40, color: "blue", label: "Counter Angle" },
             ],
-            coaching_callout: "Analysis generated — review the play details above.",
-            alternative_play: "Consider adjusting the defensive alignment based on the formation read.",
+            coaching_callout: "Analysis generated — review the exchange details above.",
+            alternative_play: "Consider changing levels or circling off the cage to counter this pressure.",
             verdict: "key_moment",
           };
         }
@@ -399,13 +399,13 @@ Generate 4-8 annotations that tell the story of this play. Return ONLY valid JSO
 
   season: router({
     stats: protectedProcedure.query(async () => {
-      return await db.getSeasonStats();
+      return await db.getRecordStats();
     }),
 
     opponentTrends: protectedProcedure
-      .input(z.object({ opponentName: z.string() }))
+      .input(z.object({ opponentFighter: z.string() }))
       .query(async ({ input }) => {
-        return await db.getOpponentTrends(input.opponentName);
+        return await db.getOpponentTrends(input.opponentFighter);
       }),
   }),
 
@@ -413,59 +413,59 @@ Generate 4-8 annotations that tell the story of this play. Return ONLY valid JSO
     listBySession: protectedProcedure
       .input(z.object({ sessionId: z.number() }))
       .query(async ({ input }) => {
-        return await db.getPlayerProfilesBySession(input.sessionId);
+        return await db.getFighterProfilesBySession(input.sessionId);
       }),
 
     listByOpponent: protectedProcedure
-      .input(z.object({ opponentName: z.string() }))
+      .input(z.object({ opponentFighter: z.string() }))
       .query(async ({ input }) => {
-        return await db.getPlayerProfilesByOpponent(input.opponentName);
+        return await db.getFighterProfilesByOpponent(input.opponentFighter);
       }),
 
     generate: protectedProcedure
       .input(z.object({ sessionId: z.number() }))
       .mutation(async ({ input }) => {
-        const session = await db.getGameSession(input.sessionId);
-        const report = await db.getReportBySessionId(input.sessionId);
+        const session = await db.getFightSession(input.sessionId);
+        const report = await db.getBreakdownBySessionId(input.sessionId);
         if (!session || !report) throw new TRPCError({ code: "NOT_FOUND" });
 
-        const prompt = `You are an elite football scout. Based on this scouting report, identify the key opposing players and generate detailed tendency profiles for each.
+        const prompt = `You are an elite MMA scout. Based on this fight breakdown, generate detailed tendency profiles for the opponent across the distinct "looks" or phases they show in a fight (e.g. their orthodox pressure game, their southpaw counter game, their wrestling/clinch mode, their championship-rounds pace).
 
-Opponent: ${session.opponentName}
-Offense Analysis: ${report.offenseAnalysis || "N/A"}
-Defense Analysis: ${report.defenseAnalysis || "N/A"}
-Mistakes: ${report.mistakes || "N/A"}
+Opponent Fighter: ${session.opponentFighter}
+Striking Analysis: ${report.strikingAnalysis || "N/A"}
+Grappling & Wrestling Analysis: ${report.grapplingAnalysis || "N/A"}
+Weaknesses & Openings: ${report.weaknesses || "N/A"}
 
-Generate player profiles as a JSON array. Each profile should include:
+Generate fighter profiles as a JSON array. Each profile should include:
 {
   "players": [
     {
-      "playerNumber": "#7",
-      "playerName": "Estimated name or position label (e.g. 'Starting QB')",
-      "position": "QB" | "RB" | "WR" | "TE" | "OL" | "DL" | "LB" | "CB" | "S" | "K" | "P",
+      "playerNumber": "Phase 1",
+      "playerName": "Short label for this look (e.g. 'Pressure Striking', 'Clinch & Takedowns')",
+      "position": "Orthodox Pressure Fighter" | "Southpaw Counter-striker" | "Wrestle-boxer" | "Grappler" | "Kickboxer" | etc,
       "tendencies": [
-        { "tendency": "Scrambles right 65% of the time", "frequency": "65%", "situation": "Under pressure" },
-        { "tendency": "Throws deep on play-action", "frequency": "40%", "situation": "2nd and long" }
+        { "tendency": "Leads with the jab then level changes", "frequency": "60%", "situation": "First two rounds" },
+        { "tendency": "Drops right hand when throwing the left hook", "frequency": "40%", "situation": "When pressured" }
       ],
-      "strengths": "Key strengths of this player",
-      "weaknesses": "Key weaknesses and exploitable habits",
+      "strengths": "Key strengths in this mode",
+      "weaknesses": "Key weaknesses and exploitable habits to attack",
       "threatLevel": "low" | "medium" | "high" | "elite",
-      "notes": "Additional coaching notes"
+      "notes": "Additional cornering notes"
     }
   ]
 }
 
-Generate 3-6 key player profiles. Focus on the most impactful players mentioned or implied in the report. Return ONLY valid JSON.`;
+Generate 3-6 fighter profiles covering the opponent's most dangerous looks. Return ONLY valid JSON.`;
 
         const response = await invokeLLM({
           messages: [
-            { role: "system", content: "You are an elite football scout. Return only valid JSON." },
+            { role: "system", content: "You are an elite MMA scout. Return only valid JSON." },
             { role: "user", content: prompt },
           ],
           response_format: {
             type: "json_schema",
             json_schema: {
-              name: "player_profiles",
+              name: "fighter_profiles",
               strict: true,
               schema: {
                 type: "object",
@@ -520,12 +520,12 @@ Generate 3-6 key player profiles. Focus on the most impactful players mentioned 
         // Save to database
         const savedIds: number[] = [];
         for (const p of playersData) {
-          const id = await db.createPlayerProfile({
+          const id = await db.createFighterProfile({
             sessionId: input.sessionId,
-            opponentName: session.opponentName,
-            playerNumber: p.playerNumber,
-            playerName: p.playerName || null,
-            position: p.position || null,
+            opponentFighter: session.opponentFighter,
+            fighterTag: p.playerNumber,
+            fighterName: p.playerName || null,
+            stanceStyle: p.position || null,
             tendencies: p.tendencies,
             strengths: p.strengths || null,
             weaknesses: p.weaknesses || null,
@@ -541,7 +541,7 @@ Generate 3-6 key player profiles. Focus on the most impactful players mentioned 
     delete: adminProcedure
       .input(z.object({ id: z.number() }))
       .mutation(async ({ input }) => {
-        await db.deletePlayerProfile(input.id);
+        await db.deleteFighterProfile(input.id);
         return { success: true };
       }),
   }),
@@ -561,39 +561,48 @@ Generate 3-6 key player profiles. Focus on the most impactful players mentioned 
         if (!isAdmin && !canAccessFeature(tier, "game_plan")) {
           throw new TRPCError({
             code: "FORBIDDEN",
-            message: "Game Plan Generator requires the Strategist plan or higher. Please upgrade to access this feature.",
+            message: "The Fight Game Plan generator requires the Strategist plan or higher. Please upgrade to access this feature.",
           });
         }
 
-        const session = await db.getGameSession(input.sessionId);
-        const report = await db.getReportBySessionId(input.sessionId);
-        if (!session || !report) throw new TRPCError({ code: "NOT_FOUND", message: "Session or report not found" });
+        const session = await db.getFightSession(input.sessionId);
+        const report = await db.getBreakdownBySessionId(input.sessionId);
+        if (!session || !report) throw new TRPCError({ code: "NOT_FOUND", message: "Session or breakdown not found" });
 
-        const playerProfiles = await db.getPlayerProfilesBySession(input.sessionId);
-        const playerContext = playerProfiles.length > 0
-          ? `\n\nKey Player Profiles:\n${playerProfiles.map(p => `- ${p.playerNumber} ${p.playerName || ""} (${p.position}) — Threat: ${p.threatLevel}. Weaknesses: ${p.weaknesses || "Unknown"}`).join("\n")}`
+        const fighterProfiles = await db.getFighterProfilesBySession(input.sessionId);
+        const playerContext = fighterProfiles.length > 0
+          ? `\n\nOpponent Looks / Modes:\n${fighterProfiles.map(p => `- ${p.fighterTag} ${p.fighterName || ""} (${p.stanceStyle}) — Threat: ${p.threatLevel}. Weaknesses: ${p.weaknesses || "Unknown"}`).join("\n")}`
           : "";
 
-        const prompt = `You are an elite football coordinator preparing a game plan against "${session.opponentName}". 
+        const prompt = `You are an elite MMA head coach building a fight game plan against "${session.opponentFighter}".
 
 SCOUTING INTEL:
 Executive Summary: ${report.executiveSummary || "N/A"}
-Opponent Offense: ${report.offenseAnalysis || "N/A"}
-Opponent Defense: ${report.defenseAnalysis || "N/A"}
-Special Situations: ${report.specialSituations || "N/A"}
-Opponent Mistakes: ${report.mistakes || "N/A"}
-Predictions: ${report.predictions || "N/A"}
+Opponent Striking: ${report.strikingAnalysis || "N/A"}
+Opponent Grappling & Wrestling: ${report.grapplingAnalysis || "N/A"}
+Clinch & Cage Control: ${report.clinchCageAnalysis || "N/A"}
+Opponent Weaknesses & Openings: ${report.weaknesses || "N/A"}
+Finishing Threats: ${report.finishingThreats || "N/A"}
 ${playerContext}
-${input.teamStrengths ? `\nOUR TEAM STRENGTHS: ${input.teamStrengths}` : ""}
-${input.teamFormation ? `\nOUR BASE FORMATION: ${input.teamFormation}` : ""}
+${input.teamStrengths ? `\nOUR FIGHTER'S STRENGTHS: ${input.teamStrengths}` : ""}
+${input.teamFormation ? `\nOUR FIGHTER'S BASE STYLE: ${input.teamFormation}` : ""}
 
-Generate a COMPLETE GAME PLAN. Make every recommendation SPECIFIC to this opponent based on the scouting intel above.`;
+Generate a COMPLETE FIGHT GAME PLAN. Provide:
+- overview: 2-3 sentence fight strategy/philosophy
+- opponentDefenseScheme: one-line description of the opponent's primary style (e.g. "Orthodox pressure boxer with heavy right hand and reactive takedowns")
+- scriptedPlays: 8-15 striking combinations/sequences to establish, each with a combo name, the RANGE to use it at (as "formation"), a strike "type" (e.g. boxing combo, kick, feint-to-takedown), the "target" area, "why" it works on this opponent, and the "defenseExpected" reaction
+- redZonePackage: grappling/takedown entries to use, treating "formation" as the position/entry and "situation" as when to use it
+- thirdDownConversions: finishing sequences, treating "formation" as the setup and "concept" as the finish path
+- defensiveAdjustments: how our fighter defends the opponent's best weapons (keyPlayer = the key threat to neutralize)
+- keyMatchups: weapon-vs-weapon battles (ourPlayer = our weapon, theirPlayer = their weapon)
+- halftimeChecklist: between-rounds corner checklist items
+Make every recommendation SPECIFIC to this opponent based on the scouting intel above.`;
 
         try {
           const response = await invokeLLM({
             model: "gpt-5-mini",
             messages: [
-              { role: "system", content: "You are an elite football coordinator. Generate detailed, specific game plans." },
+              { role: "system", content: "You are an elite MMA head coach. Generate detailed, specific round-by-round fight game plans." },
               { role: "user", content: prompt },
             ],
             response_format: {
@@ -604,8 +613,8 @@ Generate a COMPLETE GAME PLAN. Make every recommendation SPECIFIC to this oppone
                 schema: {
                   type: "object",
                   properties: {
-                    overview: { type: "string", description: "2-3 sentence game plan philosophy" },
-                    opponentDefenseScheme: { type: "string", description: "Opponent base defensive scheme e.g. 4-3, 3-4, nickel" },
+                    overview: { type: "string", description: "2-3 sentence fight game plan philosophy" },
+                    opponentDefenseScheme: { type: "string", description: "One-line description of the opponent's primary style, e.g. 'Orthodox pressure boxer with reactive takedowns'" },
                     scriptedPlays: {
                       type: "array",
                       items: {
@@ -708,8 +717,8 @@ Generate a COMPLETE GAME PLAN. Make every recommendation SPECIFIC to this oppone
 
           const parsed = JSON.parse(content);
           return {
-            overview: parsed.overview || "Game plan generated successfully.",
-            opponentDefenseScheme: parsed.opponentDefenseScheme || "4-3",
+            overview: parsed.overview || "Fight game plan generated successfully.",
+            opponentDefenseScheme: parsed.opponentDefenseScheme || "Balanced mixed martial artist",
             scriptedPlays: parsed.scriptedPlays || [],
             redZonePackage: parsed.redZonePackage || [],
             thirdDownConversions: parsed.thirdDownConversions || [],
@@ -727,75 +736,75 @@ Generate a COMPLETE GAME PLAN. Make every recommendation SPECIFIC to this oppone
 
 export type AppRouter = typeof appRouter;
 
-// ===== Async Report Generation =====
+// ===== Async Fight Breakdown Generation =====
 
-async function generateReport(sessionId: number, opponentName: string, sourceType: string, youtubeVideoId: string | null) {
+async function generateBreakdown(sessionId: number, opponentFighter: string, sourceType: string, youtubeVideoId: string | null) {
   try {
     // Try to get video duration for better timestamp distribution
     let videoDurationSecs = 0;
     if (sourceType === "youtube" && youtubeVideoId) {
       try {
-        // Use noembed to get video title confirmation, then estimate duration
-        // High school football game recaps on YouTube are typically 5-25 minutes
-        // Full games are 45-90 minutes. We'll use a reasonable default.
+        // Use noembed to get video title confirmation, then estimate duration.
+        // MMA highlight reels are typically 3-10 minutes; full fights run 15-25 minutes;
+        // five-round main events can run 25+ minutes. Use a reasonable default.
         const oembed = await fetch(`https://noembed.com/embed?url=https://www.youtube.com/watch?v=${youtubeVideoId}`);
         const oembedData = await oembed.json();
         const title = (oembedData.title || "").toLowerCase();
         // Estimate duration based on title keywords
-        if (title.includes("full game") || title.includes("complete game")) {
-          videoDurationSecs = 5400; // ~90 min
-        } else if (title.includes("highlights") || title.includes("recap")) {
-          videoDurationSecs = 600; // ~10 min
-        } else if (title.includes("game of the week") || title.includes("friday night")) {
-          videoDurationSecs = 1800; // ~30 min for broadcast recap
+        if (title.includes("full fight") || title.includes("complete fight")) {
+          videoDurationSecs = 1500; // ~25 min
+        } else if (title.includes("highlights") || title.includes("finish") || title.includes("knockout") || title.includes("ko")) {
+          videoDurationSecs = 300; // ~5 min
+        } else if (title.includes("main event") || title.includes("title fight") || title.includes("5 round")) {
+          videoDurationSecs = 1800; // ~30 min
         } else {
-          videoDurationSecs = 1200; // Default ~20 min
+          videoDurationSecs = 900; // Default ~15 min (3-round fight)
         }
-        console.log(`[Report] Video "${oembedData.title}" estimated duration: ${videoDurationSecs}s`);
+        console.log(`[Breakdown] Video "${oembedData.title}" estimated duration: ${videoDurationSecs}s`);
       } catch {
-        videoDurationSecs = 1200; // Default 20 min
+        videoDurationSecs = 900; // Default 15 min
       }
     }
 
     const durationMin = Math.floor(videoDurationSecs / 60);
-    const prompt = `You are an elite football scouting analyst. Generate a comprehensive scouting report for the opponent "${opponentName}".
+    const prompt = `You are an elite MMA fight analyst. Generate a comprehensive fight breakdown of the opponent "${opponentFighter}".
 ${sourceType === "youtube" && youtubeVideoId ? `Video source: YouTube (ID: ${youtubeVideoId})` : ""}
 ${videoDurationSecs > 0 ? `Video duration: approximately ${durationMin} minutes (${videoDurationSecs} seconds total).` : ""}
 
-Generate a detailed scouting report. The analysis should cover formations, tendencies, key players, and exploitable weaknesses.
+Generate a detailed fight breakdown. Cover the opponent's striking (stance, combinations, kicks, footwork), grappling & wrestling (takedowns, scrambles, top control, submissions), clinch & cage control, exploitable weaknesses and openings, and their finishing threats plus a recommended game plan to beat them.
 
-CRITICAL TIMESTAMP RULES FOR HIGHLIGHTS:
+CRITICAL TIMESTAMP RULES FOR KEY SEQUENCES:
 - The video is approximately ${durationMin} minutes long (${videoDurationSecs} seconds)
-- Distribute 8-10 highlights EVENLY across the video duration
-- First highlight should be around ${Math.floor(videoDurationSecs * 0.05)} seconds (${Math.floor(videoDurationSecs * 0.05 / 60)}:${String(Math.floor(videoDurationSecs * 0.05) % 60).padStart(2, '0')})
-- Last highlight should be around ${Math.floor(videoDurationSecs * 0.9)} seconds (${Math.floor(videoDurationSecs * 0.9 / 60)}:${String(Math.floor(videoDurationSecs * 0.9) % 60).padStart(2, '0')})
-- Space highlights roughly ${Math.floor(videoDurationSecs / 10)} seconds apart
+- Distribute 8-10 key sequences EVENLY across the video duration
+- First sequence should be around ${Math.floor(videoDurationSecs * 0.05)} seconds (${Math.floor(videoDurationSecs * 0.05 / 60)}:${String(Math.floor(videoDurationSecs * 0.05) % 60).padStart(2, '0')})
+- Last sequence should be around ${Math.floor(videoDurationSecs * 0.9)} seconds (${Math.floor(videoDurationSecs * 0.9 / 60)}:${String(Math.floor(videoDurationSecs * 0.9) % 60).padStart(2, '0')})
+- Space sequences roughly ${Math.floor(videoDurationSecs / 10)} seconds apart
 - Each "seconds" value MUST be unique and match its "timestamp" field exactly
 - timestamp format: "MM:SS" where seconds = minutes*60 + seconds (e.g. "05:30" = 330 seconds)
-- NEVER cluster all highlights in the first few minutes — spread them across the ENTIRE video
+- NEVER cluster all sequences in the first few minutes — spread them across the ENTIRE video
 
-Make the analysis specific, tactical, and actionable for a coaching staff.`;
+Make the analysis specific, tactical, and actionable for a fighter's corner.`;
 
     const response = await invokeLLM({
       model: "gpt-5-mini",
       messages: [
-        { role: "system", content: "You are an elite football scouting analyst. Generate detailed, specific analysis." },
+        { role: "system", content: "You are an elite MMA fight analyst. Generate detailed, specific analysis." },
         { role: "user", content: prompt },
       ],
       response_format: {
         type: "json_schema",
         json_schema: {
-          name: "scouting_report",
+          name: "fight_breakdown",
           strict: true,
           schema: {
             type: "object",
             properties: {
               executive_summary: { type: "string" },
-              offense_analysis: { type: "string" },
-              defense_analysis: { type: "string" },
-              special_situations: { type: "string" },
-              mistakes: { type: "string" },
-              predictions: { type: "string" },
+              striking_analysis: { type: "string" },
+              grappling_analysis: { type: "string" },
+              clinch_cage_analysis: { type: "string" },
+              weaknesses: { type: "string" },
+              finishing_threats: { type: "string" },
               highlights: {
                 type: "array",
                 items: {
@@ -805,7 +814,7 @@ Make the analysis specific, tactical, and actionable for a coaching staff.`;
                     seconds: { type: "number" },
                     title: { type: "string" },
                     note: { type: "string" },
-                    category: { type: "string", enum: ["offense", "defense", "special", "mistake"] },
+                    category: { type: "string", enum: ["striking", "grappling", "clinch", "opening"] },
                     verdict: { type: "string", enum: ["good", "bad"] },
                   },
                   required: ["timestamp", "seconds", "title", "note", "category", "verdict"],
@@ -813,7 +822,7 @@ Make the analysis specific, tactical, and actionable for a coaching staff.`;
                 },
               },
             },
-            required: ["executive_summary", "offense_analysis", "defense_analysis", "special_situations", "mistakes", "predictions", "highlights"],
+            required: ["executive_summary", "striking_analysis", "grappling_analysis", "clinch_cage_analysis", "weaknesses", "finishing_threats", "highlights"],
             additionalProperties: false,
           },
         },
@@ -825,21 +834,21 @@ Make the analysis specific, tactical, and actionable for a coaching staff.`;
 
     const reportData = JSON.parse(content as string);
 
-    await db.createScoutingReport({
+    await db.createFightBreakdown({
       sessionId,
       executiveSummary: reportData.executive_summary,
-      offenseAnalysis: reportData.offense_analysis,
-      defenseAnalysis: reportData.defense_analysis,
-      specialSituations: reportData.special_situations,
-      mistakes: reportData.mistakes,
-      predictions: reportData.predictions,
+      strikingAnalysis: reportData.striking_analysis,
+      grapplingAnalysis: reportData.grappling_analysis,
+      clinchCageAnalysis: reportData.clinch_cage_analysis,
+      weaknesses: reportData.weaknesses,
+      finishingThreats: reportData.finishing_threats,
       highlights: reportData.highlights,
     });
 
-    await db.updateGameSessionStatus(sessionId, "complete");
+    await db.updateFightSessionStatus(sessionId, "complete");
   } catch (error) {
-    console.error("[Report Generation] Error:", error);
-    await db.updateGameSessionStatus(sessionId, "failed");
+    console.error("[Breakdown Generation] Error:", error);
+    await db.updateFightSessionStatus(sessionId, "failed");
   }
 }
 import { canAccessFeature } from "./stripe";

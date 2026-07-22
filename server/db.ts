@@ -1,7 +1,7 @@
 import { eq, desc } from "drizzle-orm";
 import { sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, users, gameSessions, scoutingReports, playerProfiles, type InsertGameSession, type InsertScoutingReport, type InsertPlayerProfile } from "../drizzle/schema";
+import { InsertUser, users, fightSessions, fightBreakdowns, fighterProfiles, type InsertFightSession, type InsertFightBreakdown, type InsertFighterProfile } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -117,136 +117,136 @@ export async function getUserByStripeCustomerId(customerId: string) {
   return result.length > 0 ? result[0] : undefined;
 }
 
-// ===== Game Sessions =====
+// ===== Fight Sessions =====
 
-export async function createGameSession(data: InsertGameSession) {
+export async function createFightSession(data: InsertFightSession) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  const result = await db.insert(gameSessions).values(data);
+  const result = await db.insert(fightSessions).values(data);
   return result[0].insertId;
 }
 
-export async function listGameSessions(userId?: number) {
+export async function listFightSessions(userId?: number) {
   const db = await getDb();
   if (!db) return [];
-  const results = await db.select().from(gameSessions).orderBy(desc(gameSessions.createdAt));
+  const results = await db.select().from(fightSessions).orderBy(desc(fightSessions.createdAt));
   return results;
 }
 
-export async function getGameSession(id: number) {
+export async function getFightSession(id: number) {
   const db = await getDb();
   if (!db) return undefined;
-  const result = await db.select().from(gameSessions).where(eq(gameSessions.id, id)).limit(1);
+  const result = await db.select().from(fightSessions).where(eq(fightSessions.id, id)).limit(1);
   return result.length > 0 ? result[0] : undefined;
 }
 
-export async function updateGameSessionStatus(id: number, status: "analyzing" | "complete" | "failed") {
+export async function updateFightSessionStatus(id: number, status: "analyzing" | "complete" | "failed") {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  await db.update(gameSessions).set({ status }).where(eq(gameSessions.id, id));
+  await db.update(fightSessions).set({ status }).where(eq(fightSessions.id, id));
 }
 
-export async function deleteGameSession(id: number) {
+export async function deleteFightSession(id: number) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  await db.delete(scoutingReports).where(eq(scoutingReports.sessionId, id));
-  await db.delete(gameSessions).where(eq(gameSessions.id, id));
+  await db.delete(fightBreakdowns).where(eq(fightBreakdowns.sessionId, id));
+  await db.delete(fightSessions).where(eq(fightSessions.id, id));
 }
 
-// ===== Scouting Reports =====
+// ===== Fight Breakdowns =====
 
-export async function createScoutingReport(data: InsertScoutingReport) {
+export async function createFightBreakdown(data: InsertFightBreakdown) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  const result = await db.insert(scoutingReports).values(data);
+  const result = await db.insert(fightBreakdowns).values(data);
   return result[0].insertId;
 }
 
-export async function getReportBySessionId(sessionId: number) {
+export async function getBreakdownBySessionId(sessionId: number) {
   const db = await getDb();
   if (!db) return undefined;
-  const result = await db.select().from(scoutingReports).where(eq(scoutingReports.sessionId, sessionId)).limit(1);
+  const result = await db.select().from(fightBreakdowns).where(eq(fightBreakdowns.sessionId, sessionId)).limit(1);
   return result.length > 0 ? result[0] : undefined;
 }
 
-export async function deleteReportBySessionId(sessionId: number) {
+export async function deleteBreakdownBySessionId(sessionId: number) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  await db.delete(scoutingReports).where(eq(scoutingReports.sessionId, sessionId));
+  await db.delete(fightBreakdowns).where(eq(fightBreakdowns.sessionId, sessionId));
 }
 
-// ===== Season Dashboard Queries =====
+// ===== Fight Record Dashboard Queries =====
 
-export async function getSeasonStats() {
+export async function getRecordStats() {
   const db = await getDb();
-  if (!db) return { totalGames: 0, completed: 0, opponents: [] };
+  if (!db) return { totalFights: 0, completed: 0, opponents: [] };
   
-  const sessions = await db.select().from(gameSessions).orderBy(desc(gameSessions.createdAt));
+  const sessions = await db.select().from(fightSessions).orderBy(desc(fightSessions.createdAt));
   const completed = sessions.filter(s => s.status === "complete");
   
-  // Group by opponent
-  const opponentMap = new Map<string, { name: string; games: number; lastScouted: Date }>();
+  // Group by opponent fighter
+  const opponentMap = new Map<string, { name: string; fights: number; lastScouted: Date }>();
   for (const s of sessions) {
-    const existing = opponentMap.get(s.opponentName);
+    const existing = opponentMap.get(s.opponentFighter);
     if (existing) {
-      existing.games++;
+      existing.fights++;
       if (s.createdAt > existing.lastScouted) existing.lastScouted = s.createdAt;
     } else {
-      opponentMap.set(s.opponentName, { name: s.opponentName, games: 1, lastScouted: s.createdAt });
+      opponentMap.set(s.opponentFighter, { name: s.opponentFighter, fights: 1, lastScouted: s.createdAt });
     }
   }
   
   return {
-    totalGames: sessions.length,
+    totalFights: sessions.length,
     completed: completed.length,
     opponents: Array.from(opponentMap.values()),
   };
 }
 
-export async function getOpponentTrends(opponentName: string) {
+export async function getOpponentTrends(opponentFighter: string) {
   const db = await getDb();
   if (!db) return [];
   
-  const sessions = await db.select().from(gameSessions)
-    .where(eq(gameSessions.opponentName, opponentName))
-    .orderBy(desc(gameSessions.createdAt));
+  const sessions = await db.select().from(fightSessions)
+    .where(eq(fightSessions.opponentFighter, opponentFighter))
+    .orderBy(desc(fightSessions.createdAt));
   
   const results = [];
   for (const session of sessions) {
-    const report = await db.select().from(scoutingReports).where(eq(scoutingReports.sessionId, session.id)).limit(1);
+    const breakdown = await db.select().from(fightBreakdowns).where(eq(fightBreakdowns.sessionId, session.id)).limit(1);
     results.push({
       session,
-      report: report.length > 0 ? report[0] : null,
+      breakdown: breakdown.length > 0 ? breakdown[0] : null,
     });
   }
   return results;
 }
 
-// ===== Player Profiles =====
+// ===== Fighter Profiles =====
 
-export async function createPlayerProfile(data: InsertPlayerProfile) {
+export async function createFighterProfile(data: InsertFighterProfile) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  const result = await db.insert(playerProfiles).values(data);
+  const result = await db.insert(fighterProfiles).values(data);
   return result[0].insertId;
 }
 
-export async function getPlayerProfilesBySession(sessionId: number) {
+export async function getFighterProfilesBySession(sessionId: number) {
   const db = await getDb();
   if (!db) return [];
-  return await db.select().from(playerProfiles).where(eq(playerProfiles.sessionId, sessionId));
+  return await db.select().from(fighterProfiles).where(eq(fighterProfiles.sessionId, sessionId));
 }
 
-export async function getPlayerProfilesByOpponent(opponentName: string) {
+export async function getFighterProfilesByOpponent(opponentFighter: string) {
   const db = await getDb();
   if (!db) return [];
-  return await db.select().from(playerProfiles)
-    .where(eq(playerProfiles.opponentName, opponentName))
-    .orderBy(desc(playerProfiles.createdAt));
+  return await db.select().from(fighterProfiles)
+    .where(eq(fighterProfiles.opponentFighter, opponentFighter))
+    .orderBy(desc(fighterProfiles.createdAt));
 }
 
-export async function deletePlayerProfile(id: number) {
+export async function deleteFighterProfile(id: number) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  await db.delete(playerProfiles).where(eq(playerProfiles.id, id));
+  await db.delete(fighterProfiles).where(eq(fighterProfiles.id, id));
 }
