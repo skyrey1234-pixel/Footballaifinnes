@@ -54,38 +54,75 @@ export default function NewSession() {
     setUploading(true);
     setUploadProgress(0);
     try {
-      // Upload through the server which streams the file to cloud storage.
-      const formData = new FormData();
-      formData.append("file", file);
-      const fileKey = await new Promise<string>((resolve, reject) => {
-        const xhr = new XMLHttpRequest();
-        xhr.open("POST", "/api/upload");
-        xhr.setRequestHeader("X-File-Size", String(file.size));
-        xhr.upload.onprogress = (evt) => {
-          if (evt.lengthComputable) {
-            setUploadProgress(Math.round((evt.loaded / evt.total) * 100));
-          }
-        };
-        xhr.onload = () => {
-          if (xhr.status >= 200 && xhr.status < 300) {
-            try {
-              const data = JSON.parse(xhr.responseText);
-              resolve(data.fileKey);
-            } catch {
-              reject(new Error("Unexpected server response"));
+      // The production infrastructure rejects request bodies over ~32MB,
+      // so large files are sliced into chunks and reassembled server-side.
+      const CHUNK_SIZE = 25 * 1024 * 1024; // 25MB — safely under the gate
+      const uploadId =
+        `u${Date.now().toString(36)}${Math.random().toString(36).slice(2, 12)}`;
+      const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
+
+      const putChunk = (index: number, blob: Blob, attempt = 0): Promise<void> =>
+        new Promise((resolve, reject) => {
+          const xhr = new XMLHttpRequest();
+          xhr.open(
+            "POST",
+            `/api/upload/chunk?uploadId=${uploadId}&index=${index}`,
+          );
+          xhr.setRequestHeader("Content-Type", "application/octet-stream");
+          xhr.upload.onprogress = (evt) => {
+            if (evt.lengthComputable) {
+              const done = index * CHUNK_SIZE + evt.loaded;
+              setUploadProgress(
+                Math.min(99, Math.round((done / file.size) * 100)),
+              );
             }
-          } else {
-            reject(new Error(`Upload failed (${xhr.status})`));
-          }
-        };
-        xhr.onerror = () => reject(new Error("Network error during upload"));
-        xhr.send(formData);
-      });
+          };
+          const retryOrFail = (err: Error) => {
+            if (attempt < 2) {
+              // brief backoff then retry the chunk
+              setTimeout(() => {
+                putChunk(index, blob, attempt + 1).then(resolve, reject);
+              }, 1500 * (attempt + 1));
+            } else {
+              reject(err);
+            }
+          };
+          xhr.onload = () => {
+            if (xhr.status >= 200 && xhr.status < 300) resolve();
+            else retryOrFail(new Error(`Chunk ${index + 1}/${totalChunks} failed (${xhr.status})`));
+          };
+          xhr.onerror = () =>
+            retryOrFail(new Error(`Network error on chunk ${index + 1}/${totalChunks}`));
+          xhr.send(blob);
+        });
+
+      for (let i = 0; i < totalChunks; i++) {
+        const blob = file.slice(i * CHUNK_SIZE, Math.min((i + 1) * CHUNK_SIZE, file.size));
+        await putChunk(i, blob);
+      }
+
+      // Ask the server to stitch the chunks into the final video.
+      const completeResp = await fetch(
+        `/api/upload/complete?uploadId=${uploadId}` +
+          `&totalChunks=${totalChunks}` +
+          `&totalSize=${file.size}` +
+          `&filename=${encodeURIComponent(file.name)}` +
+          `&contentType=${encodeURIComponent(file.type || "video/mp4")}`,
+        { method: "POST" },
+      );
+      if (!completeResp.ok) {
+        const body = (await completeResp.json().catch(() => null)) as { error?: string } | null;
+        throw new Error(body?.error || `Failed to finalize upload (${completeResp.status})`);
+      }
+      const { fileKey } = (await completeResp.json()) as { fileKey: string };
+      setUploadProgress(100);
 
       setUploadedFileKey(fileKey);
       toast.success("Video uploaded successfully!");
-    } catch {
-      toast.error("Failed to upload video. Please try again.");
+    } catch (err) {
+      toast.error(
+        err instanceof Error ? err.message : "Failed to upload video. Please try again.",
+      );
     } finally {
       setUploading(false);
       setUploadProgress(0);
