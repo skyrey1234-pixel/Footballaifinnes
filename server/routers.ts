@@ -392,8 +392,29 @@ Generate 4-8 annotations that tell the story of this play. Return ONLY valid JSO
         contentType: z.string(),
       }))
       .mutation(async ({ ctx, input }) => {
-        const fileKey = `${ctx.user.id}-videos/${Date.now()}-${input.filename}`;
-        return { fileKey, uploadUrl: `/api/upload/${encodeURIComponent(fileKey)}` };
+        // Get a real S3 presigned PUT URL from Forge so the browser can
+        // upload the video directly to S3 — the file never touches this
+        // server, avoiding the 512MB memory and 180s request limits.
+        const forgeUrl = (process.env.BUILT_IN_FORGE_API_URL || "").replace(/\/+$/, "");
+        const forgeKey = process.env.BUILT_IN_FORGE_API_KEY || "";
+        if (!forgeUrl || !forgeKey) {
+          throw new Error("Storage is not configured");
+        }
+        const safeName = input.filename.replace(/[^a-zA-Z0-9._-]/g, "_");
+        const fileKey = `videos/${ctx.user.id}-${Date.now()}-${safeName}`;
+        const presignUrl = new URL("v1/storage/presign/put", forgeUrl + "/");
+        presignUrl.searchParams.set("path", fileKey);
+        const resp = await fetch(presignUrl, {
+          headers: { Authorization: `Bearer ${forgeKey}` },
+        });
+        if (!resp.ok) {
+          const msg = await resp.text().catch(() => resp.statusText);
+          console.error("[Upload] Presign failed:", resp.status, msg);
+          throw new Error("Could not prepare the upload. Please try again.");
+        }
+        const { url } = (await resp.json()) as { url: string };
+        if (!url) throw new Error("Could not prepare the upload. Please try again.");
+        return { fileKey, uploadUrl: url };
       }),
   }),
 

@@ -16,7 +16,10 @@ export default function NewSession() {
   const [sourceType, setSourceType] = useState<"youtube" | "upload">("youtube");
   const [youtubeUrl, setYoutubeUrl] = useState("");
   const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadedFileKey, setUploadedFileKey] = useState("");
+
+  const presignMutation = trpc.upload.getPresignedUrl.useMutation();
 
   const createMutation = trpc.sessions.create.useMutation({
     onSuccess: (data) => {
@@ -44,22 +47,46 @@ export default function NewSession() {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    // 2GB hard cap to keep uploads reasonable
+    if (file.size > 2 * 1024 * 1024 * 1024) {
+      toast.error("Video is too large (max 2GB). Try trimming it or use a YouTube link instead.");
+      return;
+    }
+
     setUploading(true);
+    setUploadProgress(0);
     try {
-      const formData = new FormData();
-      formData.append("file", file);
-      const res = await fetch("/api/upload", {
-        method: "POST",
-        body: formData,
+      // 1. Ask the server for a presigned S3 URL
+      const { fileKey, uploadUrl } = await presignMutation.mutateAsync({
+        filename: file.name,
+        contentType: file.type || "video/mp4",
       });
-      if (!res.ok) throw new Error("Upload failed");
-      const data = await res.json();
-      setUploadedFileKey(data.fileKey);
+
+      // 2. Upload the file directly to S3 with progress tracking
+      await new Promise<void>((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open("PUT", uploadUrl);
+        xhr.setRequestHeader("Content-Type", file.type || "video/mp4");
+        xhr.upload.onprogress = (evt) => {
+          if (evt.lengthComputable) {
+            setUploadProgress(Math.round((evt.loaded / evt.total) * 100));
+          }
+        };
+        xhr.onload = () => {
+          if (xhr.status >= 200 && xhr.status < 300) resolve();
+          else reject(new Error(`Upload failed (${xhr.status})`));
+        };
+        xhr.onerror = () => reject(new Error("Network error during upload"));
+        xhr.send(file);
+      });
+
+      setUploadedFileKey(fileKey);
       toast.success("Video uploaded successfully!");
     } catch {
       toast.error("Failed to upload video. Please try again.");
     } finally {
       setUploading(false);
+      setUploadProgress(0);
     }
   };
 
@@ -153,7 +180,15 @@ export default function NewSession() {
                   {uploading ? (
                     <div className="flex flex-col items-center gap-2">
                       <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                      <p className="text-sm text-muted-foreground">Uploading...</p>
+                      <p className="text-sm text-muted-foreground">
+                        Uploading... {uploadProgress > 0 ? `${uploadProgress}%` : ""}
+                      </p>
+                      <div className="w-full max-w-xs h-1.5 bg-muted rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-primary"
+                          style={{ width: `${uploadProgress}%`, transition: "width 200ms cubic-bezier(0.23, 1, 0.32, 1)" }}
+                        />
+                      </div>
                     </div>
                   ) : uploadedFileKey ? (
                     <div className="flex flex-col items-center gap-2">

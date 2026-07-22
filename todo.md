@@ -38,4 +38,5 @@
 - [x] BUG FIX: Film Breakdown timestamps — redistributed existing report timestamps evenly across estimated video duration, added Re-Analyze button for admins, improved LLM prompt with video duration estimation from YouTube metadata
 - [x] IMPROVEMENT: Auto-redirect unauthenticated users to /landing page instead of login wall
 - [x] SEO: Added meta description (150 chars), meta keywords (7 keywords), title updated to 53 chars, H1 and H2 already present on landing page
-- [ ] FUTURE: Add real video timestamp extraction (transcript-based or frame analysis) for precise highlight-to-video alignment when YouTube API key is available
+- [ ] FUTURE ENHANCEMENT: Real video timestamp extraction — requires either YouTube Data API key, working yt-dlp access, or Gemini video analysis (all currently unavailable in sandbox). Current workaround: timestamps estimated from video title metadata + evenly distributed across duration. Re-Analyze button available for admins to regenerate.
+- [x] BUG FIX: Video upload fails on production — server was buffering whole file in memory (512MB Cloud Run limit, 180s request timeout). Fixed: browser now uploads directly to S3 via presigned URL (upload.getPresignedUrl), with progress bar, 2GB cap, and verified via vitest (server/upload.presign.test.ts)
