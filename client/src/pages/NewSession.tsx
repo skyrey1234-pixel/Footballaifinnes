@@ -20,11 +20,11 @@ export default function NewSession() {
 
   const createMutation = trpc.sessions.create.useMutation({
     onSuccess: (data) => {
-      toast.success("Analysis started! AI is generating your scouting report.");
+      toast.success("Breakdown started! AI is generating your fight report.");
       setLocation(`/session/${data.id}`);
     },
     onError: (err) => {
-      toast.error(err.message || "Failed to create session");
+      toast.error(err.message || "Failed to create breakdown");
     },
   });
 
@@ -65,7 +65,7 @@ export default function NewSession() {
 
   const handleSubmit = () => {
     if (!opponentName.trim()) {
-      toast.error("Please enter the opponent's name");
+      toast.error("Please enter the fighter's name");
       return;
     }
 
@@ -98,25 +98,25 @@ export default function NewSession() {
 
   return (
     <div className="max-w-2xl mx-auto">
-      <h1 className="text-2xl font-bold mb-6">New Analysis</h1>
+      <h1 className="text-2xl font-bold mb-6">New Breakdown</h1>
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Game Details</CardTitle>
+          <CardTitle className="text-lg">Fight Details</CardTitle>
         </CardHeader>
         <CardContent className="space-y-5">
           <div className="space-y-2">
-            <Label htmlFor="opponent">Opponent Name</Label>
+            <Label htmlFor="opponent">Fighter Name</Label>
             <Input
               id="opponent"
-              placeholder="e.g. Riverside Eagles"
+              placeholder="e.g. Ilia Topuria"
               value={opponentName}
               onChange={(e) => setOpponentName(e.target.value)}
             />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="date">Game Date (optional)</Label>
+            <Label htmlFor="date">Fight Date (optional)</Label>
             <Input
               id="date"
               type="date"
@@ -165,7 +165,7 @@ export default function NewSession() {
                   ) : (
                     <label className="cursor-pointer flex flex-col items-center gap-2">
                       <Upload className="h-8 w-8 text-muted-foreground" />
-                      <p className="text-sm text-muted-foreground">Click to upload game footage</p>
+                      <p className="text-sm text-muted-foreground">Click to upload fight footage</p>
                       <p className="text-xs text-muted-foreground">MP4, MOV, or AVI</p>
                       <input
                         type="file"
@@ -189,10 +189,10 @@ export default function NewSession() {
             {createMutation.isPending ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                Starting Analysis...
+                Starting Breakdown...
               </>
             ) : (
-              "Start AI Analysis"
+              "Run AI Breakdown"
             )}
           </Button>
         </CardContent>

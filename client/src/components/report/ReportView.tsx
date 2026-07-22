@@ -62,18 +62,18 @@ export default function ReportView({ session, report }: ReportViewProps) {
 
   const sections = [
     { key: "executiveSummary", title: "Executive Summary", content: report.executiveSummary },
-    { key: "offenseAnalysis", title: "Offense Analysis", content: report.offenseAnalysis },
-    { key: "defenseAnalysis", title: "Defense Analysis", content: report.defenseAnalysis },
-    { key: "specialSituations", title: "Special Situations", content: report.specialSituations },
-    { key: "mistakes", title: "Mistakes & Weaknesses", content: report.mistakes },
-    { key: "predictions", title: "Predictions & Strategy", content: report.predictions },
+    { key: "offenseAnalysis", title: "Striking Analysis", content: report.offenseAnalysis },
+    { key: "defenseAnalysis", title: "Grappling Analysis", content: report.defenseAnalysis },
+    { key: "specialSituations", title: "Clinch & Cage Control", content: report.specialSituations },
+    { key: "mistakes", title: "Vulnerabilities", content: report.mistakes },
+    { key: "predictions", title: "Game Plan To Beat Them", content: report.predictions },
   ];
 
   const getCategoryColor = (category: string) => {
     switch (category) {
-      case "offense": return "border-blue-500/50 text-blue-400 bg-blue-500/10";
-      case "defense": return "border-purple-500/50 text-purple-400 bg-purple-500/10";
-      case "special": return "border-yellow-500/50 text-yellow-400 bg-yellow-500/10";
+      case "striking": case "offense": return "border-orange-500/50 text-orange-400 bg-orange-500/10";
+      case "grappling": case "defense": return "border-blue-500/50 text-blue-400 bg-blue-500/10";
+      case "clinch": case "special": return "border-yellow-500/50 text-yellow-400 bg-yellow-500/10";
       case "mistake": return "border-red-500/50 text-red-400 bg-red-500/10";
       default: return "border-muted-foreground/50 text-muted-foreground";
     }
@@ -159,7 +159,7 @@ export default function ReportView({ session, report }: ReportViewProps) {
             )}
             <div className="flex gap-2">
               <Input
-                placeholder="Ask about formations, tendencies, key players..."
+                placeholder="Ask about striking, takedowns, tendencies..."
                 value={chatInput}
                 onChange={(e) => setChatInput(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleSendChat()}
@@ -204,7 +204,7 @@ export default function ReportView({ session, report }: ReportViewProps) {
                       : "border-red-500/50 text-red-400 bg-red-500/10"
                     }
                   >
-                    {highlight.verdict === "good" ? "Good Play" : "Mistake"}
+                    {highlight.verdict === "good" ? "Landed Clean" : "Got Caught"}
                   </Badge>
                 </CardContent>
               </Card>

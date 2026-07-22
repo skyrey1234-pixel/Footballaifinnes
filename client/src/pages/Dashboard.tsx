@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { PlusCircle, Trash2, Calendar, Crosshair } from "lucide-react";
+import { PlusCircle, Trash2, Calendar, Swords } from "lucide-react";
 import { useLocation } from "wouter";
 
 export default function Dashboard() {
@@ -35,7 +35,7 @@ export default function Dashboard() {
     return (
       <div className="space-y-4">
         <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold">Game Sessions</h1>
+          <h1 className="text-2xl font-bold">Fight Breakdowns</h1>
         </div>
         <div className="grid gap-4">
           {[1, 2, 3].map(i => (
@@ -51,17 +51,17 @@ export default function Dashboard() {
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-6">
         <div className="flex flex-col items-center gap-3 text-center">
           <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center">
-            <Crosshair className="h-8 w-8 text-primary" />
+            <Swords className="h-8 w-8 text-primary" />
           </div>
-          <h2 className="text-xl font-semibold">No Game Sessions Yet</h2>
+          <h2 className="text-xl font-semibold">No Fight Breakdowns Yet</h2>
           <p className="text-muted-foreground max-w-sm">
-            Start by creating your first analysis session. Upload game footage or paste a YouTube link to generate an AI scouting report.
+            Start by breaking down your first fight. Upload fight footage or paste a YouTube link to generate an AI fight report.
           </p>
         </div>
         {isAdmin && (
           <Button onClick={() => setLocation("/new")} size="lg" className="gap-2">
             <PlusCircle className="h-5 w-5" />
-            New Analysis
+            New Breakdown
           </Button>
         )}
       </div>
@@ -71,11 +71,11 @@ export default function Dashboard() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Game Sessions</h1>
+        <h1 className="text-2xl font-bold">Fight Breakdowns</h1>
         {isAdmin && (
           <Button onClick={() => setLocation("/new")} size="sm" className="gap-2">
             <PlusCircle className="h-4 w-4" />
-            New Analysis
+            New Breakdown
           </Button>
         )}
       </div>
@@ -90,7 +90,7 @@ export default function Dashboard() {
             <CardContent className="flex items-center justify-between p-4">
               <div className="flex items-center gap-4">
                 <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                  <Crosshair className="h-5 w-5 text-primary" />
+                  <Swords className="h-5 w-5 text-primary" />
                 </div>
                 <div>
                   <h3 className="font-medium group-hover:text-primary transition-colors">

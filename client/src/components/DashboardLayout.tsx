@@ -20,17 +20,16 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { useIsMobile } from "@/hooks/useMobile";
-import { LayoutDashboard, PlusCircle, LogOut, PanelLeft, Crosshair, TrendingUp, Gamepad2 } from "lucide-react";
+import { LayoutDashboard, PlusCircle, LogOut, PanelLeft, Swords, TrendingUp, Gamepad2 } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation, Redirect } from "wouter";
 import { DashboardLayoutSkeleton } from './DashboardLayoutSkeleton';
 import { Button } from "./ui/button";
 
 const menuItems = [
-  { icon: LayoutDashboard, label: "Sessions", path: "/" },
-  { icon: PlusCircle, label: "New Analysis", path: "/new" },
-  { icon: TrendingUp, label: "Season Intel", path: "/season" },
-  { icon: Gamepad2, label: "Scouting Challenge", path: "/challenge" },
+  { icon: LayoutDashboard, label: "Breakdowns", path: "/" },
+  { icon: PlusCircle, label: "New Breakdown", path: "/new" },
+  { icon: TrendingUp, label: "Division Intel", path: "/season" },
 ];
 
 const SIDEBAR_WIDTH_KEY = "sidebar-width";
@@ -140,9 +139,9 @@ function DashboardLayoutContent({
               </button>
               {!isCollapsed ? (
                 <div className="flex items-center gap-2 min-w-0">
-                  <Crosshair className="h-5 w-5 text-primary shrink-0" />
+                  <Swords className="h-5 w-5 text-primary shrink-0" />
                   <span className="font-semibold tracking-tight truncate" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
-                    TacticalEdge
+                    OctagonIQ
                   </span>
                 </div>
               ) : null}
@@ -217,7 +216,7 @@ function DashboardLayoutContent({
             <div className="flex items-center gap-2">
               <SidebarTrigger className="h-9 w-9 rounded-lg bg-background" />
               <span className="tracking-tight text-foreground">
-                {activeMenuItem?.label ?? "TacticalEdge"}
+                {activeMenuItem?.label ?? "OctagonIQ"}
               </span>
             </div>
           </div>
