@@ -19,8 +19,6 @@ export default function NewSession() {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadedFileKey, setUploadedFileKey] = useState("");
 
-  const presignMutation = trpc.upload.getPresignedUrl.useMutation();
-
   const createMutation = trpc.sessions.create.useMutation({
     onSuccess: (data) => {
       toast.success("Analysis started! AI is generating your scouting report.");
@@ -56,28 +54,32 @@ export default function NewSession() {
     setUploading(true);
     setUploadProgress(0);
     try {
-      // 1. Ask the server for a presigned S3 URL
-      const { fileKey, uploadUrl } = await presignMutation.mutateAsync({
-        filename: file.name,
-        contentType: file.type || "video/mp4",
-      });
-
-      // 2. Upload the file directly to S3 with progress tracking
-      await new Promise<void>((resolve, reject) => {
+      // Upload through the server which streams the file to cloud storage.
+      const formData = new FormData();
+      formData.append("file", file);
+      const fileKey = await new Promise<string>((resolve, reject) => {
         const xhr = new XMLHttpRequest();
-        xhr.open("PUT", uploadUrl);
-        xhr.setRequestHeader("Content-Type", file.type || "video/mp4");
+        xhr.open("POST", "/api/upload");
+        xhr.setRequestHeader("X-File-Size", String(file.size));
         xhr.upload.onprogress = (evt) => {
           if (evt.lengthComputable) {
             setUploadProgress(Math.round((evt.loaded / evt.total) * 100));
           }
         };
         xhr.onload = () => {
-          if (xhr.status >= 200 && xhr.status < 300) resolve();
-          else reject(new Error(`Upload failed (${xhr.status})`));
+          if (xhr.status >= 200 && xhr.status < 300) {
+            try {
+              const data = JSON.parse(xhr.responseText);
+              resolve(data.fileKey);
+            } catch {
+              reject(new Error("Unexpected server response"));
+            }
+          } else {
+            reject(new Error(`Upload failed (${xhr.status})`));
+          }
         };
         xhr.onerror = () => reject(new Error("Network error during upload"));
-        xhr.send(file);
+        xhr.send(formData);
       });
 
       setUploadedFileKey(fileKey);
