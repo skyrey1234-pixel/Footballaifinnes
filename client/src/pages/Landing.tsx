@@ -21,46 +21,46 @@ import {
 
 const tiers = [
   {
-    name: "Scout",
+    name: "Cornerman",
     price: 99,
     icon: Zap,
     color: "#60A5FA",
-    description: "Essential scouting for competitive programs",
+    description: "Essential fight scouting for active fighters",
     features: [
-      "AI Scouting Reports",
-      "Season Intel Dashboard",
-      "Player Tendency Profiles",
-      "5 sessions/month",
+      "AI Fight Reports",
+      "Division Intel Dashboard",
+      "Weapon Tendency Profiles",
+      "5 breakdowns/month",
       "SVG Film Annotations",
     ],
     cta: "Start Scouting",
   },
   {
-    name: "Strategist",
+    name: "Head Coach",
     price: 199,
     icon: Crown,
-    color: "#00FF87",
+    color: "#FF2D2D",
     popular: true,
-    description: "Full game planning for serious coaching staffs",
+    description: "Full fight planning for serious camps",
     features: [
-      "Everything in Scout",
-      "AI Game Plan Generator",
-      "Animated Madden-Style Diagrams",
-      "Unlimited sessions",
+      "Everything in Cornerman",
+      "AI Fight Plan Generator",
+      "Annotated Film Breakdowns",
+      "Unlimited breakdowns",
       "PDF Export",
-      "Scouting Challenge Mode",
+      "Fight IQ Challenge Mode",
     ],
-    cta: "Get Strategist",
+    cta: "Get Head Coach",
   },
   {
-    name: "Program",
+    name: "Gym",
     price: 499,
     icon: Building2,
+    description: "Team solution for the whole gym",
     color: "#FFD700",
-    description: "Enterprise solution for entire athletic programs",
     features: [
-      "Everything in Strategist",
-      "5-10 team seats",
+      "Everything in Head Coach",
+      "5-10 corner seats",
       "API access",
       "Priority support",
       "Custom branding",
@@ -73,127 +73,111 @@ const tiers = [
 const features = [
   {
     icon: Brain,
-    title: "AI Scouting Reports",
-    description: "Upload game film and get a full 360° scouting report in under 60 seconds. Offense, defense, tendencies, key players — all analyzed by AI.",
+    title: "AI Fight Reports",
+    description: "Upload fight footage and get a full 360° fight report in under 60 seconds. Striking, grappling, clinch, tendencies, and vulnerabilities — all analyzed by AI.",
   },
   {
     icon: Target,
     title: "AI Film Breakdown",
-    description: "Color-coded SVG annotations drawn directly on film. Red for mistakes, green for good plays, blue for suggestions, yellow for key players.",
+    description: "Color-coded SVG annotations drawn directly on the tape. Red for got-caught, green for clean technique, blue for suggested counters, yellow for key weapons.",
   },
   {
     icon: Swords,
-    title: "Game Plan Generator",
-    description: "AI generates a complete game plan: 15 scripted plays, red zone package, 3rd down conversions, defensive adjustments, and halftime checklist.",
+    title: "Fight Plan Generator",
+    description: "AI generates a complete fight plan: striking sequences, finishing sequences, takedown & scramble plan, defensive adjustments, and a between-rounds checklist.",
   },
   {
     icon: Play,
-    title: "Animated Play Diagrams",
-    description: "Madden-style X's and O's with route trees, blocking assignments, and defensive alignments. Hit 'Run Play' to watch routes develop in real-time.",
+    title: "Technique Diagrams",
+    description: "Clean overhead octagon diagrams with strikes, angles, level changes, and movement. Visualize the exact sequence you want to drill.",
   },
   {
     icon: Shield,
-    title: "Player Tendency Profiles",
-    description: "AI-generated scouting cards for every key opponent. Tendencies, strengths, weaknesses, and Madden-style OVR ratings.",
+    title: "Weapon Tendency Profiles",
+    description: "AI-generated scouting cards for every signature weapon. Tendencies, setups, strengths, counters, and threat-level ratings.",
   },
   {
     icon: Gamepad2,
-    title: "Scouting Challenge",
-    description: "Gamified quiz mode to sharpen your football IQ. Identify formations, predict plays, read coverages, and call audibles.",
+    title: "Fight IQ Challenge",
+    description: "Gamified quiz mode to sharpen your fight IQ. Read stances, predict combinations, spot takedown entries, and call the counter.",
   },
 ];
 
-// Animated mini formation diagram for the hero
+// Animated mini striking-sequence diagram for the hero
 function HeroDiagram() {
-  const offensePlayers = [
-    { x: 200, y: 180, label: "C" },
-    { x: 170, y: 180, label: "LG" },
-    { x: 230, y: 180, label: "RG" },
-    { x: 140, y: 180, label: "LT" },
-    { x: 260, y: 180, label: "RT" },
-    { x: 200, y: 210, label: "QB" },
-    { x: 200, y: 240, label: "RB" },
-    { x: 100, y: 170, label: "WR" },
-    { x: 300, y: 170, label: "WR" },
-    { x: 280, y: 180, label: "TE" },
-    { x: 120, y: 155, label: "SL" },
+  // Octagon outline points (centered in a 400x300 viewbox)
+  const octagon = "200,40 300,70 340,150 300,230 200,260 100,230 60,150 100,70";
+
+  // Two fighters
+  const fighters = [
+    { x: 160, y: 150, label: "YOU", color: "#FF2D2D" },
+    { x: 250, y: 150, label: "OPP", color: "#60A5FA" },
   ];
 
-  const routes = [
-    { from: { x: 100, y: 170 }, to: { x: 80, y: 100 } }, // WR go route
-    { from: { x: 300, y: 170 }, to: { x: 320, y: 110 } }, // WR post
-    { from: { x: 120, y: 155 }, to: { x: 160, y: 110 } }, // Slot dig
-    { from: { x: 200, y: 240 }, to: { x: 250, y: 200 } }, // RB swing
+  // Striking sequence: jab, cross, then a level-change/takedown entry
+  const strikes = [
+    { from: { x: 172, y: 140 }, to: { x: 238, y: 138 }, label: "Jab", delay: 1.0 },
+    { from: { x: 172, y: 155 }, to: { x: 238, y: 150 }, label: "Cross", delay: 1.5 },
+    { from: { x: 168, y: 168 }, to: { x: 235, y: 190 }, label: "Level change", delay: 2.0 },
   ];
 
   return (
     <svg viewBox="0 0 400 300" className="w-full max-w-md mx-auto">
-      {/* Field lines */}
-      <line x1="0" y1="180" x2="400" y2="180" stroke="#30363D" strokeWidth="1" strokeDasharray="4" />
+      {/* Octagon canvas */}
+      <polygon points={octagon} fill="#0d1117" stroke="#30363D" strokeWidth="2" />
+      <polygon points={octagon} fill="none" stroke="#FF2D2D" strokeWidth="1" strokeDasharray="3 5" opacity="0.4" />
 
-      {/* Routes */}
-      {routes.map((route, i) => (
-        <motion.line
-          key={i}
-          x1={route.from.x}
-          y1={route.from.y}
-          x2={route.to.x}
-          y2={route.to.y}
-          stroke="#00FF87"
-          strokeWidth="2"
-          strokeDasharray="6 3"
-          initial={{ pathLength: 0, opacity: 0 }}
-          animate={{ pathLength: 1, opacity: 1 }}
-          transition={{ delay: 1 + i * 0.3, duration: 1 }}
-        />
-      ))}
-
-      {/* Route arrows */}
-      {routes.map((route, i) => (
-        <motion.polygon
-          key={`arrow-${i}`}
-          points={`${route.to.x},${route.to.y - 6} ${route.to.x - 4},${route.to.y + 2} ${route.to.x + 4},${route.to.y + 2}`}
-          fill="#00FF87"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 1.8 + i * 0.3 }}
-        />
-      ))}
-
-      {/* Offense players */}
-      {offensePlayers.map((p, i) => (
-        <motion.g
-          key={i}
-          initial={{ opacity: 0, scale: 0 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: 0.1 * i, type: "spring" }}
-        >
-          <circle cx={p.x} cy={p.y} r="10" fill="#0d1117" stroke="#00FF87" strokeWidth="2" />
-          <text x={p.x} y={p.y + 3} textAnchor="middle" fill="#00FF87" fontSize="6" fontWeight="bold">
-            {p.label}
-          </text>
+      {/* Strike arrows */}
+      {strikes.map((s, i) => (
+        <motion.g key={i}>
+          <motion.line
+            x1={s.from.x}
+            y1={s.from.y}
+            x2={s.to.x}
+            y2={s.to.y}
+            stroke="#FF2D2D"
+            strokeWidth="2.5"
+            strokeDasharray="6 3"
+            initial={{ pathLength: 0, opacity: 0 }}
+            animate={{ pathLength: 1, opacity: 1 }}
+            transition={{ delay: s.delay, duration: 0.8 }}
+          />
+          <motion.polygon
+            points={`${s.to.x},${s.to.y} ${s.to.x - 8},${s.to.y - 4} ${s.to.x - 8},${s.to.y + 4}`}
+            fill="#FF2D2D"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: s.delay + 0.6 }}
+          />
+          <motion.text
+            x={(s.from.x + s.to.x) / 2}
+            y={(s.from.y + s.to.y) / 2 - 8}
+            textAnchor="middle"
+            fill="#FF2D2D"
+            fontSize="9"
+            fontWeight="bold"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: s.delay + 0.4 }}
+          >
+            {s.label}
+          </motion.text>
         </motion.g>
       ))}
 
-      {/* Defense X marks */}
-      {[
-        { x: 170, y: 155 }, { x: 200, y: 155 }, { x: 230, y: 155 }, { x: 260, y: 155 },
-        { x: 150, y: 135 }, { x: 200, y: 135 }, { x: 250, y: 135 },
-      ].map((p, i) => (
-        <motion.text
-          key={`def-${i}`}
-          x={p.x}
-          y={p.y}
-          textAnchor="middle"
-          fill="#EF4444"
-          fontSize="14"
-          fontWeight="bold"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.5 + i * 0.1 }}
+      {/* Fighters */}
+      {fighters.map((f, i) => (
+        <motion.g
+          key={f.label}
+          initial={{ opacity: 0, scale: 0 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ delay: 0.2 + i * 0.2, type: "spring" }}
         >
-          ×
-        </motion.text>
+          <circle cx={f.x} cy={f.y} r="18" fill="#0d1117" stroke={f.color} strokeWidth="2.5" />
+          <text x={f.x} y={f.y + 3} textAnchor="middle" fill={f.color} fontSize="8" fontWeight="bold">
+            {f.label}
+          </text>
+        </motion.g>
       ))}
     </svg>
   );
@@ -209,10 +193,10 @@ export default function Landing() {
       <nav className="fixed top-0 left-0 right-0 z-50 bg-[#0d1117]/80 backdrop-blur-xl border-b border-gray-800/50">
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-[#00FF87]/10 flex items-center justify-center">
-              <Target className="h-4 w-4 text-[#00FF87]" />
+            <div className="w-8 h-8 rounded-lg bg-[#FF2D2D]/10 flex items-center justify-center">
+              <Target className="h-4 w-4 text-[#FF2D2D]" />
             </div>
-            <span className="text-lg font-bold">TacticalEdge AI</span>
+            <span className="text-lg font-bold">OctagonIQ</span>
           </div>
           <div className="flex items-center gap-4">
             <a href="#features" className="text-sm text-gray-400 hover:text-white transition-colors">Features</a>
@@ -220,7 +204,7 @@ export default function Landing() {
             {isAuthenticated ? (
               <Button
                 onClick={() => setLocation("/")}
-                className="bg-[#00FF87] text-black font-bold hover:bg-[#00cc6a]"
+                className="bg-[#FF2D2D] text-white font-bold hover:bg-[#cc2020]"
                 size="sm"
               >
                 Go to Dashboard
@@ -228,7 +212,7 @@ export default function Landing() {
             ) : (
               <Button
                 onClick={() => startLogin()}
-                className="bg-[#00FF87] text-black font-bold hover:bg-[#00cc6a]"
+                className="bg-[#FF2D2D] text-white font-bold hover:bg-[#cc2020]"
                 size="sm"
               >
                 Sign In
@@ -246,21 +230,21 @@ export default function Landing() {
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.6 }}
           >
-            <div className="inline-flex items-center gap-2 bg-[#00FF87]/10 border border-[#00FF87]/20 rounded-full px-4 py-1.5 mb-6">
-              <Zap size={14} className="text-[#00FF87]" />
-              <span className="text-xs text-[#00FF87] font-bold uppercase tracking-wider">AI-Powered Scouting</span>
+            <div className="inline-flex items-center gap-2 bg-[#FF2D2D]/10 border border-[#FF2D2D]/20 rounded-full px-4 py-1.5 mb-6">
+              <Zap size={14} className="text-[#FF2D2D]" />
+              <span className="text-xs text-[#FF2D2D] font-bold uppercase tracking-wider">AI-Powered Fight Scouting</span>
             </div>
             <h1 className="text-5xl lg:text-6xl font-black leading-tight mb-6">
-              Scout Opponents.<br />
-              <span className="text-[#00FF87]">Win Games.</span>
+              Scout Fighters.<br />
+              <span className="text-[#FF2D2D]">Win Fights.</span>
             </h1>
             <p className="text-lg text-gray-400 mb-8 max-w-lg">
-              Upload game film. Get a full scouting report, animated play diagrams, and a complete game plan — all generated by AI in under 60 seconds.
+              Upload fight footage. Get a full fight report, striking & grappling breakdowns, and a complete fight plan — all generated by AI in under 60 seconds.
             </p>
             <div className="flex items-center gap-4">
               <Button
                 onClick={() => isAuthenticated ? setLocation("/") : startLogin()}
-                className="h-14 px-8 text-lg font-bold bg-[#00FF87] text-black hover:bg-[#00cc6a]"
+                className="h-14 px-8 text-lg font-bold bg-[#FF2D2D] text-white hover:bg-[#cc2020]"
               >
                 Start Free Trial <ChevronRight className="ml-2" />
               </Button>
@@ -281,16 +265,16 @@ export default function Landing() {
                 <div className="w-3 h-3 rounded-full bg-red-500" />
                 <div className="w-3 h-3 rounded-full bg-yellow-500" />
                 <div className="w-3 h-3 rounded-full bg-green-500" />
-                <span className="ml-2 text-xs text-gray-500">Game Plan — Shotgun Trips Right</span>
+                <span className="ml-2 text-xs text-gray-500">Fight Plan — Southpaw Counter Package</span>
               </div>
               <HeroDiagram />
               <div className="mt-4 flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full bg-[#00FF87] animate-pulse" />
-                  <span className="text-xs text-gray-400">Play animation ready</span>
+                  <div className="w-2 h-2 rounded-full bg-[#FF2D2D] animate-pulse" />
+                  <span className="text-xs text-gray-400">Sequence ready</span>
                 </div>
-                <Button size="sm" className="bg-[#00FF87]/10 text-[#00FF87] border border-[#00FF87]/20 text-xs">
-                  <Play size={12} className="mr-1" /> Run Play
+                <Button size="sm" className="bg-[#FF2D2D]/10 text-[#FF2D2D] border border-[#FF2D2D]/20 text-xs">
+                  <Play size={12} className="mr-1" /> Run Sequence
                 </Button>
               </div>
             </div>
@@ -302,9 +286,9 @@ export default function Landing() {
       <section id="features" className="py-20 px-6 bg-[#161b22]/50">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16">
-            <h2 className="text-3xl font-black mb-4">Everything Your Coaching Staff Needs</h2>
+            <h2 className="text-3xl font-black mb-4">Everything Your Corner Needs</h2>
             <p className="text-gray-400 max-w-2xl mx-auto">
-              From film breakdown to game day preparation — TacticalEdge AI handles the heavy lifting so you can focus on coaching.
+              From film breakdown to fight-night preparation — OctagonIQ handles the heavy lifting so you can focus on the game plan.
             </p>
           </div>
 
@@ -314,14 +298,14 @@ export default function Landing() {
               return (
                 <motion.div
                   key={idx}
-                  className="bg-[#0d1117] border border-gray-800 rounded-xl p-6 hover:border-[#00FF87]/30 transition-colors"
+                  className="bg-[#0d1117] border border-gray-800 rounded-xl p-6 hover:border-[#FF2D2D]/30 transition-colors"
                   initial={{ opacity: 0, y: 20 }}
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true }}
                   transition={{ delay: idx * 0.1 }}
                 >
-                  <div className="w-10 h-10 rounded-lg bg-[#00FF87]/10 flex items-center justify-center mb-4">
-                    <FeatureIcon className="h-5 w-5 text-[#00FF87]" />
+                  <div className="w-10 h-10 rounded-lg bg-[#FF2D2D]/10 flex items-center justify-center mb-4">
+                    <FeatureIcon className="h-5 w-5 text-[#FF2D2D]" />
                   </div>
                   <h3 className="text-lg font-bold text-white mb-2">{feature.title}</h3>
                   <p className="text-sm text-gray-400">{feature.description}</p>
@@ -338,7 +322,7 @@ export default function Landing() {
           <div className="text-center mb-16">
             <h2 className="text-3xl font-black mb-4">Simple, Transparent Pricing</h2>
             <p className="text-gray-400 max-w-2xl mx-auto">
-              Choose the plan that fits your program. All plans include a 7-day free trial.
+              Choose the plan that fits your camp. All plans include a 7-day free trial.
             </p>
           </div>
 
@@ -349,7 +333,7 @@ export default function Landing() {
                 <motion.div
                   key={idx}
                   className={`relative bg-[#161b22] border rounded-2xl p-8 ${
-                    tier.popular ? "border-[#00FF87] scale-105" : "border-gray-800"
+                    tier.popular ? "border-[#FF2D2D] scale-105" : "border-gray-800"
                   }`}
                   initial={{ opacity: 0, y: 20 }}
                   whileInView={{ opacity: 1, y: 0 }}
@@ -357,7 +341,7 @@ export default function Landing() {
                   transition={{ delay: idx * 0.15 }}
                 >
                   {tier.popular && (
-                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-[#00FF87] text-black text-[10px] font-bold px-3 py-1 rounded-full uppercase">
+                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-[#FF2D2D] text-white text-[10px] font-bold px-3 py-1 rounded-full uppercase">
                       Most Popular
                     </div>
                   )}
@@ -377,7 +361,7 @@ export default function Landing() {
                   <ul className="space-y-3 mb-8">
                     {tier.features.map((f, i) => (
                       <li key={i} className="flex items-center gap-2 text-sm text-gray-300">
-                        <Check size={14} className="text-[#00FF87] shrink-0" />
+                        <Check size={14} className="text-[#FF2D2D] shrink-0" />
                         {f}
                       </li>
                     ))}
@@ -387,7 +371,7 @@ export default function Landing() {
                     onClick={() => isAuthenticated ? setLocation("/") : startLogin()}
                     className={`w-full h-12 font-bold ${
                       tier.popular
-                        ? "bg-[#00FF87] text-black hover:bg-[#00cc6a]"
+                        ? "bg-[#FF2D2D] text-white hover:bg-[#cc2020]"
                         : "bg-gray-800 text-white hover:bg-gray-700"
                     }`}
                   >
@@ -407,13 +391,13 @@ export default function Landing() {
       {/* CTA */}
       <section className="py-20 px-6">
         <div className="max-w-3xl mx-auto text-center">
-          <h2 className="text-3xl font-black mb-4">Ready to Dominate Your Next Opponent?</h2>
+          <h2 className="text-3xl font-black mb-4">Ready to Break Down Your Next Opponent?</h2>
           <p className="text-gray-400 mb-8">
-            Join coaching staffs who are already using AI to gain a competitive edge.
+            Join fighters and corners who are already using AI to gain a competitive edge.
           </p>
           <Button
             onClick={() => isAuthenticated ? setLocation("/") : startLogin()}
-            className="h-14 px-10 text-lg font-bold bg-[#00FF87] text-black hover:bg-[#00cc6a]"
+            className="h-14 px-10 text-lg font-bold bg-[#FF2D2D] text-white hover:bg-[#cc2020]"
           >
             Get Started Free <ChevronRight className="ml-2" />
           </Button>
@@ -424,10 +408,10 @@ export default function Landing() {
       <footer className="border-t border-gray-800 py-8 px-6">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Target className="h-4 w-4 text-[#00FF87]" />
-            <span className="text-sm font-bold">TacticalEdge AI</span>
+            <Target className="h-4 w-4 text-[#FF2D2D]" />
+            <span className="text-sm font-bold">OctagonIQ</span>
           </div>
-          <p className="text-xs text-gray-500">© 2025 TacticalEdge AI. All rights reserved.</p>
+          <p className="text-xs text-gray-500">© 2025 OctagonIQ. All rights reserved.</p>
         </div>
       </footer>
     </div>

@@ -32,7 +32,7 @@ export default function SessionPage() {
     onSuccess: (data) => {
       if (data.imageUrl) {
         window.open(data.imageUrl, "_blank");
-        toast.success("Play diagram generated!");
+        toast.success("Technique diagram generated!");
       }
     },
     onError: () => toast.error("Failed to generate diagram"),
@@ -90,9 +90,9 @@ export default function SessionPage() {
           <CardContent className="flex items-center gap-4 p-6">
             <Loader2 className="h-6 w-6 animate-spin text-yellow-400" />
             <div>
-              <p className="font-medium text-yellow-400">AI Analysis in Progress</p>
+              <p className="font-medium text-yellow-400">AI Breakdown in Progress</p>
               <p className="text-sm text-muted-foreground">
-                Generating your scouting report... This usually takes 30-60 seconds.
+                Generating your fight report... This usually takes 30-60 seconds.
               </p>
             </div>
           </CardContent>
@@ -119,7 +119,7 @@ export default function SessionPage() {
       {session.status === "complete" && report && (
         <Tabs defaultValue="report" className="w-full">
           <TabsList>
-            <TabsTrigger value="report">Scouting Report</TabsTrigger>
+            <TabsTrigger value="report">Fight Report</TabsTrigger>
             <TabsTrigger value="film" className="gap-2">
               AI Film Breakdown
               <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-primary/50 text-primary">
@@ -127,12 +127,12 @@ export default function SessionPage() {
               </Badge>
             </TabsTrigger>
             <TabsTrigger value="players" className="gap-2">
-              Player Profiles
+              Weapon Profiles
             </TabsTrigger>
             <TabsTrigger value="gameplan" className="gap-2">
               <Swords className="h-3 w-3" />
-              Game Plan
-              <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-[#00FF87]/50 text-[#00FF87]">
+              Fight Plan
+              <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-[#FF2D2D]/50 text-[#FF2D2D]">
                 NEW
               </Badge>
             </TabsTrigger>
@@ -162,13 +162,13 @@ export default function SessionPage() {
               size="sm"
               className="gap-2"
               onClick={() => {
-                const desc = report.executiveSummary?.slice(0, 200) || "Standard football formation";
+                const desc = report.executiveSummary?.slice(0, 200) || "Standard MMA striking exchange";
                 diagramMutation.mutate({ sessionId, playDescription: desc });
               }}
               disabled={diagramMutation.isPending}
             >
               {diagramMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Image className="h-3 w-3" />}
-              Generate Play Diagram
+              Generate Technique Diagram
             </Button>
           </div>
 
@@ -283,7 +283,7 @@ function MatchupTab({ sessionId, opponentName }: { sessionId: number; opponentNa
   if (playersLoading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <Loader2 className="h-6 w-6 animate-spin text-[#00FF87]" />
+        <Loader2 className="h-6 w-6 animate-spin text-[#FF2D2D]" />
       </div>
     );
   }
@@ -302,8 +302,8 @@ function MatchupTab({ sessionId, opponentName }: { sessionId: number; opponentNa
       {ratingCards.length > 0 && (
         <div>
           <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
-            <Gamepad2 className="h-5 w-5 text-[#00FF87]" />
-            Madden-Style Player Cards
+            <Gamepad2 className="h-5 w-5 text-[#FF2D2D]" />
+            Fighter Weapon Cards
             <span className="text-xs text-gray-500 font-normal ml-2">(tap to flip)</span>
           </h3>
           <div className="flex flex-wrap gap-4 justify-center md:justify-start">

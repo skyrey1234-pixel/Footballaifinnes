@@ -78,11 +78,11 @@ type FilmBreakdownProps = {
 
 const filterTabs = [
   { id: "all", label: "All" },
-  { id: "mistake", label: "Mistakes" },
-  { id: "good", label: "Good Plays" },
-  { id: "offense", label: "Offense" },
-  { id: "defense", label: "Defense" },
-  { id: "special", label: "Special" },
+  { id: "mistake", label: "Got Caught" },
+  { id: "good", label: "Clean" },
+  { id: "striking", label: "Striking" },
+  { id: "grappling", label: "Grappling" },
+  { id: "clinch", label: "Clinch" },
 ];
 
 export default function FilmBreakdown({ session, report }: FilmBreakdownProps) {
@@ -183,19 +183,19 @@ export default function FilmBreakdown({ session, report }: FilmBreakdownProps) {
         <Card>
           <CardContent className="p-4 text-center">
             <p className="text-2xl font-bold">{stats.total}</p>
-            <p className="text-xs text-muted-foreground">Total Plays</p>
+            <p className="text-xs text-muted-foreground">Total Exchanges</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4 text-center">
             <p className="text-2xl font-bold text-red-400">{stats.mistakes}</p>
-            <p className="text-xs text-muted-foreground">Mistakes</p>
+            <p className="text-xs text-muted-foreground">Got Caught</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4 text-center">
             <p className="text-2xl font-bold text-green-400">{stats.good}</p>
-            <p className="text-xs text-muted-foreground">Good Plays</p>
+            <p className="text-xs text-muted-foreground">Clean</p>
           </CardContent>
         </Card>
       </div>
