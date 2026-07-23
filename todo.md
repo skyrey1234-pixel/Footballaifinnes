@@ -38,6 +38,11 @@
 - [x] BUG FIX: Film Breakdown timestamps — redistributed existing report timestamps evenly across estimated video duration, added Re-Analyze button for admins, improved LLM prompt with video duration estimation from YouTube metadata
 - [x] IMPROVEMENT: Auto-redirect unauthenticated users to /landing page instead of login wall
 - [x] SEO: Added meta description (150 chars), meta keywords (7 keywords), title updated to 53 chars, H1 and H2 already present on landing page
+- [x] NEW FEATURE: Beat This Defense Simulator — AI play-call grading tool with defense selector, success likelihood scoring, and coaching adjustments (playSim router with LLM-powered analysis)
+- [x] NEW FEATURE: Live Game-Day Assistant — Sideline mode for real-time opponent play logging with instant counter-call suggestions based on scouting tendencies
+- [x] NEW FEATURE: Wristband/Call Sheet Generator — Printable QB wristband inserts and situational call sheets for game day
+- [x] NEW FEATURE: AI Voice Coach — Broadcast-style voiceover commentary generator for highlights and mistake breakdowns (ready for ElevenLabs integration)
+- [x] Integrate all 4 new features into SessionPage tabs (Beat This Defense / Game-Day Assistant / Call Sheet / Voice Coach with NEW badges) — TypeScript clean, all routers and components wired
 - [ ] FUTURE ENHANCEMENT: Real video timestamp extraction — requires either YouTube Data API key, working yt-dlp access, or Gemini video analysis (all currently unavailable in sandbox). Current workaround: timestamps estimated from video title metadata + evenly distributed across duration. Re-Analyze button available for admins to regenerate.
 - [x] BUG FIX: Video upload fails on production — server was buffering whole file in memory (512MB Cloud Run limit, 180s request timeout). Fixed: browser now uploads directly to S3 via presigned URL (upload.getPresignedUrl), with progress bar, 2GB cap, and verified via vitest (server/upload.presign.test.ts)
 - [x] BUG FIX: Direct-to-S3 browser upload was blocked by bucket CORS (preflight 403). Fixed: upload now streams through the server via busboy pipe to S3 presigned URL with explicit Content-Length (S3 rejects chunked PUTs with 501) — no memory buffering, works within 512MB limit. Verified with vitest (server/upload.stream.test.ts, 2 tests)
