@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ArrowLeft, Loader2, RefreshCw, Download, Image, Swords, Gamepad2, Box, AlertTriangle, Film } from "lucide-react";
+import { ArrowLeft, Loader2, RefreshCw, Download, Image, Swords, Gamepad2, Box, AlertTriangle, Film, Radio, ClipboardList, Mic } from "lucide-react";
 import { useLocation, useParams } from "wouter";
 import ReportView from "@/components/report/ReportView";
 import FilmBreakdown from "@/components/film/FilmBreakdown";
@@ -16,6 +16,10 @@ import MatchupScreen from "@/components/madden/MatchupScreen";
 import Play3DTab from "@/components/play3d/Play3DTab";
 import MistakeAnalysisTab from "@/components/mistakes/MistakeAnalysisTab";
 import HighlightReelTab from "@/components/highlights/HighlightReelTab";
+import { BeatThisDefenseTab } from "@/pages/BeatThisDefenseTab";
+import { GameDayAssistantTab } from "@/pages/GameDayAssistantTab";
+import { CallSheetTab } from "@/pages/CallSheetTab";
+import { VoiceCoachTab } from "@/pages/VoiceCoachTab";
 import { toast } from "sonner";
 
 export default function SessionPage() {
@@ -80,12 +84,25 @@ export default function SessionPage() {
         <Button variant="ghost" size="icon" onClick={() => setLocation("/")}>
           <ArrowLeft className="h-5 w-5" />
         </Button>
-        <div>
+        <div className="flex-1">
           <h1 className="text-2xl font-bold">{session.opponentName}</h1>
           <p className="text-sm text-muted-foreground">
             {session.gameDate || "No date"} &middot; {session.sourceType === "youtube" ? "YouTube" : "Uploaded Video"}
           </p>
         </div>
+        {session.status === "complete" && (
+          <Button
+            size="lg"
+            className="gap-2 font-tactical text-xs glow-primary-sm active:scale-[0.97] shrink-0"
+            onClick={() => setLocation(`/warroom/${sessionId}`)}
+          >
+            <Radio className="h-4 w-4" />
+            ENTER WAR ROOM
+            <Badge variant="outline" className="text-[9px] px-1 py-0 border-primary-foreground/40 text-primary-foreground">
+              NEW
+            </Badge>
+          </Button>
+        )}
       </div>
 
       {session.status === "analyzing" && (
@@ -156,6 +173,22 @@ export default function SessionPage() {
                 NEW
               </Badge>
             </TabsTrigger>
+            <TabsTrigger value="beatdefense" className="gap-2">
+              <Swords className="h-3 w-3" />
+              Beat This Defense
+            </TabsTrigger>
+            <TabsTrigger value="gameday" className="gap-2">
+              <Radio className="h-3 w-3" />
+              Game Day
+            </TabsTrigger>
+            <TabsTrigger value="callsheet" className="gap-2">
+              <ClipboardList className="h-3 w-3" />
+              Call Sheet
+            </TabsTrigger>
+            <TabsTrigger value="voicecoach" className="gap-2">
+              <Mic className="h-3 w-3" />
+              Voice Coach
+            </TabsTrigger>
           </TabsList>
 
           {/* Action Buttons */}
@@ -208,6 +241,18 @@ export default function SessionPage() {
           </TabsContent>
           <TabsContent value="highlights" className="mt-6">
             <HighlightReelTab sessionId={sessionId} session={session} />
+          </TabsContent>
+          <TabsContent value="beatdefense" className="mt-6">
+            <BeatThisDefenseTab sessionId={sessionId} />
+          </TabsContent>
+          <TabsContent value="gameday" className="mt-6">
+            <GameDayAssistantTab sessionId={sessionId} />
+          </TabsContent>
+          <TabsContent value="callsheet" className="mt-6">
+            <CallSheetTab sessionId={sessionId} />
+          </TabsContent>
+          <TabsContent value="voicecoach" className="mt-6">
+            <VoiceCoachTab sessionId={sessionId} />
           </TabsContent>
         </Tabs>
       )}

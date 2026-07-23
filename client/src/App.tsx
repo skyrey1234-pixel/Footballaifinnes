@@ -7,10 +7,11 @@ import { ThemeProvider } from "./contexts/ThemeContext";
 import DashboardLayout from "./components/DashboardLayout";
 import Dashboard from "./pages/Dashboard";
 import NewSession from "./pages/NewSession";
-import SessionPage from "./pages/SessionPage";
+import SessionPage from "@/pages/SessionPage";
 import SeasonDashboard from "./pages/SeasonDashboard";
 import ScoutingChallenge from "./pages/ScoutingChallenge";
 import Landing from "./pages/Landing";
+import WarRoomPage from "./pages/WarRoomPage";
 
 function Router() {
   return (
@@ -24,6 +25,7 @@ function Router() {
             <Route path="/season" component={SeasonDashboard} />
             <Route path="/challenge" component={ScoutingChallenge} />
             <Route path="/session/:id" component={SessionPage} />
+            <Route path="/warroom/:id" component={WarRoomPage} />
             <Route path="/404" component={NotFound} />
             <Route component={NotFound} />
           </Switch>
