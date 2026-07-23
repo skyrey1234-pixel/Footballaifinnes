@@ -1,6 +1,6 @@
 import { useMemo, useState, useEffect, useRef, useCallback } from "react";
 
-interface PlayerPos {
+export interface PlayerPos {
   x: number;
   y: number;
   label: string;
@@ -18,7 +18,7 @@ interface FormationDiagramProps {
 }
 
 // ===== OFFENSIVE FORMATIONS =====
-function getOffensivePlayers(formation: string, playType: string, target?: string): PlayerPos[] {
+export function getOffensivePlayers(formation: string, playType: string, target?: string): PlayerPos[] {
   const f = formation.toLowerCase();
   const players: PlayerPos[] = [];
 
@@ -88,7 +88,7 @@ function getOffensivePlayers(formation: string, playType: string, target?: strin
 }
 
 // ===== DEFENSIVE FORMATIONS =====
-function getDefensivePlayers(defenseScheme?: string): PlayerPos[] {
+export function getDefensivePlayers(defenseScheme?: string): PlayerPos[] {
   const scheme = (defenseScheme || "4-3").toLowerCase();
   const players: PlayerPos[] = [];
   const dLineY = 47;
@@ -167,7 +167,7 @@ function buildRoutePath(startX: number, startY: number, points: [number, number]
 }
 
 // ===== INTERPOLATE POSITION ALONG ROUTE =====
-function interpolateRoute(startX: number, startY: number, points: [number, number][], progress: number): { x: number; y: number } {
+export function interpolateRoute(startX: number, startY: number, points: [number, number][], progress: number): { x: number; y: number } {
   if (progress <= 0 || points.length === 0) return { x: startX, y: startY };
 
   // Build full path as segments

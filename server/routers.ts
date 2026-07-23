@@ -744,6 +744,160 @@ Generate a COMPLETE GAME PLAN. Make every recommendation SPECIFIC to this oppone
         }
       }),
   }),
+  mistakeAnalysis: router({
+    get: protectedProcedure
+      .input(z.object({ sessionId: z.number() }))
+      .query(async ({ input }) => {
+        const row = await db.getMistakeAnalysisBySession(input.sessionId);
+        return row ? { plays: row.plays as any[], createdAt: row.createdAt } : null;
+      }),
+    generate: protectedProcedure
+      .input(z.object({ sessionId: z.number() }))
+      .mutation(async ({ input }) => {
+        const session = await db.getGameSession(input.sessionId);
+        const report = await db.getReportBySessionId(input.sessionId);
+        if (!session || !report) throw new TRPCError({ code: "NOT_FOUND", message: "Session or report not found" });
+        const prompt = `You are an elite football coach reviewing game film of "${session.opponentName}".
+SCOUTING INTEL:
+Executive Summary: ${report.executiveSummary || "N/A"}
+Offense: ${report.offenseAnalysis || "N/A"}
+Defense: ${report.defenseAnalysis || "N/A"}
+Mistakes Observed: ${report.mistakes || "N/A"}
+
+Identify 4 specific plays where a mistake or breakdown occurred (based on the mistakes/analysis above). For each play, describe BOTH what actually happened (the mistake) AND what the correct execution should have looked like, so the two can be animated side by side.`;
+        try {
+          const response = await invokeLLM({
+            model: "gpt-5-mini",
+            messages: [
+              { role: "system", content: "You are an elite football coach who breaks down play mistakes visually. Use ONLY these formations: Shotgun Spread, Shotgun, Trips Right, I-Form, Pistol, Twins 2x2, Empty 5 Wide, Goal Line Jumbo. Use ONLY these play types: run, pass, play-action, screen. Use ONLY these targets: X, Y, Z, H, RB, FB." },
+              { role: "user", content: prompt },
+            ],
+            response_format: {
+              type: "json_schema",
+              json_schema: {
+                name: "mistake_analysis",
+                strict: true,
+                schema: {
+                  type: "object",
+                  properties: {
+                    plays: {
+                      type: "array",
+                      items: {
+                        type: "object",
+                        properties: {
+                          title: { type: "string", description: "Short name of the play situation" },
+                          quarter: { type: "string", description: "e.g. Q2" },
+                          situation: { type: "string", description: "Down and distance e.g. 3rd & 7" },
+                          formation: { type: "string" },
+                          playType: { type: "string" },
+                          target: { type: "string" },
+                          whatWentWrong: { type: "string", description: "2-3 sentences on the actual breakdown" },
+                          correctExecution: { type: "string", description: "2-3 sentences on what should have happened" },
+                          breakdownMoment: { type: "number", description: "Progress point 0-1 where the play broke down, e.g. 0.4" },
+                          culprit: { type: "string", description: "Position label responsible e.g. RT, QB, CB" },
+                          coachingPoint: { type: "string", description: "One actionable coaching cue" },
+                          severity: { type: "string", description: "minor, moderate, or critical" },
+                        },
+                        required: ["title", "quarter", "situation", "formation", "playType", "target", "whatWentWrong", "correctExecution", "breakdownMoment", "culprit", "coachingPoint", "severity"],
+                        additionalProperties: false,
+                      },
+                    },
+                  },
+                  required: ["plays"],
+                  additionalProperties: false,
+                },
+              },
+            },
+          });
+          const content = response.choices?.[0]?.message?.content;
+          if (!content || typeof content !== "string") throw new Error("Empty AI response");
+          const parsed = JSON.parse(content);
+          const plays = parsed.plays || [];
+          await db.saveMistakeAnalysis(input.sessionId, plays);
+          return { plays };
+        } catch (error: any) {
+          console.error("[MistakeAnalysis] Generation failed:", error?.message || error);
+          throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: `Failed to generate mistake analysis: ${error?.message || "Unknown error"}. Please try again.` });
+        }
+      }),
+  }),
+  highlightReel: router({
+    get: protectedProcedure
+      .input(z.object({ sessionId: z.number() }))
+      .query(async ({ input }) => {
+        const row = await db.getHighlightReelBySession(input.sessionId);
+        return row ? { clips: row.clips as any[], createdAt: row.createdAt } : null;
+      }),
+    generate: protectedProcedure
+      .input(z.object({ sessionId: z.number() }))
+      .mutation(async ({ input }) => {
+        const session = await db.getGameSession(input.sessionId);
+        const report = await db.getReportBySessionId(input.sessionId);
+        if (!session || !report) throw new TRPCError({ code: "NOT_FOUND", message: "Session or report not found" });
+        const existingHighlights = Array.isArray(report.highlights) ? (report.highlights as any[]) : [];
+        const highlightContext = existingHighlights.length > 0
+          ? `\n\nEXISTING KEY MOMENTS (with timestamps in seconds):\n${existingHighlights.map((h: any, i: number) => `${i + 1}. [${h.timestamp}s] ${h.title || h.description || ""}`).join("\n")}`
+          : "";
+        const prompt = `You are an elite football video editor creating the ULTIMATE highlight reel from the game film of "${session.opponentName}".
+SCOUTING INTEL:
+Executive Summary: ${report.executiveSummary || "N/A"}
+Offense: ${report.offenseAnalysis || "N/A"}
+Defense: ${report.defenseAnalysis || "N/A"}
+Predictions: ${report.predictions || "N/A"}${highlightContext}
+
+Select and rank the 8 BEST plays for a highlight reel. Rank by impact (game-changing plays first). If existing key moments have timestamps, reuse those exact timestamps for matching plays; distribute any additional clips across the full game duration.`;
+        try {
+          const response = await invokeLLM({
+            model: "gpt-5-mini",
+            messages: [
+              { role: "system", content: "You are an elite football video editor who selects the most impactful plays for highlight reels." },
+              { role: "user", content: prompt },
+            ],
+            response_format: {
+              type: "json_schema",
+              json_schema: {
+                name: "highlight_reel",
+                strict: true,
+                schema: {
+                  type: "object",
+                  properties: {
+                    clips: {
+                      type: "array",
+                      items: {
+                        type: "object",
+                        properties: {
+                          rank: { type: "number", description: "1 = best play" },
+                          title: { type: "string" },
+                          description: { type: "string", description: "1-2 sentence description of the play" },
+                          timestamp: { type: "number", description: "Start time in seconds" },
+                          duration: { type: "number", description: "Clip length in seconds, 8-20" },
+                          category: { type: "string", description: "touchdown, big-play, turnover, defensive-stop, special-teams, or momentum-shift" },
+                          impactScore: { type: "number", description: "1-100 impact rating" },
+                          players: { type: "string", description: "Key players involved e.g. #7 QB, #23 RB" },
+                        },
+                        required: ["rank", "title", "description", "timestamp", "duration", "category", "impactScore", "players"],
+                        additionalProperties: false,
+                      },
+                    },
+                  },
+                  required: ["clips"],
+                  additionalProperties: false,
+                },
+              },
+            },
+          });
+          const content = response.choices?.[0]?.message?.content;
+          if (!content || typeof content !== "string") throw new Error("Empty AI response");
+          const parsed = JSON.parse(content);
+          const clips = (parsed.clips || []).sort((a: any, b: any) => a.rank - b.rank);
+          await db.saveHighlightReel(input.sessionId, clips);
+          return { clips };
+        } catch (error: any) {
+          console.error("[HighlightReel] Generation failed:", error?.message || error);
+          throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: `Failed to generate highlight reel: ${error?.message || "Unknown error"}. Please try again.` });
+        }
+      }),
+  }),
 });
 
 export type AppRouter = typeof appRouter;

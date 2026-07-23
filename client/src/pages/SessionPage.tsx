@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ArrowLeft, Loader2, RefreshCw, Download, Image, Swords, Gamepad2 } from "lucide-react";
+import { ArrowLeft, Loader2, RefreshCw, Download, Image, Swords, Gamepad2, Box, AlertTriangle, Film } from "lucide-react";
 import { useLocation, useParams } from "wouter";
 import ReportView from "@/components/report/ReportView";
 import FilmBreakdown from "@/components/film/FilmBreakdown";
@@ -13,6 +13,9 @@ import PlayerProfiles from "@/components/players/PlayerProfiles";
 import { GamePlanGenerator } from "@/components/gameplan/GamePlanGenerator";
 import PlayerRatingCard, { generatePlayerRatings } from "@/components/madden/PlayerRatingCard";
 import MatchupScreen from "@/components/madden/MatchupScreen";
+import Play3DTab from "@/components/play3d/Play3DTab";
+import MistakeAnalysisTab from "@/components/mistakes/MistakeAnalysisTab";
+import HighlightReelTab from "@/components/highlights/HighlightReelTab";
 import { toast } from "sonner";
 
 export default function SessionPage() {
@@ -118,27 +121,37 @@ export default function SessionPage() {
 
       {session.status === "complete" && report && (
         <Tabs defaultValue="report" className="w-full">
-          <TabsList>
+          <TabsList className="flex-wrap h-auto">
             <TabsTrigger value="report">Scouting Report</TabsTrigger>
-            <TabsTrigger value="film" className="gap-2">
-              AI Film Breakdown
-              <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-primary/50 text-primary">
-                NEW
-              </Badge>
-            </TabsTrigger>
+            <TabsTrigger value="film">AI Film Breakdown</TabsTrigger>
             <TabsTrigger value="players" className="gap-2">
               Player Profiles
             </TabsTrigger>
             <TabsTrigger value="gameplan" className="gap-2">
               <Swords className="h-3 w-3" />
               Game Plan
-              <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-[#00FF87]/50 text-[#00FF87]">
-                NEW
-              </Badge>
             </TabsTrigger>
             <TabsTrigger value="matchup" className="gap-2">
               <Gamepad2 className="h-3 w-3" />
               Matchup
+            </TabsTrigger>
+            <TabsTrigger value="play3d" className="gap-2">
+              <Box className="h-3 w-3" />
+              3D Plays
+              <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-[#00FF87]/50 text-[#00FF87]">
+                NEW
+              </Badge>
+            </TabsTrigger>
+            <TabsTrigger value="mistakes" className="gap-2">
+              <AlertTriangle className="h-3 w-3" />
+              Mistakes
+              <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-orange-500/50 text-orange-400">
+                NEW
+              </Badge>
+            </TabsTrigger>
+            <TabsTrigger value="highlights" className="gap-2">
+              <Film className="h-3 w-3" />
+              Highlight Reel
               <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-yellow-500/50 text-yellow-400">
                 NEW
               </Badge>
@@ -186,6 +199,15 @@ export default function SessionPage() {
           </TabsContent>
           <TabsContent value="matchup" className="mt-6">
             <MatchupTab sessionId={sessionId} opponentName={session.opponentName} />
+          </TabsContent>
+          <TabsContent value="play3d" className="mt-6">
+            <Play3DTab sessionId={sessionId} />
+          </TabsContent>
+          <TabsContent value="mistakes" className="mt-6">
+            <MistakeAnalysisTab sessionId={sessionId} />
+          </TabsContent>
+          <TabsContent value="highlights" className="mt-6">
+            <HighlightReelTab sessionId={sessionId} session={session} />
           </TabsContent>
         </Tabs>
       )}

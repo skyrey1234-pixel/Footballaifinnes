@@ -1,7 +1,7 @@
 import { eq, desc } from "drizzle-orm";
 import { sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, users, gameSessions, scoutingReports, playerProfiles, type InsertGameSession, type InsertScoutingReport, type InsertPlayerProfile } from "../drizzle/schema";
+import { InsertUser, users, gameSessions, scoutingReports, playerProfiles, mistakeAnalyses, highlightReels, type InsertGameSession, type InsertScoutingReport, type InsertPlayerProfile } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -173,6 +173,48 @@ export async function deleteReportBySessionId(sessionId: number) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
   await db.delete(scoutingReports).where(eq(scoutingReports.sessionId, sessionId));
+}
+
+// ===== Mistake Analyses =====
+export async function saveMistakeAnalysis(sessionId: number, plays: unknown) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.delete(mistakeAnalyses).where(eq(mistakeAnalyses.sessionId, sessionId));
+  await db.insert(mistakeAnalyses).values({ sessionId, plays });
+}
+
+export async function getMistakeAnalysisBySession(sessionId: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db.select().from(mistakeAnalyses).where(eq(mistakeAnalyses.sessionId, sessionId)).limit(1);
+  return rows[0] ?? null;
+}
+
+export async function deleteMistakeAnalysisBySession(sessionId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.delete(mistakeAnalyses).where(eq(mistakeAnalyses.sessionId, sessionId));
+}
+
+// ===== Highlight Reels =====
+export async function saveHighlightReel(sessionId: number, clips: unknown) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.delete(highlightReels).where(eq(highlightReels.sessionId, sessionId));
+  await db.insert(highlightReels).values({ sessionId, clips });
+}
+
+export async function getHighlightReelBySession(sessionId: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db.select().from(highlightReels).where(eq(highlightReels.sessionId, sessionId)).limit(1);
+  return rows[0] ?? null;
+}
+
+export async function deleteHighlightReelBySession(sessionId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.delete(highlightReels).where(eq(highlightReels.sessionId, sessionId));
 }
 
 // ===== Season Dashboard Queries =====

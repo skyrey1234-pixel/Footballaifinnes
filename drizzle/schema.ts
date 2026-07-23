@@ -83,3 +83,21 @@ export const playerProfiles = mysqlTable("player_profiles", {
 
 export type PlayerProfile = typeof playerProfiles.$inferSelect;
 export type InsertPlayerProfile = typeof playerProfiles.$inferInsert;
+
+// Mistake analyses table — AI-generated correct-vs-actual play breakdowns
+export const mistakeAnalyses = mysqlTable("mistake_analyses", {
+  id: int("id").autoincrement().primaryKey(),
+  sessionId: int("sessionId").notNull(),
+  plays: json("plays"), // Array of mistake play objects
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type MistakeAnalysis = typeof mistakeAnalyses.$inferSelect;
+
+// Highlight reels table — AI-ranked best plays from game film
+export const highlightReels = mysqlTable("highlight_reels", {
+  id: int("id").autoincrement().primaryKey(),
+  sessionId: int("sessionId").notNull(),
+  clips: json("clips"), // Array of ranked clip objects
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type HighlightReel = typeof highlightReels.$inferSelect;
