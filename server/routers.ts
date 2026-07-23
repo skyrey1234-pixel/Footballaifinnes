@@ -906,6 +906,73 @@ Select and rank the 8 BEST plays for a highlight reel. Rank by impact (game-chan
         }
       }),
   }),
+  playSim: router({
+    grade: protectedProcedure
+      .input(z.object({
+        sessionId: z.number(),
+        playId: z.string(),
+        selectedDefense: z.string(),
+      }))
+      .mutation(async ({ input }) => {
+        const session = await db.getGameSession(input.sessionId);
+        const report = await db.getReportBySessionId(input.sessionId);
+        if (!session || !report) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "Session or report not found" });
+        }
+        // Mock play for demo — in production, fetch from gamePlans table
+        const selectedPlay = {
+          id: input.playId,
+          name: "Sample Play",
+          formation: "I-Form",
+          playType: "Run",
+          description: "Inside zone run to the right",
+        };
+        const prompt = `You are an elite football coordinator analyzing a play call.
+PLAY CALLED: ${selectedPlay.name}
+FORMATION: ${selectedPlay.formation}
+PLAY TYPE: ${selectedPlay.playType}
+DESCRIPTION: ${selectedPlay.description}
+
+OPPONENT DEFENSE: ${input.selectedDefense}
+OPPONENT TENDENCIES: ${report.defenseAnalysis || "Unknown"}
+
+Analyze this matchup and provide:
+1. Success Likelihood (0-100): How likely this play succeeds against this defense
+2. Key Coaching Notes (2-3 sentences): Why it works or doesn't work
+3. Adjustment (1 sentence): How to tweak the play if it fails
+
+Format as JSON: { "successLikelihood": number, "coachingNotes": string, "adjustment": string }`;
+        const response = await invokeLLM({
+          messages: [{ role: "user", content: prompt }],
+          response_format: {
+            type: "json_schema",
+            json_schema: {
+              name: "play_grade",
+              strict: true,
+              schema: {
+                type: "object",
+                properties: {
+                  successLikelihood: { type: "integer", description: "0-100 success percentage" },
+                  coachingNotes: { type: "string", description: "Analysis of the matchup" },
+                  adjustment: { type: "string", description: "How to adjust if it fails" },
+                },
+                required: ["successLikelihood", "coachingNotes", "adjustment"],
+                additionalProperties: false,
+              },
+            },
+          },
+        });
+        const content = response.choices[0].message.content;
+        const parsed = typeof content === "string" ? JSON.parse(content) : content;
+        return {
+          playId: input.playId,
+          selectedDefense: input.selectedDefense,
+          successLikelihood: parsed.successLikelihood || 50,
+          coachingNotes: parsed.coachingNotes || "Matchup analysis unavailable",
+          adjustment: parsed.adjustment || "Execute as called",
+        };
+      }),
+  }),
 });
 
 export type AppRouter = typeof appRouter;
