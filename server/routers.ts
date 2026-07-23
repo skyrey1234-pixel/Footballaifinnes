@@ -7,8 +7,10 @@ import { TRPCError } from "@trpc/server";
 import * as db from "./db";
 import { invokeLLM } from "./_core/llm";
 import { storagePut } from "./storage";
+import { analyzeFootballVideo, cleanupAnalysisTemp, type VideoAnalysis } from "./videoAnalysis";
 import { generateImage } from "./_core/imageGeneration";
 import { stripeRouter } from "./stripeRoutes";
+import { canAccessFeature } from "./stripe";
 
 // Admin-only procedure
 const adminProcedure = protectedProcedure.use(({ ctx, next }) => {
@@ -63,8 +65,14 @@ export const appRouter = router({
           videoUrl: input.videoUrl || null,
           status: "analyzing",
         });
-        // Trigger async analysis
-        generateReport(sessionId, input.opponentName, input.sourceType, input.youtubeVideoId || null).catch(err => {
+        // Trigger async analysis (grounded in the uploaded footage when present)
+        generateReport(
+          sessionId,
+          input.opponentName,
+          input.sourceType,
+          input.youtubeVideoId || null,
+          input.videoFileKey || null
+        ).catch(err => {
           console.error("[Analysis] Failed:", err);
         });
         return { id: sessionId };
@@ -904,52 +912,75 @@ export type AppRouter = typeof appRouter;
 
 // ===== Async Report Generation =====
 
-async function generateReport(sessionId: number, opponentName: string, sourceType: string, youtubeVideoId: string | null) {
+async function generateReport(sessionId: number, opponentName: string, sourceType: string, youtubeVideoId: string | null, videoFileKey?: string | null) {
+  // ---- Step 1: analyze the REAL footage (if we have it) ----
+  // This is the core fix: the report is now grounded in what's actually on the
+  // film instead of invented from the opponent's name. If anything about the
+  // vision pipeline fails, we fall back to the name-only report below.
+  let vision: VideoAnalysis | null = null;
+  const session = await db.getGameSession(sessionId).catch(() => undefined);
+  const fileKey = videoFileKey || session?.videoFileKey || null;
+  const ytId = youtubeVideoId || session?.youtubeVideoId || null;
+  let tempVideoPath: string | null = null;
+  if (fileKey || ytId) {
+    try {
+      vision = await analyzeFootballVideo({ opponentName, videoFileKey: fileKey, youtubeVideoId: ytId });
+      tempVideoPath = (vision as any).localPath ?? null;
+    } catch (err) {
+      console.warn(
+        `[Report Generation] Vision analysis unavailable for session ${sessionId}, falling back to name-only report:`,
+        (err as Error).message
+      );
+      vision = null;
+    }
+  }
+
   try {
-    // Try to get video duration for better timestamp distribution
-    let videoDurationSecs = 0;
-    if (sourceType === "youtube" && youtubeVideoId) {
-      try {
-        // Use noembed to get video title confirmation, then estimate duration
-        // High school football game recaps on YouTube are typically 5-25 minutes
-        // Full games are 45-90 minutes. We'll use a reasonable default.
-        const oembed = await fetch(`https://noembed.com/embed?url=https://www.youtube.com/watch?v=${youtubeVideoId}`);
-        const oembedData = await oembed.json();
-        const title = (oembedData.title || "").toLowerCase();
-        // Estimate duration based on title keywords
-        if (title.includes("full game") || title.includes("complete game")) {
-          videoDurationSecs = 5400; // ~90 min
-        } else if (title.includes("highlights") || title.includes("recap")) {
-          videoDurationSecs = 600; // ~10 min
-        } else if (title.includes("game of the week") || title.includes("friday night")) {
-          videoDurationSecs = 1800; // ~30 min for broadcast recap
-        } else {
-          videoDurationSecs = 1200; // Default ~20 min
-        }
-        console.log(`[Report] Video "${oembedData.title}" estimated duration: ${videoDurationSecs}s`);
-      } catch {
-        videoDurationSecs = 1200; // Default 20 min
-      }
+    // ---- Step 2: build the report prompt, grounded in vision when present ----
+    const visionContext = vision
+      ? `
+REAL FOOTAGE ANALYSIS (from ${vision.frameCount} frames sampled across the actual game — use ONLY this; do not invent other plays):
+Visual summary: ${vision.visualSummary}
+
+Coach-visible observations:
+${vision.observations.map((o) => `- ${o}`).join("\n")}
+
+Detected plays (anchored to real timestamps in the footage):
+${vision.highlights.map((h) => `- [${h.timestamp}] (${h.verdict} / ${h.category}) ${h.title}: ${h.note}`).join("\n")}
+`
+      : "";
+
+    const prompt = `You are an elite football scouting analyst. Generate a comprehensive scouting report for the opponent "${opponentName}".
+${sourceType === "youtube" && youtubeVideoId ? `Source: YouTube footage (youtubeVideoId=${youtubeVideoId}).` : ""}
+${vision ? "" : "NOTE: No footage was analyzed for this session, so general opponent tendencies should be clearly framed as expectations, not observed facts."}
+
+${visionContext}
+Generate a detailed scouting report as a JSON object with this exact structure:
+{
+  "executive_summary": "2-3 paragraph overview of the opponent's strengths, weaknesses, and overall game plan",
+  "offense_analysis": "Detailed analysis of offensive formations, personnel groupings, run/pass tendencies, route concepts, and key playmakers",
+  "defense_analysis": "Coverage shells (Cover 1/2/3/4), blitz packages, front alignments, and defensive tendencies",
+  "special_situations": "Red zone, 3rd down, 2-minute drill, and goal line tendencies",
+  "mistakes": "Key mistakes, blown coverages, missed assignments, and exploitable weaknesses",
+  "predictions": "Predicted game plan, likely adjustments, and recommended counter-strategies",
+  "highlights": [
+    {
+      "timestamp": "MM:SS format — MUST match the seconds field exactly",
+      "seconds": "integer second in the video where this play occurs",
+      "title": "Short title of the play",
+      "note": "Detailed description of what happened",
+      "category": "offense" | "defense" | "special" | "mistake",
+      "verdict": "good" | "bad"
     }
 
-    const durationMin = Math.floor(videoDurationSecs / 60);
-    const prompt = `You are an elite football scouting analyst. Generate a comprehensive scouting report for the opponent "${opponentName}".
-${sourceType === "youtube" && youtubeVideoId ? `Video source: YouTube (ID: ${youtubeVideoId})` : ""}
-${videoDurationSecs > 0 ? `Video duration: approximately ${durationMin} minutes (${videoDurationSecs} seconds total).` : ""}
+HIGHLIGHT RULES:
+${vision
+        ? "- Use the detected plays above as your highlights. Their timestamps/seconds are REAL and must be passed through unchanged. Do not fabricate new timestamps."
+        : "- Timestamps are estimates only; spread them across a typical game duration (1:00-58:00) and never duplicate. Mark them as approximate."}
+- Each highlight must have a UNIQUE seconds value. Order chronologically.
+- Generate between 6 and 12 highlights.
 
-Generate a detailed scouting report. The analysis should cover formations, tendencies, key players, and exploitable weaknesses.
-
-CRITICAL TIMESTAMP RULES FOR HIGHLIGHTS:
-- The video is approximately ${durationMin} minutes long (${videoDurationSecs} seconds)
-- Distribute 8-10 highlights EVENLY across the video duration
-- First highlight should be around ${Math.floor(videoDurationSecs * 0.05)} seconds (${Math.floor(videoDurationSecs * 0.05 / 60)}:${String(Math.floor(videoDurationSecs * 0.05) % 60).padStart(2, '0')})
-- Last highlight should be around ${Math.floor(videoDurationSecs * 0.9)} seconds (${Math.floor(videoDurationSecs * 0.9 / 60)}:${String(Math.floor(videoDurationSecs * 0.9) % 60).padStart(2, '0')})
-- Space highlights roughly ${Math.floor(videoDurationSecs / 10)} seconds apart
-- Each "seconds" value MUST be unique and match its "timestamp" field exactly
-- timestamp format: "MM:SS" where seconds = minutes*60 + seconds (e.g. "05:30" = 330 seconds)
-- NEVER cluster all highlights in the first few minutes — spread them across the ENTIRE video
-
-Make the analysis specific, tactical, and actionable for a coaching staff.`;
+Make the analysis specific, tactical, and actionable for a coaching staff. Return ONLY valid JSON.`;
 
     const response = await invokeLLM({
       model: "gpt-5-mini",
@@ -1000,6 +1031,12 @@ Make the analysis specific, tactical, and actionable for a coaching staff.`;
 
     const reportData = JSON.parse(content as string);
 
+    // When we have real footage, prefer the vision-anchored highlights so the
+    // "key moments" sidebar points at plays that actually exist in the film.
+    if (vision && vision.highlights.length > 0) {
+      reportData.highlights = vision.highlights;
+    }
+
     await db.createScoutingReport({
       sessionId,
       executiveSummary: reportData.executive_summary,
@@ -1015,6 +1052,7 @@ Make the analysis specific, tactical, and actionable for a coaching staff.`;
   } catch (error) {
     console.error("[Report Generation] Error:", error);
     await db.updateGameSessionStatus(sessionId, "failed");
+  } finally {
+    await cleanupAnalysisTemp(tempVideoPath).catch(() => {});
   }
 }
-import { canAccessFeature } from "./stripe";
