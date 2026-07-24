@@ -8,6 +8,7 @@ import * as db from "./db";
 import { invokeLLM } from "./_core/llm";
 import { storagePut } from "./storage";
 import { analyzeFootballVideo, cleanupAnalysisTemp, type VideoAnalysis } from "./videoAnalysis";
+import { fetchYouTubeMeta } from "./youtubeMeta";
 import { generateImage } from "./_core/imageGeneration";
 import { stripeRouter } from "./stripeRoutes";
 import { canAccessFeature } from "./stripe";
@@ -1157,6 +1158,16 @@ async function generateReport(sessionId: number, opponentName: string, sourceTyp
   const fileKey = videoFileKey || session?.videoFileKey || null;
   const ytId = youtubeVideoId || session?.youtubeVideoId || null;
   let tempVideoPath: string | null = null;
+
+  // Real YouTube metadata (duration/title/channel) via YouTube Data API.
+  // Cheap (~200ms) and dramatically improves timestamp accuracy for YouTube
+  // sessions where the vision pipeline can't download the footage.
+  const ytMeta = ytId ? await fetchYouTubeMeta(ytId) : null;
+  if (ytMeta) {
+    console.log(
+      `[Report Generation] YouTube metadata: "${ytMeta.title}" (${ytMeta.durationLabel}, ${ytMeta.durationSeconds}s)`,
+    );
+  }
   if (fileKey || ytId) {
     try {
       await db.setAnalysisStage(sessionId, "downloading").catch(() => {});
@@ -1198,6 +1209,7 @@ ${vision.highlights.map((h) => `- [${h.timestamp}] (${h.verdict} / ${h.category}
 
     const prompt = `You are an elite football scouting analyst. Generate a comprehensive scouting report for the opponent "${opponentName}".
 ${sourceType === "youtube" && youtubeVideoId ? `Source: YouTube footage (youtubeVideoId=${youtubeVideoId}).` : ""}
+${ytMeta ? `VIDEO METADATA (real, from YouTube Data API): title="${ytMeta.title}", channel="${ytMeta.channelTitle}", EXACT duration=${ytMeta.durationLabel} (${ytMeta.durationSeconds} seconds total).` : ""}
 ${vision ? "" : "NOTE: No footage was analyzed for this session, so general opponent tendencies should be clearly framed as expectations, not observed facts."}
 
 ${visionContext}
@@ -1222,7 +1234,9 @@ Generate a detailed scouting report as a JSON object with this exact structure:
 HIGHLIGHT RULES:
 ${vision
         ? "- Use the detected plays above as your highlights. Their timestamps/seconds are REAL and must be passed through unchanged. Do not fabricate new timestamps."
-        : "- Timestamps are estimates only; spread them across a typical game duration (1:00-58:00) and never duplicate. Mark them as approximate."}
+        : ytMeta
+          ? `- Timestamps are estimates, but the video is EXACTLY ${ytMeta.durationSeconds} seconds long. Every "seconds" value MUST be between 10 and ${Math.max(20, ytMeta.durationSeconds - 15)}. Spread them realistically across the full video. Use the video title for context about what's on the film. Never duplicate a timestamp.`
+          : "- Timestamps are estimates only; spread them across a typical game duration (1:00-58:00) and never duplicate. Mark them as approximate."}
 - Each highlight must have a UNIQUE seconds value. Order chronologically.
 - Generate between 6 and 12 highlights.
 

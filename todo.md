@@ -43,7 +43,10 @@
 - [x] NEW FEATURE: Wristband/Call Sheet Generator — Printable QB wristband inserts and situational call sheets for game day
 - [x] NEW FEATURE: AI Voice Coach — Broadcast-style voiceover commentary generator for highlights and mistake breakdowns (ready for ElevenLabs integration)
 - [x] Integrate all 4 new features into SessionPage tabs (Beat This Defense / Game-Day Assistant / Call Sheet / Voice Coach with NEW badges) — TypeScript clean, all routers and components wired
-- [ ] FUTURE ENHANCEMENT: Real video timestamp extraction — requires either YouTube Data API key, working yt-dlp access, or Gemini video analysis (all currently unavailable in sandbox). Current workaround: timestamps estimated from video title metadata + evenly distributed across duration. Re-Analyze button available for admins to regenerate.
+- [x] YouTube Data API metadata integration: YouTube sessions now use REAL duration + title/channel for timestamp distribution (big accuracy upgrade over pure guessing). NOTE: play timestamps for YouTube sessions are still AI estimates within the real duration — true play-level extraction requires downloading the footage (yt-dlp is blocked by YouTube bot detection in this runtime). Uploaded videos use vision-anchored timestamps.
+- [x] YOUTUBE API INTEGRATION: YOUTUBE_API_KEY secret validated with live videos.list test; server/youtubeMeta.ts helper (ISO8601 duration parser, 8s timeout, graceful null fallback); generateReport now injects exact duration + bounds every highlight timestamp within the real video length; 4 new tests (29 total passing)
+- [x] Label YouTube-session clip timestamps as estimated in the film breakdown UI — "~" prefix on clip times + explainer note recommending direct upload for exact vision-anchored timestamps
+- [ ] STILL FUTURE: true play-level timestamp extraction for YouTube links (needs yt-dlp access or Gemini video analysis of YouTube URLs — both blocked in this runtime); workaround remains: upload the video file directly
 
 ## Visual/Interactive Upgrade Round (Jul 24)
 - [x] Shared play-animation foundation — extended FormationDiagram (SVG engine: routes drawing live, players, NEW ball-flight arc QB→target for passes / handoff track for runs) reused across Game Plan, Beat This Defense, Mistake Analysis

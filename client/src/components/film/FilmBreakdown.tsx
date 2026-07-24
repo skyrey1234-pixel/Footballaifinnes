@@ -212,6 +212,13 @@ export default function FilmBreakdown({ session, report }: FilmBreakdownProps) {
         </TabsList>
       </Tabs>
 
+      {/* Honest timestamp note for YouTube sessions (uploads use vision-anchored times) */}
+      {session.sourceType === "youtube" && (
+        <p className="text-[11px] text-muted-foreground/80 -mt-1">
+          Clip times on YouTube sessions are AI-estimated within the video's real duration. Upload the film directly for exact vision-anchored timestamps.
+        </p>
+      )}
+
       {/* Highlight Cards */}
       <div className="space-y-4">
         {filteredHighlights.map((highlight, idx) => {
@@ -239,7 +246,7 @@ export default function FilmBreakdown({ session, report }: FilmBreakdownProps) {
                     </div>
                     <div>
                       <p className="font-medium text-sm">{highlight.title}</p>
-                      <p className="text-xs text-muted-foreground">{highlight.timestamp} &middot; {highlight.category}</p>
+                      <p className="text-xs text-muted-foreground">{session.sourceType === "youtube" ? "~" : ""}{highlight.timestamp} &middot; {highlight.category}</p>
                     </div>
                   </div>
                   <Button
