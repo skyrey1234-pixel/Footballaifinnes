@@ -41,6 +41,8 @@ export const gameSessions = mysqlTable("game_sessions", {
   videoUrl: text("videoUrl"),
   videoFileKey: text("videoFileKey"),
   status: mysqlEnum("status", ["analyzing", "complete", "failed"]).default("analyzing").notNull(),
+  /** Real backend analysis progress stage, written by the pipeline as it advances. */
+  analysisStage: varchar("analysisStage", { length: 64 }),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });

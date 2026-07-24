@@ -28,6 +28,9 @@ function FilmCircleOverlay({ x, y, label }: { x: number; y: number; label: strin
           </span>
         </span>
       </div>
+      <span className="absolute bottom-1.5 right-1.5 rounded bg-black/70 px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wide text-zinc-300">
+        Circle position AI-estimated
+      </span>
     </div>
   );
 }

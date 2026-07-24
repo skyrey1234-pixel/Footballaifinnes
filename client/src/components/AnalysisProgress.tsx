@@ -4,9 +4,11 @@ import { CheckCircle2, Loader2, Film, Scan, Brain, FileText, Sparkles, CircleDas
 
 /**
  * AnalysisProgress — cinematic progress experience for the 1-3 minute AI
- * analysis wait. Stage timeline is time-driven (deterministic client-side
- * simulation based on elapsed time since the session was created/updated),
- * capped at 96% until the real status flips to complete.
+ * analysis wait. The stage timeline is driven by the REAL backend pipeline
+ * stage (session.analysisStage, written by the server as it advances through
+ * download → vision → report → finalize). When the server hasn't reported a
+ * stage yet, we fall back to an elapsed-time estimate. Progress % is capped
+ * at 96 until the real status flips to complete.
  */
 type Stage = {
   id: string;
@@ -24,6 +26,15 @@ const STAGES: Stage[] = [
   { id: "polish", label: "Finalizing highlights", detail: "Timestamping the plays that matter", icon: Sparkles, at: 110 },
 ];
 
+/** Map of real backend stage names (game_sessions.analysisStage) → stage index. */
+const BACKEND_STAGE_INDEX: Record<string, number> = {
+  downloading: 0,
+  frames: 1,
+  watching: 2,
+  writing: 3,
+  finalizing: 4,
+};
+
 const EXPECTED_TOTAL = 135; // seconds — matches observed ~50s-3min pipeline
 
 const HYPE_LINES = [
@@ -35,7 +46,16 @@ const HYPE_LINES = [
   "Film don't lie. Neither does the report.",
 ];
 
-export default function AnalysisProgress({ startedAt, title = "AI Analysis in Progress" }: { startedAt?: string | Date | number | null; title?: string }) {
+export default function AnalysisProgress({
+  startedAt,
+  title = "AI Analysis in Progress",
+  backendStage,
+}: {
+  startedAt?: string | Date | number | null;
+  title?: string;
+  /** Real pipeline stage reported by the server (session.analysisStage). */
+  backendStage?: string | null;
+}) {
   const startMs = useMemo(() => {
     if (!startedAt) return Date.now();
     const t = new Date(startedAt).getTime();
@@ -49,9 +69,19 @@ export default function AnalysisProgress({ startedAt, title = "AI Analysis in Pr
   }, []);
 
   const elapsed = Math.max(0, (now - startMs) / 1000);
-  // Eased progress: fast early, slows near the cap — never hits 100 until real status flips
-  const pct = Math.min(96, (1 - Math.exp(-elapsed / (EXPECTED_TOTAL * 0.55))) * 104);
-  const activeIdx = STAGES.reduce((acc, s, i) => (elapsed >= s.at ? i : acc), 0);
+  // Prefer the REAL backend-reported stage; fall back to elapsed-time estimate
+  const backendIdx = backendStage != null ? BACKEND_STAGE_INDEX[backendStage] : undefined;
+  const timeIdx = STAGES.reduce((acc, s, i) => (elapsed >= s.at ? i : acc), 0);
+  const activeIdx = backendIdx !== undefined ? backendIdx : timeIdx;
+  // Eased progress anchored to the active stage: each stage owns a band of the
+  // bar; within the band we ease with elapsed time — never hits 100 until the
+  // real status flips to complete.
+  const bandStart = (activeIdx / STAGES.length) * 100;
+  const bandEnd = ((activeIdx + 1) / STAGES.length) * 100;
+  const timePct = Math.min(96, (1 - Math.exp(-elapsed / (EXPECTED_TOTAL * 0.55))) * 104);
+  const pct = backendIdx !== undefined
+    ? Math.min(96, Math.max(bandStart + 2, Math.min(bandEnd, timePct)))
+    : timePct;
   const hypeLine = HYPE_LINES[Math.floor(elapsed / 10) % HYPE_LINES.length];
   const mins = Math.floor(elapsed / 60);
   const secs = Math.floor(elapsed % 60);

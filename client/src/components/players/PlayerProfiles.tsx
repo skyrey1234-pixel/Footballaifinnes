@@ -62,6 +62,7 @@ type Spotlight = {
 function SpotlightOverlay({ spotlight, playerNumber }: { spotlight: Spotlight; playerNumber: string }) {
   const { circle, arrows } = spotlight;
   return (
+    <>
     <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 100 100" preserveAspectRatio="none">
       <defs>
         <marker id="spot-arrow-red" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
@@ -97,6 +98,10 @@ function SpotlightOverlay({ spotlight, playerNumber }: { spotlight: Spotlight; p
         </g>
       ))}
     </svg>
+    <span className="absolute bottom-1.5 right-1.5 rounded bg-black/70 px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wide text-zinc-300 pointer-events-none">
+      Circle position AI-estimated
+    </span>
+    </>
   );
 }
 

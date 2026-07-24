@@ -63,3 +63,10 @@ REMAINING:
 - session fields: sourceType "youtube"|"upload", youtubeVideoId, videoUrl (S3 signed), highlights[{timestamp,seconds,title,note,category,verdict}] (verdict "good"|"bad").
 - ai.annotateHighlight returns {annotations[{type circle|arrow|zone|label,x,y,x2,y2,radius,color,label}], coaching_callout, alternative_play, verdict} — AnnotationCanvas renders % coords 0-100.
 - Do NOT run dev server checks with long vitest each edit; batch verification at end.
+
+## GAP-FIX ROUND (post-checkpoint 315dc49b)
+All 9 items checkpointed + live. System review flagged 3 honesty gaps; fixing 2, labeling 1:
+1. DONE: real backend progress — added `analysisStage` varchar(64) col to game_sessions (ALTER ran on live DB + schema.ts updated), db.setAnalysisStage helper, generateReport writes stages: downloading → watching → writing → finalizing → null; AnalysisProgress takes backendStage prop (BACKEND_STAGE_INDEX map: downloading0/frames1/watching2/writing3/finalizing4) w/ band-anchored pct; SessionPage passes (session as any).analysisStage in both analyzing + reanalyzing blocks.
+2. TODO: add "AI-estimated" label to SpotlightOverlay (PlayerProfiles.tsx ~line 62) + FilmCircleOverlay (AskFilmPanel.tsx ~line 16) — small caption/badge noting circle position is AI-estimated, not frame-level tracking.
+3. Remaining todo.md items to mark [x] after: honesty-gaps ack, backend progress, AI-estimated labels. FUTURE ENHANCEMENT (YouTube timestamps) stays open by design.
+Verify: tsc + vitest (25 passing before) + checkpoint.

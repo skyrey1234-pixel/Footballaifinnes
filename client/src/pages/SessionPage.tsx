@@ -119,7 +119,10 @@ export default function SessionPage() {
       </div>
 
       {session.status === "analyzing" && (
-        <AnalysisProgress startedAt={session.updatedAt} />
+        <AnalysisProgress
+          startedAt={session.updatedAt}
+          backendStage={(session as { analysisStage?: string | null }).analysisStage}
+        />
       )}
 
       {session.status === "failed" && !reanalyzeMutation.isPending && (
@@ -146,7 +149,10 @@ export default function SessionPage() {
       )}
 
       {session.status === "failed" && reanalyzeMutation.isPending && (
-        <AnalysisProgress title="Re-Analysis in Progress" />
+        <AnalysisProgress
+          title="Re-Analysis in Progress"
+          backendStage={(session as { analysisStage?: string | null }).analysisStage}
+        />
       )}
 
       {session.status === "complete" && report && (

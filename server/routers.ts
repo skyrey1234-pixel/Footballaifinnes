@@ -1159,9 +1159,11 @@ async function generateReport(sessionId: number, opponentName: string, sourceTyp
   let tempVideoPath: string | null = null;
   if (fileKey || ytId) {
     try {
+      await db.setAnalysisStage(sessionId, "downloading").catch(() => {});
       // Hard 110s budget for the vision step. The create/reanalyze mutations
       // now await this whole pipeline, and the serverless request cap is
       // 180s — vision + report LLM must both fit inside it.
+      await db.setAnalysisStage(sessionId, "watching").catch(() => {});
       vision = await Promise.race([
         analyzeFootballVideo({ opponentName, videoFileKey: fileKey, youtubeVideoId: ytId }),
         new Promise<never>((_, reject) =>
@@ -1180,6 +1182,7 @@ async function generateReport(sessionId: number, opponentName: string, sourceTyp
 
   try {
     // ---- Step 2: build the report prompt, grounded in vision when present ----
+    await db.setAnalysisStage(sessionId, "writing").catch(() => {});
     const visionContext = vision
       ? `
 REAL FOOTAGE ANALYSIS (from ${vision.frameCount} frames sampled across the actual game — use ONLY this; do not invent other plays):
@@ -1291,10 +1294,13 @@ Make the analysis specific, tactical, and actionable for a coaching staff. Retur
       highlights: reportData.highlights,
     });
 
+    await db.setAnalysisStage(sessionId, "finalizing").catch(() => {});
     await db.updateGameSessionStatus(sessionId, "complete");
+    await db.setAnalysisStage(sessionId, null).catch(() => {});
   } catch (error) {
     console.error("[Report Generation] Error:", error);
     await db.updateGameSessionStatus(sessionId, "failed");
+    await db.setAnalysisStage(sessionId, null).catch(() => {});
   } finally {
     await cleanupAnalysisTemp(tempVideoPath).catch(() => {});
   }

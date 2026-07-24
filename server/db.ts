@@ -146,6 +146,13 @@ export async function updateGameSessionStatus(id: number, status: "analyzing" | 
   await db.update(gameSessions).set({ status }).where(eq(gameSessions.id, id));
 }
 
+/** Persist the real analysis pipeline stage so the client progress bar reflects actual work. */
+export async function setAnalysisStage(id: number, stage: string | null) {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(gameSessions).set({ analysisStage: stage }).where(eq(gameSessions.id, id));
+}
+
 export async function deleteGameSession(id: number) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
