@@ -1148,7 +1148,7 @@ export type AppRouter = typeof appRouter;
 
 // ===== Async Report Generation =====
 
-async function generateReport(sessionId: number, opponentName: string, sourceType: string, youtubeVideoId: string | null, videoFileKey?: string | null) {
+export async function generateReport(sessionId: number, opponentName: string, sourceType: string, youtubeVideoId: string | null, videoFileKey?: string | null) {
   // ---- Step 1: analyze the REAL footage (if we have it) ----
   // This is the core fix: the report is now grounded in what's actually on the
   // film instead of invented from the opponent's name. If anything about the
