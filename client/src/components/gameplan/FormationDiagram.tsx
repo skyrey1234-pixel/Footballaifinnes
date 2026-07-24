@@ -15,6 +15,8 @@ interface FormationDiagramProps {
   target?: string;
   compact?: boolean;
   defenseScheme?: string;
+  /** Show animated ball flight from QB to the primary target during Run Play */
+  showBall?: boolean;
 }
 
 // ===== OFFENSIVE FORMATIONS =====
@@ -234,7 +236,7 @@ function buildPartialPath(startX: number, startY: number, points: [number, numbe
 }
 
 // ===== MAIN COMPONENT =====
-export function FormationDiagram({ formation, playName, playType, target, compact = false, defenseScheme }: FormationDiagramProps) {
+export function FormationDiagram({ formation, playName, playType, target, compact = false, defenseScheme, showBall = true }: FormationDiagramProps) {
   const offensePlayers = useMemo(() => getOffensivePlayers(formation, playType, target), [formation, playType, target]);
   const defensePlayers = useMemo(() => getDefensivePlayers(defenseScheme), [defenseScheme]);
 
@@ -283,6 +285,64 @@ export function FormationDiagram({ formation, playName, playType, target, compac
 
   // Unique IDs for markers to avoid conflicts between multiple diagrams
   const uid = useMemo(() => Math.random().toString(36).slice(2, 8), []);
+
+  // ===== BALL FLIGHT =====
+  // Pass: ball arcs from QB to the primary receiver's route end after routes develop (release at 45% of play).
+  // Run/screen: ball travels with the RB along his route.
+  const ballFlight = useMemo(() => {
+    if (!showBall) return null;
+    const qb = offensePlayers.find(p => p.label === "QB");
+    if (!qb) return null;
+    const isRun = playType === "run";
+    if (isRun) {
+      const rb = offensePlayers.find(p => p.label === "RB" && p.route);
+      if (!rb || !rb.route) return null;
+      return { mode: "carry" as const, carrier: rb };
+    }
+    // Pass or screen: choose primary target — receiver whose label matches target hint, else deepest route
+    const receivers = offensePlayers.filter(p => p.route && p.route.type === "route" && p.label !== "QB");
+    if (receivers.length === 0) return null;
+    let primary = receivers[0];
+    if (target) {
+      const t = target.toLowerCase();
+      const byLabel = receivers.find(r => t.includes(r.label.toLowerCase()));
+      if (byLabel) primary = byLabel;
+    }
+    if (primary === receivers[0] && !target) {
+      // deepest route end = smallest y
+      primary = receivers.reduce((best, r) => {
+        const endY = r.route!.points[r.route!.points.length - 1][1];
+        const bestY = best.route!.points[best.route!.points.length - 1][1];
+        return endY < bestY ? r : best;
+      }, receivers[0]);
+    }
+    const end = primary.route!.points[primary.route!.points.length - 1];
+    return { mode: "throw" as const, from: { x: qb.x, y: qb.y }, to: { x: end[0], y: end[1] } };
+  }, [showBall, offensePlayers, playType, target]);
+
+  // Ball position for the current progress
+  const ballPos = useMemo(() => {
+    if (!ballFlight || progress <= 0 || progress >= 1) return null;
+    if (ballFlight.mode === "carry") {
+      const c = ballFlight.carrier;
+      const routeProgress = Math.min(progress, 1);
+      const pos = interpolateRoute(c.x, c.y, c.route!.points, routeProgress);
+      return { x: pos.x, y: pos.y - 1.2, inFlight: false };
+    }
+    const RELEASE = 0.45;
+    if (progress < RELEASE) return { x: ballFlight.from.x, y: ballFlight.from.y - 1.2, inFlight: false };
+    const t = Math.min((progress - RELEASE) / (1 - RELEASE), 1);
+    const x = ballFlight.from.x + (ballFlight.to.x - ballFlight.from.x) * t;
+    const yLinear = ballFlight.from.y + (ballFlight.to.y - ballFlight.from.y) * t;
+    // Parabolic arc: peak height scales with throw distance
+    const dist = Math.hypot(ballFlight.to.x - ballFlight.from.x, ballFlight.to.y - ballFlight.from.y);
+    const arc = Math.min(3 + dist * 0.18, 10);
+    const y = yLinear - arc * 4 * t * (1 - t);
+    return { x, y, inFlight: true };
+  }, [ballFlight, progress]);
+
+  // Dotted throw-lane preview when play is fully developed
+  const throwLane = ballFlight?.mode === "throw" && progress >= 1 ? ballFlight : null;
 
   return (
     <div className={compact ? "w-[160px] h-[160px]" : "w-full max-w-[360px]"}>
@@ -385,6 +445,48 @@ export function FormationDiagram({ formation, playName, playType, target, compac
             )}
           </g>
         ))}
+
+        {/* Static throw-lane preview (full development view) */}
+        {throwLane && (
+          <g>
+            <path
+              d={`M ${throwLane.from.x} ${throwLane.from.y} Q ${(throwLane.from.x + throwLane.to.x) / 2} ${Math.min(throwLane.from.y, throwLane.to.y) - 8} ${throwLane.to.x} ${throwLane.to.y}`}
+              fill="none"
+              stroke="#FFD700"
+              strokeWidth="0.5"
+              strokeDasharray="1.4,1"
+              opacity="0.75"
+            />
+            <circle cx={throwLane.to.x} cy={throwLane.to.y} r="2.2" fill="none" stroke="#FFD700" strokeWidth="0.4" opacity="0.8" strokeDasharray="0.8,0.6" />
+            {!compact && (
+              <text x={throwLane.to.x} y={throwLane.to.y - 3} textAnchor="middle" fontSize="1.8" fill="#FFD700" fontWeight="bold" fontFamily="monospace">
+                CATCH
+              </text>
+            )}
+          </g>
+        )}
+
+        {/* Animated ball */}
+        {ballPos && (
+          <g>
+            {ballPos.inFlight && (
+              <circle cx={ballPos.x} cy={ballPos.y} r="2.4" fill="rgba(255,215,0,0.18)">
+                <animate attributeName="r" values="2;3;2" dur="0.5s" repeatCount="indefinite" />
+              </circle>
+            )}
+            <ellipse
+              cx={ballPos.x}
+              cy={ballPos.y}
+              rx="1.3"
+              ry="0.85"
+              fill="#8B4513"
+              stroke="#FFD700"
+              strokeWidth="0.25"
+              transform={ballPos.inFlight ? `rotate(${progress * 720} ${ballPos.x} ${ballPos.y})` : undefined}
+            />
+            <line x1={ballPos.x - 0.6} y1={ballPos.y} x2={ballPos.x + 0.6} y2={ballPos.y} stroke="#fff" strokeWidth="0.15" />
+          </g>
+        )}
 
         {/* Play name label */}
         {!compact && (

@@ -5,6 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { AlertTriangle, Sparkles, Loader2, RefreshCw, CheckCircle2, XCircle } from "lucide-react";
 import Play3DVisualizer from "@/components/play3d/Play3DVisualizer";
+import { FormationDiagram } from "@/components/gameplan/FormationDiagram";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -158,7 +159,73 @@ export default function MistakeAnalysisTab({ sessionId }: { sessionId: number })
               playType={selected.playType}
               target={view === "actual" ? undefined : selected.target}
               height={400}
+              showBall={view === "correct"}
+              annotations={
+                view === "actual"
+                  ? [{ kind: "wrong", x: 50, y: 38 + (selected.breakdownMoment || 0.5) * 14, label: "BREAKDOWN" }]
+                  : [{ kind: "right", x: 50, y: 32, label: "EXECUTE HERE" }]
+              }
             />
+
+            {/* Animated 2D wrong-vs-right chalkboard */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className={cn(
+                "rounded-lg border p-3 transition-all",
+                view === "actual" ? "border-red-500/50 bg-red-950/20 ring-1 ring-red-500/30" : "border-gray-800 bg-gray-900/40"
+              )}>
+                <div className="flex items-center gap-1.5 mb-2">
+                  <XCircle className="h-3.5 w-3.5 text-red-400" />
+                  <span className="text-xs font-semibold text-red-400 uppercase tracking-wide">The Breakdown</span>
+                  <Badge variant="outline" className="text-[9px] ml-auto border-red-500/40 text-red-300">
+                    breaks at {Math.round((selected.breakdownMoment || 0.5) * 100)}%
+                  </Badge>
+                </div>
+                <div className="relative [&_svg]:!bg-[#2b0f0f] [filter:hue-rotate(0deg)]">
+                  <div className="[&_path[stroke='#00FF87']]:!stroke-red-500 [&_marker_polygon]:!fill-red-500">
+                    <FormationDiagram
+                      key={`wrong-${selectedIdx}`}
+                      formation={selected.formation}
+                      playName="ACTUAL — what happened"
+                      playType={selected.playType}
+                      showBall={false}
+                      defenseScheme="4-3"
+                    />
+                  </div>
+                  {/* Breakdown burst marker */}
+                  <div
+                    className="absolute pointer-events-none"
+                    style={{ left: "48%", top: `${34 + (selected.breakdownMoment || 0.5) * 18}%` }}
+                  >
+                    <span className="relative flex h-5 w-5">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-500 opacity-60" />
+                      <span className="relative inline-flex rounded-full h-5 w-5 bg-red-600/80 items-center justify-center text-[9px] font-black text-white">✕</span>
+                    </span>
+                  </div>
+                </div>
+                <p className="text-[11px] text-red-300/80 mt-2">Culprit: {selected.culprit} — red routes show the play as it actually broke down.</p>
+              </div>
+
+              <div className={cn(
+                "rounded-lg border p-3 transition-all",
+                view === "correct" ? "border-[#00FF87]/50 bg-emerald-950/20 ring-1 ring-[#00FF87]/30" : "border-gray-800 bg-gray-900/40"
+              )}>
+                <div className="flex items-center gap-1.5 mb-2">
+                  <CheckCircle2 className="h-3.5 w-3.5 text-[#00FF87]" />
+                  <span className="text-xs font-semibold text-[#00FF87] uppercase tracking-wide">The Fix</span>
+                  <Badge variant="outline" className="text-[9px] ml-auto border-[#00FF87]/40 text-[#00FF87]">correct execution</Badge>
+                </div>
+                <FormationDiagram
+                  key={`right-${selectedIdx}`}
+                  formation={selected.formation}
+                  playName="CORRECT — how to run it"
+                  playType={selected.playType}
+                  target={selected.target}
+                  showBall
+                  defenseScheme="4-3"
+                />
+                <p className="text-[11px] text-emerald-300/80 mt-2">Green routes + gold ball flight show the play executed the right way. Hit Run Play on both to compare.</p>
+              </div>
+            </div>
 
             {/* Explanation cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">

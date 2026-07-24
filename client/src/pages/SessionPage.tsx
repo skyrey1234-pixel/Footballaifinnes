@@ -9,6 +9,7 @@ import { ArrowLeft, Loader2, RefreshCw, Download, Image, Swords, Gamepad2, Box, 
 import { useLocation, useParams } from "wouter";
 import ReportView from "@/components/report/ReportView";
 import FilmBreakdown from "@/components/film/FilmBreakdown";
+import AnalysisProgress from "@/components/AnalysisProgress";
 import PlayerProfiles from "@/components/players/PlayerProfiles";
 import { GamePlanGenerator } from "@/components/gameplan/GamePlanGenerator";
 import PlayerRatingCard, { generatePlayerRatings } from "@/components/madden/PlayerRatingCard";
@@ -118,18 +119,7 @@ export default function SessionPage() {
       </div>
 
       {session.status === "analyzing" && (
-        <Card className="border-yellow-500/30 bg-yellow-500/5">
-          <CardContent className="flex items-center gap-4 p-6">
-            <Loader2 className="h-6 w-6 animate-spin text-yellow-400" />
-            <div>
-              <p className="font-medium text-yellow-400">AI Analysis in Progress</p>
-              <p className="text-sm text-muted-foreground">
-                Watching your film and generating the scouting report... This usually
-                takes 1-3 minutes for uploaded video. Keep this page open — it updates automatically.
-              </p>
-            </div>
-          </CardContent>
-        </Card>
+        <AnalysisProgress startedAt={session.updatedAt} />
       )}
 
       {session.status === "failed" && !reanalyzeMutation.isPending && (
@@ -156,17 +146,7 @@ export default function SessionPage() {
       )}
 
       {session.status === "failed" && reanalyzeMutation.isPending && (
-        <Card className="border-yellow-500/30 bg-yellow-500/5">
-          <CardContent className="flex items-center gap-4 p-6">
-            <Loader2 className="h-6 w-6 animate-spin text-yellow-400" />
-            <div>
-              <p className="font-medium text-yellow-400">Re-Analysis in Progress</p>
-              <p className="text-sm text-muted-foreground">
-                The AI is re-watching the film and rebuilding the report — usually 1-3 minutes.
-              </p>
-            </div>
-          </CardContent>
-        </Card>
+        <AnalysisProgress title="Re-Analysis in Progress" />
       )}
 
       {session.status === "complete" && report && (
@@ -258,7 +238,15 @@ export default function SessionPage() {
             <FilmBreakdown session={session} report={report} />
           </TabsContent>
           <TabsContent value="players" className="mt-6">
-            <PlayerProfiles sessionId={sessionId} opponentName={session.opponentName} />
+            <PlayerProfiles
+              sessionId={sessionId}
+              opponentName={session.opponentName}
+              session={{
+                sourceType: session.sourceType,
+                youtubeVideoId: session.youtubeVideoId,
+                videoUrl: session.videoUrl,
+              }}
+            />
           </TabsContent>
           <TabsContent value="gameplan" className="mt-6">
             <GamePlanGenerator sessionId={sessionId} opponentName={session.opponentName} />

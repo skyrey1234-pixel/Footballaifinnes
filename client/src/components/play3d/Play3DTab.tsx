@@ -113,7 +113,14 @@ export default function Play3DTab({ gamePlan }: { sessionId?: number; gamePlan?:
             target={selected.target}
             defenseScheme={defenseScheme}
             height={460}
+            showBall
           />
+          <div className="flex items-center gap-4 text-[11px] text-gray-500 px-1 flex-wrap">
+            <span className="flex items-center gap-1.5"><span className="inline-block w-2.5 h-2.5 rounded-full bg-[#00FF87]" /> Your offense</span>
+            <span className="flex items-center gap-1.5"><span className="inline-block w-2.5 h-2.5 rounded-full bg-[#FF4757]" /> {defenseScheme} defense</span>
+            <span className="flex items-center gap-1.5"><span className="inline-block w-2.5 h-2.5 rounded-full bg-[#FFD700]" /> Ball flight + catch point</span>
+            <span className="text-gray-600">Run Play to see routes, ball throw, and the catch ring.</span>
+          </div>
           {selected.why && (
             <Card className="border-gray-800 bg-gray-900/40">
               <CardContent className="p-4">

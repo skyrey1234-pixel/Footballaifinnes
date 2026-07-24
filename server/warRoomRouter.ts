@@ -35,7 +35,7 @@ export type OpponentDnaResult = {
   identity: string; sampleNote: string;
 };
 export type MomentumResult = { events: Array<{ label: string; swing: number; unit: string; timestamp: string }>; narrative: string };
-export type AskFilmResult = { answer: string; results: Array<{ title: string; evidence: string; relevance: number; unit: string; timestamp: string }> };
+export type AskFilmResult = { answer: string; results: Array<{ title: string; evidence: string; relevance: number; unit: string; timestamp: string; clipSeconds: number; circleX: number; circleY: number; circleLabel: string }> };
 export type PredictResult = { run: number; pass: number; screen: number; scramble: number; likelyCall: string; confidence: number; reasoning: string };
 export type PracticePlanResult = { periods: Array<{ name: string; startMinute: number; endMinute: number; unit: string; coachingDetail: string; drillSuggestion: string }>; focusStatement: string };
 export type ScoutTeamResult = { periods: Array<{ periodName: string; formation: string; callFamily: string; repTarget: number; coachingPoint: string; sourceNote: string }> };
@@ -178,7 +178,7 @@ ${reportContext(session, report as any)}`;
       const { session, report } = await requireReport(input.sessionId);
       const prompt = `You are a film-room search engine. A coach asked: "${input.query}"
 
-Search the film analysis below and return the 3-6 most relevant evidence results. Each result: a short title, what the film shows (2 sentences max, grounded in the analysis — never invent), relevance 0-100, the unit, and a timestamp string if one exists in the key moments (else empty). Also return a one-paragraph direct answer to the coach's question.
+Search the film analysis below and return the 3-6 most relevant evidence results. Each result: a short title, what the film shows (2 sentences max, grounded in the analysis — never invent), relevance 0-100, the unit, and a timestamp string if one exists in the key moments (else empty). For each result also return clipSeconds (the timestamp converted to total seconds, e.g. "3:42" → 222; 0 if no timestamp), plus an annotation circle marking where on the video frame the action happens: circleX and circleY as integer percentages 0-100 (x from left, y from top — interior line play ≈ x 45-55 / y 55-65, deep routes ≈ y 25-40, sideline plays ≈ x 10-20 or 80-90), and a 2-4 word circleLabel naming what to watch. Also return a one-paragraph direct answer to the coach's question.
 
 ${reportContext(session, report as any)}`;
       return llmJson<AskFilmResult>(prompt, "ask_film", {
@@ -195,8 +195,12 @@ ${reportContext(session, report as any)}`;
                 relevance: { type: "integer" },
                 unit: { type: "string" },
                 timestamp: { type: "string" },
+                clipSeconds: { type: "integer" },
+                circleX: { type: "integer" },
+                circleY: { type: "integer" },
+                circleLabel: { type: "string" },
               },
-              required: ["title", "evidence", "relevance", "unit", "timestamp"],
+              required: ["title", "evidence", "relevance", "unit", "timestamp", "clipSeconds", "circleX", "circleY", "circleLabel"],
               additionalProperties: false,
             },
           },

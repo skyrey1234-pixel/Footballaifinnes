@@ -7,6 +7,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Eye, EyeOff, RefreshCw, Loader2, ChevronDown, ChevronUp, AlertTriangle, CheckCircle, Star } from "lucide-react";
 import { useAuth } from "@/_core/hooks/useAuth";
 import AnnotationCanvas from "./AnnotationCanvas";
+import ClipPlayer from "./ClipPlayer";
 
 type Highlight = {
   timestamp: string;
@@ -263,28 +264,16 @@ export default function FilmBreakdown({ session, report }: FilmBreakdownProps) {
                 {/* Expanded: Video + Annotations */}
                 {isExpanded && annotations && (
                   <div className="space-y-4 pt-2">
-                    {/* Video Frame with Overlay */}
-                    <div className="relative aspect-video rounded-lg overflow-hidden bg-black/50 border border-border">
-                      {session.sourceType === "youtube" && session.youtubeVideoId ? (
-                        <iframe
-                          src={`https://www.youtube.com/embed/${session.youtubeVideoId}?start=${highlight.seconds}`}
-                          className="w-full h-full"
-                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                          allowFullScreen
-                        />
-                      ) : session.videoUrl ? (
-                        <video src={session.videoUrl} controls className="w-full h-full object-cover" />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-muted-foreground">
-                          No video source available
-                        </div>
-                      )}
-
-                      {/* SVG Annotation Overlay */}
-                      {overlayVisible && (
-                        <AnnotationCanvas annotations={annotations.annotations} />
-                      )}
-                    </div>
+                    {/* Pre-timed clip: seeks to the play and plays ONLY that segment */}
+                    <ClipPlayer
+                      sourceType={session.sourceType}
+                      youtubeVideoId={session.youtubeVideoId}
+                      videoUrl={session.videoUrl}
+                      startSeconds={highlight.seconds}
+                      clipDuration={12}
+                      autoPlay
+                      overlay={overlayVisible ? <AnnotationCanvas annotations={annotations.annotations} /> : undefined}
+                    />
 
                     {/* Controls */}
                     <div className="flex items-center gap-2">

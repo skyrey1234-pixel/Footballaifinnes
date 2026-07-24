@@ -122,7 +122,16 @@ export default function WarRoomPage() {
         {workspace === "warroom" && <WarRoomCouncils sessionId={sessionId} opponentName={session.opponentName} />}
         {workspace === "dna" && <OpponentDnaPanel sessionId={sessionId} opponentName={session.opponentName} />}
         {workspace === "momentum" && <MomentumPanel sessionId={sessionId} />}
-        {workspace === "askfilm" && <AskFilmPanel sessionId={sessionId} />}
+        {workspace === "askfilm" && (
+          <AskFilmPanel
+            sessionId={sessionId}
+            video={{
+              sourceType: (session as any).sourceType || "youtube",
+              youtubeVideoId: (session as any).youtubeVideoId,
+              videoUrl: (session as any).videoUrl,
+            }}
+          />
+        )}
         {workspace === "predictor" && <PredictorPanel sessionId={sessionId} opponentName={session.opponentName} />}
         {workspace === "counter" && <CounterPlayPanel sessionId={sessionId} />}
         {workspace === "whatif" && <WhatIfPanel sessionId={sessionId} />}

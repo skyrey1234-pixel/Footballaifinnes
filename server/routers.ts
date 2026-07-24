@@ -442,6 +442,123 @@ Generate 4-8 annotations that tell the story of this play. Return ONLY valid JSO
           };
         }
       }),
+
+    playerSpotlight: protectedProcedure
+      .input(z.object({
+        sessionId: z.number(),
+        playerNumber: z.string(),
+        playerName: z.string().nullable().optional(),
+        position: z.string().nullable().optional(),
+        strengths: z.string().nullable().optional(),
+        weaknesses: z.string().nullable().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        const session = await db.getGameSession(input.sessionId);
+        if (!session) throw new TRPCError({ code: "NOT_FOUND" });
+        const report = await db.getReportBySessionId(input.sessionId);
+        const highlights = (report?.highlights as Array<{ timestamp: string; seconds: number; title: string; note: string; category: string; verdict: string }> | null) || [];
+
+        const highlightList = highlights
+          .map((h, i) => `${i}. [${h.timestamp}] ${h.title} — ${h.note} (${h.category}, ${h.verdict})`)
+          .join("\n") || "No highlights available.";
+
+        const prompt = `You are an elite football film analyst. Pick the ONE play from this game's highlight list where opposing player #${input.playerNumber}${input.playerName ? ` (${input.playerName})` : ""}${input.position ? `, ${input.position},` : ""} most likely made an impact (his best play), then produce a film-room spotlight for stopping him.
+
+Player intel:
+- Strengths: ${input.strengths || "Unknown"}
+- Weaknesses: ${input.weaknesses || "Unknown"}
+
+Game highlights (index. [time] title — note):
+${highlightList}
+
+Return JSON:
+{
+  "highlightIndex": number (index of the chosen play from the list above; -1 if list is empty),
+  "spotlightTitle": "short punchy title for this player's showcase play",
+  "whatHeDoes": "2-3 sentences describing exactly what this player does on this play and why it works",
+  "howToStop": "2-3 sentences of specific, actionable coaching on how to shut him down",
+  "circle": { "x": number (0-100 frame %), "y": number (0-100 frame %), "radius": number (6-12) },
+  "arrows": [ { "x": number, "y": number, "x2": number, "y2": number, "color": "red" | "blue", "label": "short label" } ]
+}
+
+The circle marks where this player most likely lines up/operates in the frame (best guess from position: QB/RB center-backfield ~x50 y55; WR wide ~x15/x85 y45; LB middle ~x50 y35; DL line ~y45; DB deep ~y25). Give 1-2 arrows: red = his path/danger, blue = how your defender should attack. Return ONLY valid JSON.`;
+
+        const response = await invokeLLM({
+          messages: [
+            { role: "system", content: "You are a football film analyst. Return only valid JSON." },
+            { role: "user", content: prompt },
+          ],
+          response_format: {
+            type: "json_schema",
+            json_schema: {
+              name: "player_spotlight",
+              strict: true,
+              schema: {
+                type: "object",
+                properties: {
+                  highlightIndex: { type: "number" },
+                  spotlightTitle: { type: "string" },
+                  whatHeDoes: { type: "string" },
+                  howToStop: { type: "string" },
+                  circle: {
+                    type: "object",
+                    properties: {
+                      x: { type: "number" },
+                      y: { type: "number" },
+                      radius: { type: "number" },
+                    },
+                    required: ["x", "y", "radius"],
+                    additionalProperties: false,
+                  },
+                  arrows: {
+                    type: "array",
+                    items: {
+                      type: "object",
+                      properties: {
+                        x: { type: "number" },
+                        y: { type: "number" },
+                        x2: { type: "number" },
+                        y2: { type: "number" },
+                        color: { type: "string", enum: ["red", "blue"] },
+                        label: { type: "string" },
+                      },
+                      required: ["x", "y", "x2", "y2", "color", "label"],
+                      additionalProperties: false,
+                    },
+                  },
+                },
+                required: ["highlightIndex", "spotlightTitle", "whatHeDoes", "howToStop", "circle", "arrows"],
+                additionalProperties: false,
+              },
+            },
+          },
+        });
+
+        const content = typeof response.choices?.[0]?.message?.content === "string" ? response.choices[0].message.content : "{}";
+        let parsed: {
+          highlightIndex: number;
+          spotlightTitle: string;
+          whatHeDoes: string;
+          howToStop: string;
+          circle: { x: number; y: number; radius: number };
+          arrows: Array<{ x: number; y: number; x2: number; y2: number; color: "red" | "blue"; label: string }>;
+        };
+        try {
+          parsed = JSON.parse(content);
+        } catch {
+          parsed = {
+            highlightIndex: highlights.length > 0 ? 0 : -1,
+            spotlightTitle: `#${input.playerNumber} Spotlight`,
+            whatHeDoes: "This player is a key contributor on film — watch his alignment and first step.",
+            howToStop: "Shade coverage his way, jam at the line, and keep a safety over the top.",
+            circle: { x: 50, y: 50, radius: 9 },
+            arrows: [],
+          };
+        }
+        const idx = parsed.highlightIndex;
+        const chosen = idx >= 0 && idx < highlights.length ? highlights[idx] : null;
+        return { ...parsed, highlight: chosen };
+      }),
   }),
 
   upload: router({

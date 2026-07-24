@@ -5,6 +5,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Spinner } from "@/components/ui/spinner";
 import { trpc } from "@/lib/trpc";
+import { FormationDiagram } from "@/components/gameplan/FormationDiagram";
 
 interface BeatThisDefenseTabProps {
   sessionId: number;
@@ -45,13 +46,15 @@ export function BeatThisDefenseTab({ sessionId }: BeatThisDefenseTabProps) {
   ];
 
   const plays = [
-    { id: "play-1", name: "Inside Zone", formation: "I-Form" },
-    { id: "play-2", name: "Power Run", formation: "Shotgun" },
-    { id: "play-3", name: "Play Action Pass", formation: "Pistol" },
-    { id: "play-4", name: "Screen Pass", formation: "Spread" },
+    { id: "play-1", name: "Inside Zone", formation: "I-Form", playType: "run" },
+    { id: "play-2", name: "Power Run", formation: "Shotgun", playType: "run" },
+    { id: "play-3", name: "Play Action Pass", formation: "Pistol", playType: "pass" },
+    { id: "play-4", name: "Screen Pass", formation: "Spread", playType: "screen" },
+    { id: "play-5", name: "Four Verts", formation: "Empty", playType: "pass" },
+    { id: "play-6", name: "Trips Right Flood", formation: "Trips Right", playType: "pass" },
   ];
 
-  const selectedPlayName = plays.find(p => p.id === selectedPlayId)?.name || "Unknown";
+  const selectedPlay = plays.find(p => p.id === selectedPlayId) || plays[0];
 
   return (
     <div className="space-y-6">
@@ -63,14 +66,30 @@ export function BeatThisDefenseTab({ sessionId }: BeatThisDefenseTabProps) {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          {/* 3D Field Placeholder */}
-          <div className="w-full h-96 bg-gradient-to-b from-green-700 to-green-900 rounded-lg border-4 border-white flex items-center justify-center">
-            <div className="text-center text-white">
-              <div className="text-4xl font-bold mb-2">🏈</div>
-              <p className="text-lg font-semibold">{selectedPlayName}</p>
-              <p className="text-sm opacity-75">vs {selectedDefense}</p>
-              <p className="text-xs opacity-50 mt-2">3D Visualization Coming Soon</p>
+          {/* Live play visualization — animated routes + ball flight vs the selected defense */}
+          <div className="w-full rounded-lg border border-emerald-500/20 bg-zinc-950/60 p-4">
+            <div className="flex items-center justify-between mb-3">
+              <div>
+                <p className="text-sm font-bold text-emerald-300">{selectedPlay.name}</p>
+                <p className="text-xs text-muted-foreground">{selectedPlay.formation} vs {selectedDefense}</p>
+              </div>
+              <Badge variant="outline" className="text-[10px] border-emerald-500/40 text-emerald-300">LIVE SIM</Badge>
             </div>
+            <div className="flex justify-center">
+              <div className="w-full max-w-[520px]">
+                <FormationDiagram
+                  key={`${selectedPlayId}-${selectedDefense}`}
+                  formation={selectedPlay.formation}
+                  playName={selectedPlay.name}
+                  playType={selectedPlay.playType}
+                  defenseScheme={selectedDefense}
+                  showBall
+                />
+              </div>
+            </div>
+            <p className="text-[10px] text-muted-foreground mt-2 text-center">
+              Hit "Run Play" to watch routes develop and the ball fly. Green = your routes, gold = throw lane, red X = {selectedDefense} alignment.
+            </p>
           </div>
 
           {/* Play & Defense Selection */}
@@ -126,7 +145,7 @@ export function BeatThisDefenseTab({ sessionId }: BeatThisDefenseTabProps) {
 
           {/* Grade Result */}
           {gradeResult && (
-            <Card className="bg-slate-50">
+            <Card className="border-emerald-500/20 bg-emerald-500/5">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <span>AI Coaching Analysis</span>
@@ -140,11 +159,11 @@ export function BeatThisDefenseTab({ sessionId }: BeatThisDefenseTabProps) {
               <CardContent className="space-y-4">
                 <div>
                   <h4 className="font-semibold text-sm mb-2">Coaching Notes</h4>
-                  <p className="text-sm text-slate-700">{gradeResult.coachingNotes}</p>
+                  <p className="text-sm text-muted-foreground">{gradeResult.coachingNotes}</p>
                 </div>
                 <div>
                   <h4 className="font-semibold text-sm mb-2">If It Fails</h4>
-                  <p className="text-sm text-slate-700">{gradeResult.adjustment}</p>
+                  <p className="text-sm text-muted-foreground">{gradeResult.adjustment}</p>
                 </div>
               </CardContent>
             </Card>

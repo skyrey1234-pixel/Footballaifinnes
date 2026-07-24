@@ -21,6 +21,10 @@ interface Play3DVisualizerProps {
   customPlayers?: PlayerPos[];
   /** Height of the canvas in px */
   height?: number;
+  /** Animate the ball: QB throw arc for pass plays, RB carry for runs */
+  showBall?: boolean;
+  /** Annotation markers: red = mistake spot, green = correct spot (2D diagram coords) */
+  annotations?: Array<{ kind: "wrong" | "right"; x: number; y: number; label: string }>;
 }
 
 type CameraPreset = "sideline" | "endzone" | "birdseye" | "qb";
@@ -74,6 +78,8 @@ export default function Play3DVisualizer({
   defenseScheme,
   customPlayers,
   height = 480,
+  showBall = true,
+  annotations,
 }: Play3DVisualizerProps) {
   const mountRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<{
@@ -284,6 +290,81 @@ export default function Play3DVisualizer({
     ball.castShadow = true;
     scene.add(ball);
 
+    // ===== Ball flight plan =====
+    // Pass: released at 45% progress, parabolic arc from QB to the primary target's route end.
+    // Run: ball rides with the RB along his route.
+    let ballPlan: { mode: "throw"; from: THREE.Vector3; to: THREE.Vector3 } | { mode: "carry"; carrier: PlayerMesh } | null = null;
+    if (showBall) {
+      const qbData = offense.find((p) => p.label === "QB");
+      if (playType === "run") {
+        const rbMesh = players.find((pm) => pm.data.label === "RB" && pm.data.route);
+        if (rbMesh) ballPlan = { mode: "carry", carrier: rbMesh };
+      } else if (qbData) {
+        const receivers = offense.filter((p) => p.route && p.route.type === "route" && p.label !== "QB");
+        if (receivers.length > 0) {
+          let primary = receivers[0];
+          const t = (target || "").toLowerCase();
+          const byLabel = t ? receivers.find((r) => t.includes(r.label.toLowerCase())) : undefined;
+          if (byLabel) primary = byLabel;
+          else primary = receivers.reduce((best, r) => {
+            const endY = r.route!.points[r.route!.points.length - 1][1];
+            const bestY = best.route!.points[best.route!.points.length - 1][1];
+            return endY < bestY ? r : best;
+          }, receivers[0]);
+          const qb3 = to3D(qbData.x, qbData.y);
+          const end = primary.route!.points[primary.route!.points.length - 1];
+          const end3 = to3D(end[0], end[1]);
+          ballPlan = {
+            mode: "throw",
+            from: new THREE.Vector3(qb3.x, 1.8, qb3.z),
+            to: new THREE.Vector3(end3.x, 1.2, end3.z),
+          };
+          // Gold dashed throw-lane preview on the ground
+          const laneOnGround = [
+            new THREE.Vector3(qb3.x, 0.06, qb3.z),
+            new THREE.Vector3(end3.x, 0.06, end3.z),
+          ];
+          const laneGeo = new THREE.BufferGeometry().setFromPoints(laneOnGround);
+          const laneMat = new THREE.LineDashedMaterial({ color: 0xffd700, dashSize: 1.2, gapSize: 0.8, transparent: true, opacity: 0.55 });
+          const lane = new THREE.Line(laneGeo, laneMat);
+          lane.computeLineDistances();
+          scene.add(lane);
+          // Catch-point ring
+          const cpGeo = new THREE.RingGeometry(1.1, 1.4, 28);
+          const cpMat = new THREE.MeshBasicMaterial({ color: 0xffd700, transparent: true, opacity: 0.5, side: THREE.DoubleSide });
+          const cp = new THREE.Mesh(cpGeo, cpMat);
+          cp.rotation.x = -Math.PI / 2;
+          cp.position.set(end3.x, 0.05, end3.z);
+          scene.add(cp);
+        }
+      }
+    }
+
+    // ===== Wrong/Right annotation rings =====
+    const annotationRings: Array<{ mesh: THREE.Mesh; base: number }> = [];
+    (annotations || []).forEach((a) => {
+      const pos = to3D(a.x, a.y);
+      const color = a.kind === "wrong" ? 0xff3344 : 0x00ff87;
+      const ringGeo = new THREE.RingGeometry(1.6, 2.1, 32);
+      const ringMat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.85, side: THREE.DoubleSide });
+      const ring = new THREE.Mesh(ringGeo, ringMat);
+      ring.rotation.x = -Math.PI / 2;
+      ring.position.set(pos.x, 0.07, pos.z);
+      scene.add(ring);
+      annotationRings.push({ mesh: ring, base: 1.85 });
+      // Vertical beacon beam
+      const beamGeo = new THREE.CylinderGeometry(0.08, 0.08, 5, 8, 1, true);
+      const beamMat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.35 });
+      const beam = new THREE.Mesh(beamGeo, beamMat);
+      beam.position.set(pos.x, 2.5, pos.z);
+      scene.add(beam);
+      // Floating label
+      const label = makeTextSprite(a.label.slice(0, 14), a.kind === "wrong" ? "#FF5566" : "#00FF87");
+      label.position.set(pos.x, 5.6, pos.z);
+      label.scale.set(6.5, 3.2, 1);
+      scene.add(label);
+    });
+
     sceneRef.current = { scene, camera, renderer, controls, players, animId: 0 };
 
     // ===== Animation loop =====
@@ -340,6 +421,39 @@ export default function Play3DVisualizer({
         }
       }
 
+      // Animate ball flight
+      if (ballPlan) {
+        if (ballPlan.mode === "carry") {
+          const c = ballPlan.carrier;
+          ball.position.set(c.group.position.x, 1.0 + c.group.position.y, c.group.position.z);
+          if (prog > 0 && prog < 1) ball.rotation.z += 0.15;
+        } else {
+          const RELEASE = 0.45;
+          if (prog <= RELEASE) {
+            // Ball stays with QB pre-release (track QB mesh if he moves)
+            ball.position.set(ballPlan.from.x, prog > 0 ? 1.8 : 0.35, ballPlan.from.z);
+          } else {
+            const t = Math.min((prog - RELEASE) / (1 - RELEASE), 1);
+            const x = ballPlan.from.x + (ballPlan.to.x - ballPlan.from.x) * t;
+            const z = ballPlan.from.z + (ballPlan.to.z - ballPlan.from.z) * t;
+            const dist = ballPlan.from.distanceTo(ballPlan.to);
+            const peak = Math.min(3 + dist * 0.22, 11);
+            const y = ballPlan.from.y + (ballPlan.to.y - ballPlan.from.y) * t + peak * 4 * t * (1 - t);
+            ball.position.set(x, y, z);
+            ball.rotation.x += 0.35; // spiral
+          }
+        }
+      }
+
+      // Pulse annotation rings
+      if (annotationRings.length > 0) {
+        const pulse = 1 + Math.sin(now * 0.004) * 0.18;
+        for (const ar of annotationRings) {
+          ar.mesh.scale.set(pulse, pulse, 1);
+          (ar.mesh.material as THREE.MeshBasicMaterial).opacity = 0.55 + Math.sin(now * 0.004) * 0.3;
+        }
+      }
+
       s.controls.update();
       s.renderer.render(s.scene, s.camera);
       s.animId = requestAnimationFrame(tick);
@@ -369,7 +483,7 @@ export default function Play3DVisualizer({
       sceneRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [formation, playType, target, defenseScheme, customPlayers, height]);
+  }, [formation, playType, target, defenseScheme, customPlayers, height, showBall, annotations]);
 
   const handlePlay = useCallback(() => {
     if (playingRef.current) {

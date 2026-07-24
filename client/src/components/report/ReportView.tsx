@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Send, Clock, MessageSquare, Loader2 } from "lucide-react";
 import { Streamdown } from "streamdown";
+import ReportCharts from "./ReportCharts";
 
 type Highlight = {
   timestamp: string;
@@ -103,6 +104,9 @@ export default function ReportView({ session, report }: ReportViewProps) {
             </div>
           </Card>
         )}
+
+        {/* Interactive Data Dashboard */}
+        <ReportCharts highlights={highlights} />
 
         {/* Report Sections */}
         {sections.map(section => (
