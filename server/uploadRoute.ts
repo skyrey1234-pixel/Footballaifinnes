@@ -20,8 +20,9 @@ import { Readable } from "stream";
 // ---------------------------------------------------------------------------
 const uploadRouter = Router();
 
-const MAX_FILE_SIZE = 2 * 1024 * 1024 * 1024; // 2GB
+const MAX_FILE_SIZE = 6 * 1024 * 1024 * 1024; // 6GB — 28+ min game film friendly
 const MAX_CHUNK_SIZE = 30 * 1024 * 1024; // must stay under the ~32MB LB gate
+const MAX_CHUNKS = 400; // 400 × 25MB ≈ 10GB addressable
 
 function forgeConfig() {
   const forgeUrl = (process.env.BUILT_IN_FORGE_API_URL || "").replace(/\/+$/, "");
@@ -49,13 +50,48 @@ function sanitizeId(raw: unknown): string | null {
   return /^[a-zA-Z0-9_-]{8,64}$/.test(s) ? s : null;
 }
 
+// --- Status endpoint: which chunks already exist (resume support) ----------
+// HEADs each tmp chunk via a presigned GET so an interrupted upload can skip
+// chunks that already landed in storage.
+uploadRouter.get("/api/upload/status", async (req: Request, res) => {
+  try {
+    const uploadId = sanitizeId(req.query.uploadId);
+    const totalChunks = Number(req.query.totalChunks);
+    if (!uploadId || !Number.isInteger(totalChunks) || totalChunks < 1 || totalChunks > MAX_CHUNKS) {
+      res.status(400).json({ error: "Invalid uploadId or totalChunks" });
+      return;
+    }
+    const indexes = Array.from({ length: totalChunks }, (_, i) => i);
+    const results: boolean[] = new Array(totalChunks).fill(false);
+    const CONC = 10;
+    for (let start = 0; start < indexes.length; start += CONC) {
+      await Promise.all(
+        indexes.slice(start, start + CONC).map(async (i) => {
+          try {
+            const key = `videos/tmp/${uploadId}/${String(i).padStart(4, "0")}`;
+            const url = await presign("get", key);
+            const r = await fetch(url, { method: "HEAD" });
+            results[i] = r.ok;
+          } catch {
+            results[i] = false;
+          }
+        }),
+      );
+    }
+    res.json({ have: indexes.filter((i) => results[i]) });
+  } catch (err: any) {
+    console.error("[Upload] status error:", err);
+    res.status(500).json({ error: err?.message || "Status check failed" });
+  }
+});
+
 // --- Chunk endpoint: raw body streamed straight to S3 ----------------------
 uploadRouter.post("/api/upload/chunk", async (req: Request, res) => {
   try {
     const uploadId = sanitizeId(req.query.uploadId);
     const index = Number(req.query.index);
     const chunkSize = Number(req.headers["content-length"]);
-    if (!uploadId || !Number.isInteger(index) || index < 0 || index > 200) {
+    if (!uploadId || !Number.isInteger(index) || index < 0 || index >= MAX_CHUNKS) {
       res.status(400).json({ error: "Invalid uploadId or index" });
       return;
     }
@@ -95,12 +131,12 @@ uploadRouter.post("/api/upload/complete", async (req, res) => {
     const totalSize = Number(req.query.totalSize);
     const rawName = String(req.query.filename || "video.mp4");
     const contentType = String(req.query.contentType || "video/mp4");
-    if (!uploadId || !Number.isInteger(totalChunks) || totalChunks < 1 || totalChunks > 200) {
+    if (!uploadId || !Number.isInteger(totalChunks) || totalChunks < 1 || totalChunks > MAX_CHUNKS) {
       res.status(400).json({ error: "Invalid uploadId or totalChunks" });
       return;
     }
     if (!Number.isFinite(totalSize) || totalSize <= 0 || totalSize > MAX_FILE_SIZE) {
-      res.status(400).json({ error: "Invalid total size (max 2GB)" });
+      res.status(400).json({ error: "Invalid total size (max 6GB)" });
       return;
     }
     const filename = rawName.replace(/[^a-zA-Z0-9._-]/g, "_");
@@ -165,7 +201,7 @@ uploadRouter.post("/api/upload", (req, res) => {
     return;
   }
   if (fileSize > MAX_FILE_SIZE) {
-    fail(413, "Video is too large (max 2GB)");
+    fail(413, "Video is too large (max 6GB)");
     return;
   }
 
@@ -185,7 +221,7 @@ uploadRouter.post("/api/upload", (req, res) => {
 
       fileStream.on("limit", () => {
         fileStream.resume();
-        fail(413, "Video is too large (max 2GB)");
+        fail(413, "Video is too large (max 6GB)");
       });
 
       (async () => {

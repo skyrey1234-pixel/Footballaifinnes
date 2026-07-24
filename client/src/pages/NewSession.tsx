@@ -18,6 +18,7 @@ export default function NewSession() {
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadedFileKey, setUploadedFileKey] = useState("");
+  const [uploadStats, setUploadStats] = useState<{ doneMB: number; totalMB: number; speedMBs: number } | null>(null);
 
   const createMutation = trpc.sessions.create.useMutation({
     onSuccess: (data) => {
@@ -45,9 +46,9 @@ export default function NewSession() {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // 2GB hard cap to keep uploads reasonable
-    if (file.size > 2 * 1024 * 1024 * 1024) {
-      toast.error("Video is too large (max 2GB). Try trimming it or use a YouTube link instead.");
+    // 6GB hard cap — enough for 28+ min of 1080p60 game film
+    if (file.size > 6 * 1024 * 1024 * 1024) {
+      toast.error("Video is too large (max 6GB). Try trimming it or use a YouTube link instead.");
       return;
     }
 
@@ -57,9 +58,28 @@ export default function NewSession() {
       // The production infrastructure rejects request bodies over ~32MB,
       // so large files are sliced into chunks and reassembled server-side.
       const CHUNK_SIZE = 25 * 1024 * 1024; // 25MB — safely under the gate
-      const uploadId =
-        `u${Date.now().toString(36)}${Math.random().toString(36).slice(2, 12)}`;
+      // Deterministic uploadId per file (name+size+mtime) so retrying the
+      // same file resumes instead of restarting from chunk 0.
+      const sig = `${file.name}|${file.size}|${file.lastModified}`;
+      let hash = 0;
+      for (let i = 0; i < sig.length; i++) hash = (Math.imul(hash, 31) + sig.charCodeAt(i)) | 0;
+      const uploadId = `u${(hash >>> 0).toString(36)}x${file.size.toString(36)}`.slice(0, 40);
       const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
+      const totalMB = file.size / (1024 * 1024);
+
+      // Progress bookkeeping across parallel chunks.
+      const chunkDone: number[] = new Array(totalChunks).fill(0);
+      const startedAt = Date.now();
+      const reportProgress = () => {
+        const done = chunkDone.reduce((a, b) => a + b, 0);
+        const elapsed = (Date.now() - startedAt) / 1000;
+        setUploadProgress(Math.min(99, Math.round((done / file.size) * 100)));
+        setUploadStats({
+          doneMB: done / (1024 * 1024),
+          totalMB,
+          speedMBs: elapsed > 1 ? done / (1024 * 1024) / elapsed : 0,
+        });
+      };
 
       const putChunk = (index: number, blob: Blob, attempt = 0): Promise<void> =>
         new Promise((resolve, reject) => {
@@ -69,37 +89,85 @@ export default function NewSession() {
             `/api/upload/chunk?uploadId=${uploadId}&index=${index}`,
           );
           xhr.setRequestHeader("Content-Type", "application/octet-stream");
+          xhr.timeout = 120000; // 2 min per 25MB chunk is generous
           xhr.upload.onprogress = (evt) => {
             if (evt.lengthComputable) {
-              const done = index * CHUNK_SIZE + evt.loaded;
-              setUploadProgress(
-                Math.min(99, Math.round((done / file.size) * 100)),
-              );
+              chunkDone[index] = evt.loaded;
+              reportProgress();
             }
           };
           const retryOrFail = (err: Error) => {
-            if (attempt < 2) {
-              // brief backoff then retry the chunk
+            chunkDone[index] = 0;
+            if (attempt < 5) {
+              // exponential backoff (1.5s → 24s) rides out serverless cold starts
               setTimeout(() => {
                 putChunk(index, blob, attempt + 1).then(resolve, reject);
-              }, 1500 * (attempt + 1));
+              }, Math.min(24000, 1500 * 2 ** attempt));
             } else {
               reject(err);
             }
           };
           xhr.onload = () => {
-            if (xhr.status >= 200 && xhr.status < 300) resolve();
+            if (xhr.status >= 200 && xhr.status < 300) {
+              chunkDone[index] = blob.size;
+              reportProgress();
+              resolve();
+            }
             else retryOrFail(new Error(`Chunk ${index + 1}/${totalChunks} failed (${xhr.status})`));
           };
           xhr.onerror = () =>
             retryOrFail(new Error(`Network error on chunk ${index + 1}/${totalChunks}`));
+          xhr.ontimeout = () =>
+            retryOrFail(new Error(`Timeout on chunk ${index + 1}/${totalChunks}`));
           xhr.send(blob);
         });
 
-      for (let i = 0; i < totalChunks; i++) {
-        const blob = file.slice(i * CHUNK_SIZE, Math.min((i + 1) * CHUNK_SIZE, file.size));
-        await putChunk(i, blob);
+      // Resume: skip chunks that already made it to storage on a prior attempt.
+      let already = new Set<number>();
+      if (totalChunks > 1) {
+        try {
+          const st = await fetch(
+            `/api/upload/status?uploadId=${uploadId}&totalChunks=${totalChunks}`,
+          );
+          if (st.ok) {
+            const { have } = (await st.json()) as { have: number[] };
+            already = new Set(have);
+            for (const i of have) {
+              chunkDone[i] =
+                Math.min((i + 1) * CHUNK_SIZE, file.size) - i * CHUNK_SIZE;
+            }
+            if (have.length > 0) {
+              toast.info(`Resuming upload — ${have.length}/${totalChunks} chunks already saved`);
+              reportProgress();
+            }
+          }
+        } catch {
+          /* resume check is best-effort */
+        }
       }
+
+      // Upload 4 chunks in parallel — much faster and less wall-clock time
+      // exposed to serverless instance recycling.
+      const pending = Array.from({ length: totalChunks }, (_, i) => i).filter(
+        (i) => !already.has(i),
+      );
+      const PARALLEL = 4;
+      let cursor = 0;
+      const worker = async () => {
+        for (;;) {
+          const i = cursor++;
+          if (i >= pending.length) return;
+          const idx = pending[i];
+          const blob = file.slice(
+            idx * CHUNK_SIZE,
+            Math.min((idx + 1) * CHUNK_SIZE, file.size),
+          );
+          await putChunk(idx, blob);
+        }
+      };
+      await Promise.all(
+        Array.from({ length: Math.min(PARALLEL, pending.length) }, worker),
+      );
 
       // Ask the server to stitch the chunks into the final video.
       const completeResp = await fetch(
@@ -121,11 +189,14 @@ export default function NewSession() {
       toast.success("Video uploaded successfully!");
     } catch (err) {
       toast.error(
-        err instanceof Error ? err.message : "Failed to upload video. Please try again.",
+        err instanceof Error
+          ? `${err.message} — select the same file again to resume where it left off.`
+          : "Failed to upload video. Select the same file again to resume.",
       );
     } finally {
       setUploading(false);
       setUploadProgress(0);
+      setUploadStats(null);
     }
   };
 
@@ -222,12 +293,22 @@ export default function NewSession() {
                       <p className="text-sm text-muted-foreground">
                         Uploading... {uploadProgress > 0 ? `${uploadProgress}%` : ""}
                       </p>
+                      {uploadStats && (
+                        <p className="text-xs text-muted-foreground font-mono">
+                          {uploadStats.doneMB.toFixed(0)} / {uploadStats.totalMB.toFixed(0)} MB
+                          {uploadStats.speedMBs > 0 && ` · ${uploadStats.speedMBs.toFixed(1)} MB/s`}
+                        </p>
+                      )}
                       <div className="w-full max-w-xs h-1.5 bg-muted rounded-full overflow-hidden">
                         <div
                           className="h-full bg-primary"
                           style={{ width: `${uploadProgress}%`, transition: "width 200ms cubic-bezier(0.23, 1, 0.32, 1)" }}
                         />
                       </div>
+                      <p className="text-[11px] text-muted-foreground/70 max-w-xs">
+                        Big files upload in parallel chunks with auto-retry — keep this tab open.
+                        If it fails, pick the same file again to resume.
+                      </p>
                     </div>
                   ) : uploadedFileKey ? (
                     <div className="flex flex-col items-center gap-2">
@@ -240,7 +321,7 @@ export default function NewSession() {
                     <label className="cursor-pointer flex flex-col items-center gap-2">
                       <Upload className="h-8 w-8 text-muted-foreground" />
                       <p className="text-sm text-muted-foreground">Click to upload game footage</p>
-                      <p className="text-xs text-muted-foreground">MP4, MOV, or AVI</p>
+                      <p className="text-xs text-muted-foreground">MP4, MOV, or AVI — up to 6GB (full game films welcome)</p>
                       <input
                         type="file"
                         accept="video/*"

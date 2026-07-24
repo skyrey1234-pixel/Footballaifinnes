@@ -79,7 +79,7 @@ describe("chunked upload flow", () => {
     expect(bad1.status).toBe(400);
 
     const bad2 = await fetch(
-      `${baseUrl}/api/upload/complete?uploadId=validuploadid1&totalChunks=1&totalSize=${3 * 1024 * 1024 * 1024}`,
+      `${baseUrl}/api/upload/complete?uploadId=validuploadid1&totalChunks=1&totalSize=${7 * 1024 * 1024 * 1024}`,
       { method: "POST" },
     );
     expect(bad2.status).toBe(400);
