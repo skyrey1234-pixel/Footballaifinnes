@@ -45,11 +45,23 @@ export default function SessionPage() {
     onError: () => toast.error("Failed to generate diagram"),
   });
 
+  const utils = trpc.useUtils();
+  const reanalyzeMutation = trpc.sessions.reanalyze.useMutation({
+    onMutate: () => {
+      toast.info("Re-analysis started — the AI is re-watching the film now.");
+    },
+    onSuccess: () => {
+      utils.sessions.get.invalidate({ id: sessionId });
+      utils.reports.getBySession.invalidate({ sessionId });
+    },
+    onError: (err) => toast.error(err.message || "Failed to restart analysis"),
+  });
+
   const { data: session, isLoading: sessionLoading } = trpc.sessions.get.useQuery(
     { id: sessionId },
     { enabled: sessionId > 0, refetchInterval: (query) => {
       const data = query.state.data;
-      return data?.status === "analyzing" ? 5000 : false;
+      return data?.status === "analyzing" || reanalyzeMutation.isPending ? 5000 : false;
     }}
   );
 
@@ -112,26 +124,47 @@ export default function SessionPage() {
             <div>
               <p className="font-medium text-yellow-400">AI Analysis in Progress</p>
               <p className="text-sm text-muted-foreground">
-                Generating your scouting report... This usually takes 30-60 seconds.
+                Watching your film and generating the scouting report... This usually
+                takes 1-3 minutes for uploaded video. Keep this page open — it updates automatically.
               </p>
             </div>
           </CardContent>
         </Card>
       )}
 
-      {session.status === "failed" && (
+      {session.status === "failed" && !reanalyzeMutation.isPending && (
         <Card className="border-destructive/30 bg-destructive/5">
           <CardContent className="flex items-center justify-between p-6">
             <div>
               <p className="font-medium text-destructive">Analysis Failed</p>
               <p className="text-sm text-muted-foreground">
-                Something went wrong during the analysis. Please try again.
+                The analysis didn't finish — this can happen if the server recycled mid-run. Hit Retry to run it again.
               </p>
             </div>
-            <Button variant="outline" size="sm" className="gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-2"
+              disabled={reanalyzeMutation.isPending}
+              onClick={() => reanalyzeMutation.mutate({ id: sessionId })}
+            >
               <RefreshCw className="h-4 w-4" />
               Retry
             </Button>
+          </CardContent>
+        </Card>
+      )}
+
+      {session.status === "failed" && reanalyzeMutation.isPending && (
+        <Card className="border-yellow-500/30 bg-yellow-500/5">
+          <CardContent className="flex items-center gap-4 p-6">
+            <Loader2 className="h-6 w-6 animate-spin text-yellow-400" />
+            <div>
+              <p className="font-medium text-yellow-400">Re-Analysis in Progress</p>
+              <p className="text-sm text-muted-foreground">
+                The AI is re-watching the film and rebuilding the report — usually 1-3 minutes.
+              </p>
+            </div>
           </CardContent>
         </Card>
       )}

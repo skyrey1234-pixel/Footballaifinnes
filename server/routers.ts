@@ -36,7 +36,21 @@ export const appRouter = router({
 
   sessions: router({
     list: protectedProcedure.query(async () => {
-      return await db.listGameSessions();
+      const sessions = await db.listGameSessions();
+      // Watchdog: serverless instances can be recycled mid-analysis, which
+      // silently kills the background task and strands sessions in
+      // "analyzing" forever. Flip anything stuck >10 min to "failed" so the
+      // UI surfaces the Retry path instead of an infinite spinner.
+      const STUCK_MS = 10 * 60 * 1000;
+      const now = Date.now();
+      for (const s of sessions) {
+        const updated = s.updatedAt ? new Date(s.updatedAt).getTime() : 0;
+        if (s.status === "analyzing" && updated > 0 && now - updated > STUCK_MS) {
+          await db.updateGameSessionStatus(s.id, "failed").catch(() => {});
+          (s as { status: string }).status = "failed";
+        }
+      }
+      return sessions;
     }),
 
     get: protectedProcedure
@@ -44,6 +58,16 @@ export const appRouter = router({
       .query(async ({ input }) => {
         const session = await db.getGameSession(input.id);
         if (!session) throw new TRPCError({ code: "NOT_FOUND" });
+        const STUCK_MS = 10 * 60 * 1000;
+        const updated = session.updatedAt ? new Date(session.updatedAt).getTime() : 0;
+        if (
+          session.status === "analyzing" &&
+          updated > 0 &&
+          Date.now() - updated > STUCK_MS
+        ) {
+          await db.updateGameSessionStatus(session.id, "failed").catch(() => {});
+          (session as { status: string }).status = "failed";
+        }
         return session;
       }),
 
@@ -67,17 +91,34 @@ export const appRouter = router({
           videoUrl: input.videoUrl || null,
           status: "analyzing",
         });
-        // Trigger async analysis (grounded in the uploaded footage when present)
-        generateReport(
-          sessionId,
-          input.opponentName,
-          input.sourceType,
-          input.youtubeVideoId || null,
-          input.videoFileKey || null
+        // Analysis is NOT triggered here — the client calls sessions.analyze
+        // right after navigating to the session page. That request is awaited
+        // server-side (serverless-safe: the instance stays alive while it
+        // runs) without blocking the create flow's navigation.
+        return { id: sessionId };
+      }),
+
+    analyze: adminProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input }) => {
+        const session = await db.getGameSession(input.id);
+        if (!session) throw new TRPCError({ code: "NOT_FOUND" });
+        // Idempotent: if a report already exists and status is complete, skip.
+        if (session.status === "complete") return { success: true, skipped: true };
+        // AWAIT the pipeline. On serverless hosting a fire-and-forget task
+        // dies when the instance recycles after the response returns
+        // (observed in production — sessions stranded in "analyzing").
+        await generateReport(
+          input.id,
+          session.opponentName,
+          session.sourceType,
+          session.youtubeVideoId || null,
+          session.videoFileKey || null
         ).catch(err => {
           console.error("[Analysis] Failed:", err);
+          return db.updateGameSessionStatus(input.id, "failed").catch(() => {});
         });
-        return { id: sessionId };
+        return { success: true, skipped: false };
       }),
 
     delete: adminProcedure
@@ -96,11 +137,19 @@ export const appRouter = router({
         await db.deleteReportBySessionId(input.id);
         // Reset status
         await db.updateGameSessionStatus(input.id, "analyzing");
-        // Re-trigger analysis
-        generateReport(input.id, session.opponentName, session.sourceType, session.youtubeVideoId || null).catch(err => {
+        // Re-trigger analysis — awaited for the same serverless-survival
+        // reason as sessions.create, and now passes the uploaded file key.
+        await generateReport(
+          input.id,
+          session.opponentName,
+          session.sourceType,
+          session.youtubeVideoId || null,
+          session.videoFileKey || null
+        ).catch(err => {
           console.error("[Re-Analysis] Failed:", err);
+          return db.updateGameSessionStatus(input.id, "failed").catch(() => {});
         });
-        return { success: true, message: "Re-analysis started" };
+        return { success: true, message: "Re-analysis complete" };
       }),
   }),
 
@@ -993,7 +1042,15 @@ async function generateReport(sessionId: number, opponentName: string, sourceTyp
   let tempVideoPath: string | null = null;
   if (fileKey || ytId) {
     try {
-      vision = await analyzeFootballVideo({ opponentName, videoFileKey: fileKey, youtubeVideoId: ytId });
+      // Hard 110s budget for the vision step. The create/reanalyze mutations
+      // now await this whole pipeline, and the serverless request cap is
+      // 180s — vision + report LLM must both fit inside it.
+      vision = await Promise.race([
+        analyzeFootballVideo({ opponentName, videoFileKey: fileKey, youtubeVideoId: ytId }),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error("Vision analysis timed out (110s budget)")), 110_000),
+        ),
+      ]);
       tempVideoPath = (vision as any).localPath ?? null;
     } catch (err) {
       console.warn(

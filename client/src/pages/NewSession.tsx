@@ -20,9 +20,14 @@ export default function NewSession() {
   const [uploadedFileKey, setUploadedFileKey] = useState("");
   const [uploadStats, setUploadStats] = useState<{ doneMB: number; totalMB: number; speedMBs: number } | null>(null);
 
+  const analyzeMutation = trpc.sessions.analyze.useMutation();
+
   const createMutation = trpc.sessions.create.useMutation({
     onSuccess: (data) => {
       toast.success("Analysis started! AI is generating your scouting report.");
+      // Kick off the awaited analysis request (keeps the serverless instance
+      // alive for the full pipeline) but don't block navigation on it.
+      analyzeMutation.mutate({ id: data.id });
       setLocation(`/session/${data.id}`);
     },
     onError: (err) => {
