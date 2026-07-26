@@ -3,7 +3,7 @@ import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Play, Pause, RotateCcw, Video } from "lucide-react";
+import { Play, Pause, RotateCcw, Video, Eye, EyeOff } from "lucide-react";
 import {
   getOffensivePlayers,
   getDefensivePlayers,
@@ -25,6 +25,10 @@ interface Play3DVisualizerProps {
   showBall?: boolean;
   /** Annotation markers: red = mistake spot, green = correct spot (2D diagram coords) */
   annotations?: Array<{ kind: "wrong" | "right"; x: number; y: number; label: string }>;
+  /** Optional wrong-path line: dashed red line from LOS breakdown showing the mistaken path (2D coords) */
+  wrongPath?: Array<[number, number]>;
+  /** Optional correct-path line: solid green line showing the right execution (2D coords) */
+  correctPath?: Array<[number, number]>;
 }
 
 type CameraPreset = "sideline" | "endzone" | "birdseye" | "qb";
@@ -68,6 +72,11 @@ interface PlayerMesh {
   data: PlayerPos;
   trail: THREE.Line | null;
   trailPoints: THREE.Vector3[];
+  /** Full-route preview line that draws in as the player runs it */
+  routeLine: THREE.Line | null;
+  routeWorldPts: THREE.Vector3[];
+  /** Glowing tracking ring that follows key players */
+  trackRing: THREE.Mesh | null;
 }
 
 export default function Play3DVisualizer({
@@ -80,6 +89,8 @@ export default function Play3DVisualizer({
   height = 480,
   showBall = true,
   annotations,
+  wrongPath,
+  correctPath,
 }: Play3DVisualizerProps) {
   const mountRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<{
@@ -96,7 +107,14 @@ export default function Play3DVisualizer({
   const playingRef = useRef(false);
   const speedRef = useRef(1);
   const [speed, setSpeed] = useState(1);
+  const [scrub, setScrub] = useState(0); // 0-100 mirrored for the timeline UI
+  const [showRoutes, setShowRoutes] = useState(true);
+  const showRoutesRef = useRef(true);
+  const [showCorrect, setShowCorrect] = useState(true);
+  const showCorrectRef = useRef(true);
   const PLAY_DURATION = 3000;
+
+  const phaseLabel = scrub < 5 ? "PRE-SNAP" : scrub < 45 ? "DEVELOPMENT" : scrub < 90 ? "BALL IN FLIGHT" : "RESULT";
 
   const applyPreset = useCallback((p: CameraPreset) => {
     const s = sceneRef.current;
@@ -278,7 +296,34 @@ export default function Play3DVisualizer({
       group.position.set(pos.x, 0, pos.z);
       scene.add(group);
 
-      return { group, data: p, trail: null, trailPoints: [] };
+      // Precompute the full route in world coords (for live route drawing)
+      const routeWorldPts: THREE.Vector3[] = [];
+      if (p.route && p.route.points.length > 0) {
+        const SEGMENTS = 60;
+        for (let i = 0; i <= SEGMENTS; i++) {
+          const rp = interpolateRoute(p.x, p.y, p.route.points, i / SEGMENTS);
+          const w = to3D(rp.x, rp.y);
+          routeWorldPts.push(new THREE.Vector3(w.x, 0.09, w.z));
+        }
+      }
+
+      // Glowing tracking ring for key skill players (anyone with a route)
+      let trackRing: THREE.Mesh | null = null;
+      if (p.route && p.route.points.length > 0) {
+        const trGeo = new THREE.RingGeometry(1.15, 1.5, 32);
+        const trMat = new THREE.MeshBasicMaterial({
+          color: isOff ? 0x00ff87 : 0xff4757,
+          transparent: true,
+          opacity: 0.0, // fades in when the play runs
+          side: THREE.DoubleSide,
+        });
+        trackRing = new THREE.Mesh(trGeo, trMat);
+        trackRing.rotation.x = -Math.PI / 2;
+        trackRing.position.set(pos.x, 0.05, pos.z);
+        scene.add(trackRing);
+      }
+
+      return { group, data: p, trail: null, trailPoints: [], routeLine: null, routeWorldPts, trackRing };
     });
 
     // Football at LOS center
@@ -365,6 +410,43 @@ export default function Play3DVisualizer({
       scene.add(label);
     });
 
+    // ===== Wrong-path line (dashed red, draws in as play progresses) =====
+    let wrongLine: THREE.Line | null = null;
+    let wrongWorldPts: THREE.Vector3[] = [];
+    if (wrongPath && wrongPath.length > 1) {
+      wrongWorldPts = wrongPath.map(([wx, wy]) => {
+        const w = to3D(wx, wy);
+        return new THREE.Vector3(w.x, 0.12, w.z);
+      });
+      // X marker at the end of the wrong path
+      const endW = wrongWorldPts[wrongWorldPts.length - 1];
+      const xLabel = makeTextSprite("✕", "#FF3344");
+      xLabel.position.set(endW.x, 1.4, endW.z);
+      xLabel.scale.set(2.4, 1.2, 1);
+      scene.add(xLabel);
+    }
+
+    // ===== Correct-path line (solid green, toggleable) =====
+    let correctLine: THREE.Line | null = null;
+    let correctWorldPts: THREE.Vector3[] = [];
+    let correctArrow: THREE.Mesh | null = null;
+    if (correctPath && correctPath.length > 1) {
+      correctWorldPts = correctPath.map(([cx, cy]) => {
+        const w = to3D(cx, cy);
+        return new THREE.Vector3(w.x, 0.12, w.z);
+      });
+      // Arrowhead cone at the end of the correct path
+      const last = correctWorldPts[correctWorldPts.length - 1];
+      const prev = correctWorldPts[correctWorldPts.length - 2];
+      const dir = new THREE.Vector3().subVectors(last, prev).normalize();
+      const coneGeo = new THREE.ConeGeometry(0.5, 1.4, 10);
+      const coneMat = new THREE.MeshBasicMaterial({ color: 0x00ff87, transparent: true, opacity: 0.9 });
+      correctArrow = new THREE.Mesh(coneGeo, coneMat);
+      correctArrow.position.copy(last).setY(0.3);
+      correctArrow.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), new THREE.Vector3(dir.x, 0, dir.z).normalize());
+      scene.add(correctArrow);
+    }
+
     sceneRef.current = { scene, camera, renderer, controls, players, animId: 0 };
 
     // ===== Animation loop =====
@@ -381,6 +463,7 @@ export default function Play3DVisualizer({
           playingRef.current = false;
           setIsPlaying(false);
         }
+        setScrub(Math.round(progressRef.current * 100));
       }
 
       const prog = progressRef.current;
@@ -390,6 +473,40 @@ export default function Play3DVisualizer({
           const pos2d = interpolateRoute(data.x, data.y, data.route.points, prog);
           const pos = to3D(pos2d.x, pos2d.y);
           pm.group.position.set(pos.x, 0, pos.z);
+
+          // Live route line: draws in slightly ahead of the runner (glowing preview)
+          if (showRoutesRef.current && pm.routeWorldPts.length > 1 && prog > 0.01) {
+            const drawTo = Math.min(Math.floor((prog + 0.12) * (pm.routeWorldPts.length - 1)) + 1, pm.routeWorldPts.length);
+            if (pm.routeLine) s.scene.remove(pm.routeLine);
+            const rlGeo = new THREE.BufferGeometry().setFromPoints(pm.routeWorldPts.slice(0, drawTo));
+            const rlMat = new THREE.LineDashedMaterial({
+              color: data.side === "offense" ? 0x39ffb0 : 0xff7788,
+              dashSize: 0.9,
+              gapSize: 0.5,
+              transparent: true,
+              opacity: 0.5,
+            });
+            pm.routeLine = new THREE.Line(rlGeo, rlMat);
+            pm.routeLine.computeLineDistances();
+            s.scene.add(pm.routeLine);
+          } else if ((prog === 0 || !showRoutesRef.current) && pm.routeLine) {
+            s.scene.remove(pm.routeLine);
+            pm.routeLine = null;
+          }
+
+          // Tracking ring follows the player, pulses while running
+          if (pm.trackRing) {
+            pm.trackRing.position.set(pos.x, 0.05, pos.z);
+            const mat = pm.trackRing.material as THREE.MeshBasicMaterial;
+            if (prog > 0 && prog < 1) {
+              const ringPulse = 1 + Math.sin(now * 0.008) * 0.22;
+              pm.trackRing.scale.set(ringPulse, ringPulse, 1);
+              mat.opacity = 0.55 + Math.sin(now * 0.008) * 0.25;
+            } else {
+              mat.opacity = prog >= 1 ? 0.35 : 0.0;
+              pm.trackRing.scale.set(1, 1, 1);
+            }
+          }
 
           // Trail
           if (prog > 0.01) {
@@ -454,6 +571,39 @@ export default function Play3DVisualizer({
         }
       }
 
+      // Wrong-path dashed red line: draws in during the second half of the play
+      if (wrongWorldPts.length > 1) {
+        const wProg = Math.max(0, Math.min((prog - 0.35) / 0.5, 1));
+        if (wrongLine) { s.scene.remove(wrongLine); wrongLine = null; }
+        if (wProg > 0.02) {
+          const drawTo = Math.max(2, Math.ceil(wProg * wrongWorldPts.length));
+          const wGeo = new THREE.BufferGeometry().setFromPoints(wrongWorldPts.slice(0, drawTo));
+          const wMat = new THREE.LineDashedMaterial({ color: 0xff3344, dashSize: 1.0, gapSize: 0.6, transparent: true, opacity: 0.9, linewidth: 2 });
+          wrongLine = new THREE.Line(wGeo, wMat);
+          wrongLine.computeLineDistances();
+          s.scene.add(wrongLine);
+        }
+      }
+
+      // Correct-path solid green line: draws in after the wrong path, toggleable
+      if (correctWorldPts.length > 1) {
+        const cProg = showCorrectRef.current ? Math.max(0, Math.min((prog - 0.5) / 0.5, 1)) : 0;
+        if (correctLine) { s.scene.remove(correctLine); correctLine = null; }
+        if (correctArrow) correctArrow.visible = false;
+        if (cProg > 0.02) {
+          const drawTo = Math.max(2, Math.ceil(cProg * correctWorldPts.length));
+          const cGeo = new THREE.BufferGeometry().setFromPoints(correctWorldPts.slice(0, drawTo));
+          const cMat = new THREE.LineBasicMaterial({ color: 0x00ff87, transparent: true, opacity: 0.95 });
+          correctLine = new THREE.Line(cGeo, cMat);
+          s.scene.add(correctLine);
+          if (correctArrow && cProg >= 1) {
+            correctArrow.visible = true;
+            const glowPulse = 1 + Math.sin(now * 0.006) * 0.15;
+            correctArrow.scale.set(glowPulse, glowPulse, glowPulse);
+          }
+        }
+      }
+
       s.controls.update();
       s.renderer.render(s.scene, s.camera);
       s.animId = requestAnimationFrame(tick);
@@ -483,7 +633,7 @@ export default function Play3DVisualizer({
       sceneRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [formation, playType, target, defenseScheme, customPlayers, height, showBall, annotations]);
+  }, [formation, playType, target, defenseScheme, customPlayers, height, showBall, annotations, wrongPath, correctPath]);
 
   const handlePlay = useCallback(() => {
     if (playingRef.current) {
@@ -500,6 +650,28 @@ export default function Play3DVisualizer({
     playingRef.current = false;
     setIsPlaying(false);
     progressRef.current = 0;
+    setScrub(0);
+  }, []);
+
+  const handleScrub = useCallback((v: number) => {
+    playingRef.current = false;
+    setIsPlaying(false);
+    progressRef.current = v / 100;
+    setScrub(v);
+  }, []);
+
+  const toggleRoutes = useCallback(() => {
+    setShowRoutes((r) => {
+      showRoutesRef.current = !r;
+      return !r;
+    });
+  }, []);
+
+  const toggleCorrect = useCallback(() => {
+    setShowCorrect((c) => {
+      showCorrectRef.current = !c;
+      return !c;
+    });
   }, []);
 
   const cycleSpeed = useCallback(() => {
@@ -534,6 +706,41 @@ export default function Play3DVisualizer({
 
       {/* 3D Canvas */}
       <div ref={mountRef} style={{ height }} className="w-full relative" />
+
+      {/* Timeline scrubber + phase */}
+      <div className="flex items-center gap-3 px-4 py-2.5 border-t border-gray-800 bg-[#0c1a2e]">
+        <span className="text-[10px] font-bold tracking-widest text-[#00FF87] w-24 shrink-0">{phaseLabel}</span>
+        <input
+          type="range"
+          min={0}
+          max={100}
+          value={scrub}
+          onChange={(e) => handleScrub(Number(e.target.value))}
+          className="flex-1 h-1.5 accent-[#00FF87] cursor-pointer"
+          aria-label="Play timeline scrubber"
+        />
+        <span className="text-[10px] text-gray-500 w-9 text-right tabular-nums">{scrub}%</span>
+        <Button
+          size="sm"
+          variant="outline"
+          className={`h-6 gap-1 text-[10px] px-2 ${showRoutes ? "border-[#00FF87]/50 text-[#00FF87]" : "text-gray-500"}`}
+          onClick={toggleRoutes}
+        >
+          {showRoutes ? <Eye className="h-3 w-3" /> : <EyeOff className="h-3 w-3" />}
+          Routes
+        </Button>
+        {correctPath && correctPath.length > 1 && (
+          <Button
+            size="sm"
+            variant="outline"
+            className={`h-6 gap-1 text-[10px] px-2 ${showCorrect ? "border-[#00FF87]/50 text-[#00FF87]" : "text-gray-500"}`}
+            onClick={toggleCorrect}
+          >
+            {showCorrect ? <Eye className="h-3 w-3" /> : <EyeOff className="h-3 w-3" />}
+            Fix
+          </Button>
+        )}
+      </div>
 
       {/* Camera presets */}
       <div className="flex items-center gap-1.5 px-4 py-3 border-t border-gray-800 flex-wrap">

@@ -165,6 +165,28 @@ export default function MistakeAnalysisTab({ sessionId }: { sessionId: number })
                   ? [{ kind: "wrong", x: 50, y: 38 + (selected.breakdownMoment || 0.5) * 14, label: "BREAKDOWN" }]
                   : [{ kind: "right", x: 50, y: 32, label: "EXECUTE HERE" }]
               }
+              wrongPath={
+                view === "actual"
+                  ? [
+                      [50, 50],
+                      [50 + 6, 46 - (selected.breakdownMoment || 0.5) * 4],
+                      [50 + 13, 40 + (selected.breakdownMoment || 0.5) * 10],
+                    ]
+                  : undefined
+              }
+              correctPath={
+                view === "actual"
+                  ? [
+                      [50, 50],
+                      [50 - 5, 42],
+                      [50 - 8, 32],
+                    ]
+                  : [
+                      [50, 50],
+                      [50 - 5, 42],
+                      [50 - 8, 32],
+                    ]
+              }
             />
 
             {/* Animated 2D wrong-vs-right chalkboard */}

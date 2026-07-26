@@ -12,11 +12,13 @@ import SeasonDashboard from "./pages/SeasonDashboard";
 import ScoutingChallenge from "./pages/ScoutingChallenge";
 import Landing from "./pages/Landing";
 import WarRoomPage from "./pages/WarRoomPage";
+import Sim3DTest from "./pages/Sim3DTest";
 
 function Router() {
   return (
     <Switch>
       <Route path="/landing" component={Landing} />
+      {import.meta.env.DEV && <Route path="/sim3d-test" component={Sim3DTest} />}
       <Route>
         <DashboardLayout>
           <Switch>

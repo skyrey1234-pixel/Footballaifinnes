@@ -48,6 +48,15 @@
 - [x] Label YouTube-session clip timestamps as estimated in the film breakdown UI — "~" prefix on clip times + explainer note recommending direct upload for exact vision-anchored timestamps
 - [ ] STILL FUTURE: true play-level timestamp extraction for YouTube links (needs yt-dlp access or Gemini video analysis of YouTube URLs — both blocked in this runtime); workaround remains: upload the video file directly
 
+## 3D Play Simulator Animation Upgrade (Jul 24 request)
+- [x] 3D SIM: Live route drawing — dashed glowing route lines draw in real time slightly ahead of each runner (toggleable via Routes button)
+- [x] 3D SIM: Player tracking rings — pulsing ground rings follow every routed player through the play (green offense / red defense)
+- [x] 3D SIM: Pulsing mistake zone circles — red rings at breakdown points (existing) + NEW dashed red wrong-path line that draws in mid-play with ✕ end marker
+- [x] 3D SIM: Correct-path overlays — solid green animated line with pulsing arrowhead cone showing the right execution, toggleable via Fix button
+- [x] 3D SIM: Playback controls upgrade — timeline scrubber (0-100%) with phase labels (PRE-SNAP / DEVELOPMENT / BALL IN FLIGHT / RESULT), scrubbing pauses playback
+- [x] 3D SIM: Wire upgraded simulator into Play3D tab (updated legend) and Mistake Analysis 3D view (breakdown-derived wrong/correct paths)
+- [x] 3D SIM: Verified — TypeScript clean, 29/29 vitest passing, PLUS real visual verification via headless chromium against a DEV-gated test harness (/sim3d-test, client/src/pages/Sim3DTest.tsx): confirmed WebGL scene renders, Run Play animates, tracking rings visible on all routed players (green offense rings at 90% scrub), route lines draw live, wrong-path dashed red line + BREAKDOWN label + red pulse ring visible, correct-path green line + EXECUTE HERE marker visible, Routes/Fix toggle buttons present, scrubber works (scrubbed to 70%/90%, phase labels transition PRE-SNAP → BALL IN FLIGHT → RESULT), all 4 camera presets clickable (verified Bird's Eye + Sideline)
+
 ## Visual/Interactive Upgrade Round (Jul 24)
 - [x] Shared play-animation foundation — extended FormationDiagram (SVG engine: routes drawing live, players, NEW ball-flight arc QB→target for passes / handoff track for runs) reused across Game Plan, Beat This Defense, Mistake Analysis
 - [x] Analysis wait: AnalysisProgress component — cinematic stage-driven progress bar (download → frames → AI watching → report) with animated field scanner, live stage checklist, elapsed timer; wired into SessionPage analyzing + re-analyzing states
