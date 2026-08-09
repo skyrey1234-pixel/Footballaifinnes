@@ -1,7 +1,7 @@
 import { eq, desc } from "drizzle-orm";
 import { sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, users, gameSessions, scoutingReports, playerProfiles, mistakeAnalyses, highlightReels, type InsertGameSession, type InsertScoutingReport, type InsertPlayerProfile } from "../drizzle/schema";
+import { InsertUser, users, gameSessions, scoutingReports, playerProfiles, mistakeAnalyses, highlightReels, formationAnalytics, presnapsReads, turnoverPredictors, type InsertGameSession, type InsertScoutingReport, type InsertPlayerProfile } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -298,4 +298,83 @@ export async function deletePlayerProfile(id: number) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
   await db.delete(playerProfiles).where(eq(playerProfiles.id, id));
+}
+
+// ===== WAVE 1: Advanced Video Analytics =====
+
+// ===== Formation Analytics =====
+export async function saveFormationAnalytics(sessionId: number, data: {
+  formations?: unknown;
+  offensiveFormations?: unknown;
+  defensiveFormations?: unknown;
+  predictions?: unknown;
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.delete(formationAnalytics).where(eq(formationAnalytics.sessionId, sessionId));
+  await db.insert(formationAnalytics).values({ sessionId, ...data });
+}
+
+export async function getFormationAnalyticsBySession(sessionId: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db.select().from(formationAnalytics).where(eq(formationAnalytics.sessionId, sessionId)).limit(1);
+  return rows[0] ?? null;
+}
+
+export async function deleteFormationAnalyticsBySession(sessionId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.delete(formationAnalytics).where(eq(formationAnalytics.sessionId, sessionId));
+}
+
+// ===== Pre-Snap Reads =====
+export async function savePreSnapReads(sessionId: number, data: {
+  reads?: unknown;
+  coverageTypes?: unknown;
+  blitzTendencies?: unknown;
+  drilQuestions?: unknown;
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.delete(presnapsReads).where(eq(presnapsReads.sessionId, sessionId));
+  await db.insert(presnapsReads).values({ sessionId, ...data });
+}
+
+export async function getPreSnapReadsBySession(sessionId: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db.select().from(presnapsReads).where(eq(presnapsReads.sessionId, sessionId)).limit(1);
+  return rows[0] ?? null;
+}
+
+export async function deletePreSnapReadsBySession(sessionId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.delete(presnapsReads).where(eq(presnapsReads.sessionId, sessionId));
+}
+
+// ===== Turnover Predictors =====
+export async function saveTurnoverPredictors(sessionId: number, data: {
+  plays?: unknown;
+  riskSummary?: unknown;
+  historicalData?: unknown;
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.delete(turnoverPredictors).where(eq(turnoverPredictors.sessionId, sessionId));
+  await db.insert(turnoverPredictors).values({ sessionId, ...data });
+}
+
+export async function getTurnoverPredictorsBySession(sessionId: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db.select().from(turnoverPredictors).where(eq(turnoverPredictors.sessionId, sessionId)).limit(1);
+  return rows[0] ?? null;
+}
+
+export async function deleteTurnoverPredictorsBySession(sessionId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.delete(turnoverPredictors).where(eq(turnoverPredictors.sessionId, sessionId));
 }

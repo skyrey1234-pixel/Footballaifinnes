@@ -97,3 +97,147 @@
 - [x] NEW FEATURE: Auto Highlight Reel — AI scans full game film and ranks the best plays into a playable highlight reel with impact scores and jump-to-timestamp (highlightReels table + highlightReel router)
 - [x] Integrate all three features into SessionPage tabs (3D Plays / Mistakes / Highlight Reel with NEW badges) — TypeScript clean, full vitest suite 10/10 passing
 - [x] Vitest coverage for new features — server/newfeatures.test.ts tests mistakeAnalysis and highlightReel db helpers (save/fetch/upsert-replace/delete, JSON plays & clips columns); added deleteMistakeAnalysisBySession + deleteHighlightReelBySession helpers to db.ts; full suite 16/16 passing, 0 TypeScript errors
+
+
+## PHASE 2: Advanced Video Analytics (15 Elite Features)
+
+### Database & Infrastructure
+- [ ] Create analytics tables: formations, heatMaps, presnap, turnovers, gaps, routes, blocks, momentum, injuries, penalties, redZone, thirdDown, twoMinute, situations, playerComps
+- [ ] Add analytics columns to game_sessions (formationData, heatmapData, presnap, etc.)
+- [ ] Create analytics router (server/analyticsRouter.ts) with 15 procedure groups
+
+### 1. Formation Recognition AI
+- [ ] Formation detection engine (offensive: Shotgun, I-form, Pistol, Spread, Empty; defensive: 4-3, 3-4, Nickel, Dime, Cover 2, Cover 3)
+- [ ] Real-time overlay on film viewer — auto-label formations as they appear
+- [ ] Tendency report: formation frequency + play success rates by formation
+- [ ] Predictive: "When they line up in I-form, they run 75% of the time"
+- [ ] UI: Formation labels on film clips + FormationAnalytics tab
+
+### 2. Player Heat Maps & Positioning Analytics
+- [ ] Pre-snap heat map: where each player typically lines up (corners on hash, safeties deep, etc.)
+- [ ] Route heat map: where receivers actually run routes (inside cuts vs vertical)
+- [ ] Defensive gap assignment heat map: where defenders position relative to ball
+- [ ] Alignment tendencies: "Their CB is 2 yards off the line 80% of the time"
+- [ ] Motion tracking: visualize player movement pre-snap and post-snap with trails/arrows
+- [ ] UI: Interactive heat map viewer with player position overlays
+
+### 3. Pre-Snap Reads Visualization & Coverage Recognition
+- [ ] QB progression trainer: show primary, secondary, tertiary reads with animated arrows
+- [ ] Coverage recognition: auto-label what coverage defense is in (Cover 2, Cover 3, Man, etc.)
+- [ ] Blitz detection: highlight which defenders are in blitz position
+- [ ] Hot route indicator: "If you see this coverage, throw to the hot route here"
+- [ ] Interactive drill mode: coach can quiz players on what they see pre-snap
+- [ ] UI: Pre-snap reads overlay on film + drill mode quiz
+
+### 4. Turnover Predictor AI
+- [ ] Interception risk scoring: "This play has a 35% INT rate against this defense"
+- [ ] Fumble risk: identify plays where QB holds too long or RB exposed
+- [ ] Sack vulnerability: "This play leaves QB exposed for 3+ seconds"
+- [ ] Pressure points: show which gaps defense exploits most
+- [ ] Historical data: "Last time we ran this play against this defense, we threw a pick"
+- [ ] Recommendation engine: "Try this play instead — 85% success rate"
+- [ ] UI: Risk badges on play suggestions + warning overlays on film
+
+### 5. Defensive Gap Assignment Analyzer
+- [ ] Gap labels: show which defender is responsible for each gap (A, B, C, D)
+- [ ] Assignment breakdown: "Their DT is responsible for A-gap, but 2 yards off = vulnerability"
+- [ ] Blitz package detection: auto-detect blitz packages + undefended gaps
+- [ ] Run fit analysis: "This play exploits their C-gap weakness"
+- [ ] Coaching overlay: coaches can add their own gap assignments to compare
+- [ ] UI: Gap labels on formation diagrams + interactive assignment editor
+
+### 6. Route Tree Analyzer
+- [ ] Route recognition: auto-label routes (slant, dig, corner, post, wheel, etc.)
+- [ ] Timing analysis: when receiver breaks vs when QB releases
+- [ ] Separation metrics: measure how open receiver is at catch point
+- [ ] Coverage matchup: show which defender covering each route
+- [ ] Effectiveness rating: "This route works 80% of the time vs Cover 2"
+- [ ] Progression visualization: full route tree with timing windows
+- [ ] UI: Route tree diagram + interactive timing scrubber
+
+### 7. Blocking Assignment Tracker & OL Performance
+- [ ] Block identification: auto-label who's blocking whom
+- [ ] Block quality rating: good, average, whiffed
+- [ ] Breakdown analysis: "Your LG missed his block on 3 plays, costing 15 yards"
+- [ ] Scheme consistency: "Your OL is executing the scheme 85% of the time"
+- [ ] Individual performance: grade each lineman's blocks per game
+- [ ] Coaching notes: mark blocks as "good example" or "fix this"
+- [ ] UI: Block diagram overlay + OL performance card
+
+### 8. Momentum & Game Flow Analytics
+- [ ] Play-by-play momentum graph: show which plays shifted momentum
+- [ ] Emotional indicators: identify plays that energized or deflated team
+- [ ] Momentum predictor: "This is the type of play that usually swings momentum"
+- [ ] Comeback scenarios: "Here's where they made their comeback run"
+- [ ] Halftime adjustments: show how momentum changed after halftime
+- [ ] UI: Momentum timeline chart + key play highlights
+
+### 9. Injury Impact Analyzer
+- [ ] Key player removal: "If their #23 (CB) goes out, their coverage success drops 20%"
+- [ ] Backup performance: compare starter vs backup stats
+- [ ] Scheme adjustment: "When they lose their star pass rusher, they shift to 3-4"
+- [ ] Vulnerability window: "Their backup QB can't throw deep — exploit it"
+- [ ] Recovery timeline: "They'll be without their RB for 2 weeks — adjust game plans"
+- [ ] UI: Injury impact card + backup performance comparison
+
+### 10. Penalty Pattern Analyzer
+- [ ] Ref tendencies: "This ref calls holding 40% more than average"
+- [ ] Team penalties: "Opponent commits holding on 15% of plays vs 8% average"
+- [ ] Penalty location heat map: where penalties happen (certain OL position?)
+- [ ] Penalty type trends: "They commit more false starts in high-pressure situations"
+- [ ] Coaching adjustment: "Tighten up your technique — this ref is calling tight"
+- [ ] UI: Penalty heat map + ref tendency card
+
+### 11. Red Zone Efficiency Analyzer
+- [ ] Red zone conversion rate: "Opponent converts 65% of red zone drives"
+- [ ] Goal line success: "They score on 80% of goal-line plays"
+- [ ] Scoring method: "They prefer passing in red zone (60% pass vs 40% run)"
+- [ ] Defensive vulnerability: "Their safeties creep up too far in red zone"
+- [ ] Prediction: "Expect them to throw a slant in the red zone"
+- [ ] UI: Red zone efficiency card + scoring method breakdown
+
+### 12. Third-Down Efficiency Breakdown
+- [ ] 3rd-down conversion rate: "Opponent converts 45% of 3rd downs"
+- [ ] Distance-based analysis: "They convert 60% of 3rd-and-short, 35% of 3rd-and-long"
+- [ ] Play calling: "On 3rd-and-long, they run play-action 70% of the time"
+- [ ] Defense tendencies: "Your defense gives up 8+ yards on 3rd-and-medium"
+- [ ] Recommendation: "Blitz on their 3rd-and-long — they're vulnerable"
+- [ ] UI: 3rd-down efficiency card + play calling breakdown
+
+### 13. Two-Minute Drill Analyzer
+- [ ] Two-minute offense: "They run hurry-up 80% of the time in final 2 minutes"
+- [ ] Play calling patterns: "They always throw on 1st down in 2-minute drills"
+- [ ] Timeout management: "They waste timeouts — exploit it"
+- [ ] Scenario builder: "Here's what they'll likely do with 1:30 left, down 4"
+- [ ] Defensive call suggestions: "Call Cover 2 — they can't throw deep fast enough"
+- [ ] UI: Two-minute drill scenario card + play prediction
+
+### 14. Situational Football Analyzer
+- [ ] Down & distance tendencies: "On 1st-and-10, they run 55% of the time"
+- [ ] Score differential: "When up by 7, they run 70% of the time"
+- [ ] Field position: "In their own territory, they're conservative (40% pass)"
+- [ ] Time remaining: "With 5+ minutes left, they're aggressive (65% pass)"
+- [ ] Predictive model: "Given the current situation, they'll likely run"
+- [ ] UI: Situational predictor card + scenario builder
+
+### 15. Player Comparison Tool
+- [ ] Our QB vs Their QB: accuracy, arm strength, decision-making, mobility
+- [ ] Our WR vs Their CB: separation ability, catch radius, speed metrics
+- [ ] Our OL vs Their DL: gap discipline, footwork, consistency
+- [ ] Matchup advantage: "Your WR has 2 inches and 4.5 speed on their CB"
+- [ ] Prediction: "This matchup favors us — exploit it"
+- [ ] UI: Side-by-side player comparison cards
+
+### Analytics Dashboard & Unified Reporting
+- [ ] Create AnalyticsHub page (/analytics/:sessionId) with 15 feature tabs
+- [ ] Implement each feature as a collapsible card/panel with data visualization
+- [ ] Add export functionality (PDF, CSV) for each analytics module
+- [ ] Create analytics summary report (1-page executive summary of all 15 features)
+- [ ] Integrate analytics into SessionPage as new "Advanced Analytics" tab
+
+### Testing & Deployment
+- [ ] Write vitest for each analytics procedure (15 test suites)
+- [ ] End-to-end testing: upload video → generate analytics → verify all 15 features render
+- [ ] Performance testing: ensure analytics generation completes within 180s serverless timeout
+- [ ] Production deployment: checkpoint with all 15 features live
+- [ ] Sales deck update: add "Advanced Video Analytics" slide showcasing all 15 features

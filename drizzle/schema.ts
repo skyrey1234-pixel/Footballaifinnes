@@ -103,3 +103,40 @@ export const highlightReels = mysqlTable("highlight_reels", {
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 export type HighlightReel = typeof highlightReels.$inferSelect;
+
+// ============ ADVANCED VIDEO ANALYTICS TABLES ============
+
+// Formation Recognition Analytics
+export const formationAnalytics = mysqlTable("formation_analytics", {
+  id: int("id").autoincrement().primaryKey(),
+  sessionId: int("sessionId").notNull(),
+  formations: json("formations"), // Array of { formation, frequency, successRate, playTypes }
+  offensiveFormations: json("offensiveFormations"), // { Shotgun, IForm, Pistol, Spread, Empty, etc. }
+  defensiveFormations: json("defensiveFormations"), // { 43, 34, Nickel, Dime, Cover2, Cover3, etc. }
+  predictions: json("predictions"), // { situationKey: { formation, confidence, predictedPlay } }
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type FormationAnalytic = typeof formationAnalytics.$inferSelect;
+
+// Pre-Snap Reads & Coverage Recognition
+export const presnapsReads = mysqlTable("presnap_reads", {
+  id: int("id").autoincrement().primaryKey(),
+  sessionId: int("sessionId").notNull(),
+  reads: json("reads"), // Array of { playId, coverage, blitzPackage, hotRoute, qbProgression, difficulty }
+  coverageTypes: json("coverageTypes"), // { Cover2, Cover3, Man, TwoDeep, etc. } with frequency
+  blitzTendencies: json("blitzTendencies"), // { blitzType, frequency, effectiveness }
+  drilQuestions: json("drilQuestions"), // Array of { scenario, correctAnswer, explanation }
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type PreSnapRead = typeof presnapsReads.$inferSelect;
+
+// Turnover Predictor Analytics
+export const turnoverPredictors = mysqlTable("turnover_predictors", {
+  id: int("id").autoincrement().primaryKey(),
+  sessionId: int("sessionId").notNull(),
+  plays: json("plays"), // Array of { playId, interceptionRisk, fumbleRisk, sackVulnerability, pressurePoints, recommendation }
+  riskSummary: json("riskSummary"), // { avgInterceptionRisk, avgFumbleRisk, avgSackVulnerability, highRiskPlays }
+  historicalData: json("historicalData"), // { playType: { successRate, turnoverRate, lastOccurrence } }
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type TurnoverPredictor = typeof turnoverPredictors.$inferSelect;

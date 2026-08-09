@@ -13,6 +13,7 @@ import { generateImage } from "./_core/imageGeneration";
 import { stripeRouter } from "./stripeRoutes";
 import { canAccessFeature } from "./stripe";
 import { warRoomRouter } from "./warRoomRouter";
+import { analyticsRouter } from "./analyticsRouter";
 
 // Admin-only procedure
 const adminProcedure = protectedProcedure.use(({ ctx, next }) => {
@@ -26,6 +27,7 @@ export const appRouter = router({
   system: systemRouter,
   stripe: stripeRouter,
   warRoom: warRoomRouter,
+  analytics: analyticsRouter,
   auth: router({
     me: publicProcedure.query(opts => opts.ctx.user),
     logout: publicProcedure.mutation(({ ctx }) => {
