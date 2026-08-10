@@ -1,7 +1,7 @@
 import { eq, desc } from "drizzle-orm";
 import { sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, users, gameSessions, scoutingReports, playerProfiles, mistakeAnalyses, highlightReels, formationAnalytics, presnapsReads, turnoverPredictors, type InsertGameSession, type InsertScoutingReport, type InsertPlayerProfile } from "../drizzle/schema";
+import { InsertUser, users, gameSessions, scoutingReports, playerProfiles, mistakeAnalyses, highlightReels, formationAnalytics, presnapsReads, turnoverPredictors, heatMapAnalytics, routeTreeAnalytics, blockingAnalytics, momentumAnalytics, gapAnalytics, injuryImpactAnalytics, penaltyAnalytics, redZoneAnalytics, thirdDownAnalytics, twoMinuteAnalytics, situationalAnalytics, playerComparisons, type InsertGameSession, type InsertScoutingReport, type InsertPlayerProfile } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -377,4 +377,172 @@ export async function deleteTurnoverPredictorsBySession(sessionId: number) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
   await db.delete(turnoverPredictors).where(eq(turnoverPredictors.sessionId, sessionId));
+}
+
+// ===== WAVE 2: Heat Map Analytics =====
+export async function saveHeatMapAnalytics(sessionId: number, data: { preSnapHeatMaps?: unknown; routeHeatMaps?: unknown; alignmentTendencies?: unknown; motionTracking?: unknown; }) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.delete(heatMapAnalytics).where(eq(heatMapAnalytics.sessionId, sessionId));
+  await db.insert(heatMapAnalytics).values({ sessionId, ...data });
+}
+export async function getHeatMapAnalyticsBySession(sessionId: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db.select().from(heatMapAnalytics).where(eq(heatMapAnalytics.sessionId, sessionId)).limit(1);
+  return rows[0] ?? null;
+}
+
+// ===== WAVE 2: Route Tree Analytics =====
+export async function saveRouteTreeAnalytics(sessionId: number, data: { routes?: unknown; timingAnalysis?: unknown; effectivenessRatings?: unknown; routeTree?: unknown; }) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.delete(routeTreeAnalytics).where(eq(routeTreeAnalytics.sessionId, sessionId));
+  await db.insert(routeTreeAnalytics).values({ sessionId, ...data });
+}
+export async function getRouteTreeAnalyticsBySession(sessionId: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db.select().from(routeTreeAnalytics).where(eq(routeTreeAnalytics.sessionId, sessionId)).limit(1);
+  return rows[0] ?? null;
+}
+
+// ===== WAVE 2: Blocking Analytics =====
+export async function saveBlockingAnalytics(sessionId: number, data: { grades?: unknown; schemeConsistency?: unknown; pressureAllowed?: unknown; runFitAnalysis?: unknown; }) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.delete(blockingAnalytics).where(eq(blockingAnalytics.sessionId, sessionId));
+  await db.insert(blockingAnalytics).values({ sessionId, ...data });
+}
+export async function getBlockingAnalyticsBySession(sessionId: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db.select().from(blockingAnalytics).where(eq(blockingAnalytics.sessionId, sessionId)).limit(1);
+  return rows[0] ?? null;
+}
+
+// ===== WAVE 2: Momentum Analytics =====
+export async function saveMomentumAnalytics(sessionId: number, data: { momentumGraph?: unknown; swingMoments?: unknown; emotionalIndicators?: unknown; comebackAnalysis?: unknown; }) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.delete(momentumAnalytics).where(eq(momentumAnalytics.sessionId, sessionId));
+  await db.insert(momentumAnalytics).values({ sessionId, ...data });
+}
+export async function getMomentumAnalyticsBySession(sessionId: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db.select().from(momentumAnalytics).where(eq(momentumAnalytics.sessionId, sessionId)).limit(1);
+  return rows[0] ?? null;
+}
+
+// ===== WAVE 3: Gap Analytics =====
+export async function saveGapAnalytics(sessionId: number, data: { gapAssignments?: unknown; blitzPackages?: unknown; runFitBreakdowns?: unknown; }) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.delete(gapAnalytics).where(eq(gapAnalytics.sessionId, sessionId));
+  await db.insert(gapAnalytics).values({ sessionId, ...data });
+}
+export async function getGapAnalyticsBySession(sessionId: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db.select().from(gapAnalytics).where(eq(gapAnalytics.sessionId, sessionId)).limit(1);
+  return rows[0] ?? null;
+}
+
+// ===== WAVE 3: Injury Impact Analytics =====
+export async function saveInjuryImpactAnalytics(sessionId: number, data: { keyPlayers?: unknown; vulnerabilityWindows?: unknown; depthChart?: unknown; }) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.delete(injuryImpactAnalytics).where(eq(injuryImpactAnalytics.sessionId, sessionId));
+  await db.insert(injuryImpactAnalytics).values({ sessionId, ...data });
+}
+export async function getInjuryImpactAnalyticsBySession(sessionId: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db.select().from(injuryImpactAnalytics).where(eq(injuryImpactAnalytics.sessionId, sessionId)).limit(1);
+  return rows[0] ?? null;
+}
+
+// ===== WAVE 3: Penalty Analytics =====
+export async function savePenaltyAnalytics(sessionId: number, data: { penalties?: unknown; patterns?: unknown; costAnalysis?: unknown; }) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.delete(penaltyAnalytics).where(eq(penaltyAnalytics.sessionId, sessionId));
+  await db.insert(penaltyAnalytics).values({ sessionId, ...data });
+}
+export async function getPenaltyAnalyticsBySession(sessionId: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db.select().from(penaltyAnalytics).where(eq(penaltyAnalytics.sessionId, sessionId)).limit(1);
+  return rows[0] ?? null;
+}
+
+// ===== WAVE 3: Red Zone Analytics =====
+export async function saveRedZoneAnalytics(sessionId: number, data: { efficiency?: unknown; goalLine?: unknown; tendencies?: unknown; scoringBreakdown?: unknown; }) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.delete(redZoneAnalytics).where(eq(redZoneAnalytics.sessionId, sessionId));
+  await db.insert(redZoneAnalytics).values({ sessionId, ...data });
+}
+export async function getRedZoneAnalyticsBySession(sessionId: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db.select().from(redZoneAnalytics).where(eq(redZoneAnalytics.sessionId, sessionId)).limit(1);
+  return rows[0] ?? null;
+}
+
+// ===== WAVE 3: Third Down Analytics =====
+export async function saveThirdDownAnalytics(sessionId: number, data: { conversionRate?: unknown; byDistance?: unknown; playCallingPatterns?: unknown; defensiveTendencies?: unknown; }) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.delete(thirdDownAnalytics).where(eq(thirdDownAnalytics.sessionId, sessionId));
+  await db.insert(thirdDownAnalytics).values({ sessionId, ...data });
+}
+export async function getThirdDownAnalyticsBySession(sessionId: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db.select().from(thirdDownAnalytics).where(eq(thirdDownAnalytics.sessionId, sessionId)).limit(1);
+  return rows[0] ?? null;
+}
+
+// ===== WAVE 3: Two-Minute Drill Analytics =====
+export async function saveTwoMinuteAnalytics(sessionId: number, data: { drillEfficiency?: unknown; playSelection?: unknown; timeoutManagement?: unknown; clutchPerformance?: unknown; }) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.delete(twoMinuteAnalytics).where(eq(twoMinuteAnalytics.sessionId, sessionId));
+  await db.insert(twoMinuteAnalytics).values({ sessionId, ...data });
+}
+export async function getTwoMinuteAnalyticsBySession(sessionId: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db.select().from(twoMinuteAnalytics).where(eq(twoMinuteAnalytics.sessionId, sessionId)).limit(1);
+  return rows[0] ?? null;
+}
+
+// ===== WAVE 3: Situational Analytics =====
+export async function saveSituationalAnalytics(sessionId: number, data: { downAndDistance?: unknown; scoreDifferential?: unknown; fieldPosition?: unknown; timeRemaining?: unknown; predictiveModel?: unknown; }) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.delete(situationalAnalytics).where(eq(situationalAnalytics.sessionId, sessionId));
+  await db.insert(situationalAnalytics).values({ sessionId, ...data });
+}
+export async function getSituationalAnalyticsBySession(sessionId: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db.select().from(situationalAnalytics).where(eq(situationalAnalytics.sessionId, sessionId)).limit(1);
+  return rows[0] ?? null;
+}
+
+// ===== WAVE 3: Player Comparisons =====
+export async function savePlayerComparisons(sessionId: number, data: { comparisons?: unknown; matchupAdvantages?: unknown; overallAssessment?: unknown; }) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.delete(playerComparisons).where(eq(playerComparisons.sessionId, sessionId));
+  await db.insert(playerComparisons).values({ sessionId, ...data });
+}
+export async function getPlayerComparisonsBySession(sessionId: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db.select().from(playerComparisons).where(eq(playerComparisons.sessionId, sessionId)).limit(1);
+  return rows[0] ?? null;
 }

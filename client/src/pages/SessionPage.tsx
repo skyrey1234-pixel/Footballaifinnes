@@ -21,6 +21,7 @@ import { BeatThisDefenseTab } from "@/pages/BeatThisDefenseTab";
 import { GameDayAssistantTab } from "@/pages/GameDayAssistantTab";
 import { CallSheetTab } from "@/pages/CallSheetTab";
 import { VoiceCoachTab } from "@/pages/VoiceCoachTab";
+import { AnalyticsPanel } from "@/components/analytics/AnalyticsPanel";
 import { toast } from "sonner";
 
 export default function SessionPage() {
@@ -208,6 +209,10 @@ export default function SessionPage() {
               <Mic className="h-3 w-3" />
               Voice Coach
             </TabsTrigger>
+            <TabsTrigger value="analytics" className="gap-2 border border-emerald-500/30">
+              <Box className="h-3 w-3 text-emerald-400" />
+              <span className="text-emerald-400">Analytics (15)</span>
+            </TabsTrigger>
           </TabsList>
 
           {/* Action Buttons */}
@@ -280,6 +285,9 @@ export default function SessionPage() {
           </TabsContent>
           <TabsContent value="voicecoach" className="mt-6">
             <VoiceCoachTab sessionId={sessionId} />
+          </TabsContent>
+          <TabsContent value="analytics" className="mt-6">
+            <AnalyticsPanel sessionId={sessionId} />
           </TabsContent>
         </Tabs>
       )}

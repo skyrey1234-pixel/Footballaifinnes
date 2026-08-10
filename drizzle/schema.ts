@@ -140,3 +140,148 @@ export const turnoverPredictors = mysqlTable("turnover_predictors", {
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 export type TurnoverPredictor = typeof turnoverPredictors.$inferSelect;
+
+// ============ WAVE 2: VISUAL INTELLIGENCE ============
+
+// Player Heat Maps & Positioning Analytics
+export const heatMapAnalytics = mysqlTable("heat_map_analytics", {
+  id: int("id").autoincrement().primaryKey(),
+  sessionId: int("sessionId").notNull(),
+  preSnapHeatMaps: json("preSnapHeatMaps"), // { position: { zones: [{x,y,frequency}] } }
+  routeHeatMaps: json("routeHeatMaps"), // { player: { routes: [{path,frequency}] } }
+  alignmentTendencies: json("alignmentTendencies"), // { player: { avgDepth, avgWidth, tendencyNote } }
+  motionTracking: json("motionTracking"), // { presnap: [], postsnap: [] }
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type HeatMapAnalytic = typeof heatMapAnalytics.$inferSelect;
+
+// Route Tree Analyzer
+export const routeTreeAnalytics = mysqlTable("route_tree_analytics", {
+  id: int("id").autoincrement().primaryKey(),
+  sessionId: int("sessionId").notNull(),
+  routes: json("routes"), // Array of { receiver, routeType, frequency, avgSeparation, catchRate, avgYAC }
+  timingAnalysis: json("timingAnalysis"), // { route: { avgBreakTime, avgThrowWindow } }
+  effectivenessRatings: json("effectivenessRatings"), // { route: { successRate, ypa, bigPlayRate } }
+  routeTree: json("routeTree"), // Full route tree visualization data
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type RouteTreeAnalytic = typeof routeTreeAnalytics.$inferSelect;
+
+// Blocking Assignment Tracker
+export const blockingAnalytics = mysqlTable("blocking_analytics", {
+  id: int("id").autoincrement().primaryKey(),
+  sessionId: int("sessionId").notNull(),
+  grades: json("grades"), // { player: { passBlock, runBlock, overall, pancakes, sacks } }
+  schemeConsistency: json("schemeConsistency"), // { scheme: { executionRate, breakdowns } }
+  pressureAllowed: json("pressureAllowed"), // { player: { pressures, hurries, knockdowns } }
+  runFitAnalysis: json("runFitAnalysis"), // { gapAssignment: { successRate, yardsCreated } }
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type BlockingAnalytic = typeof blockingAnalytics.$inferSelect;
+
+// Momentum & Game Flow Analytics
+export const momentumAnalytics = mysqlTable("momentum_analytics", {
+  id: int("id").autoincrement().primaryKey(),
+  sessionId: int("sessionId").notNull(),
+  momentumGraph: json("momentumGraph"), // Array of { play, momentum (-100 to 100), event }
+  swingMoments: json("swingMoments"), // Array of { play, trigger, impact, description }
+  emotionalIndicators: json("emotionalIndicators"), // { confidence, frustration, fatigue per quarter }
+  comebackAnalysis: json("comebackAnalysis"), // { probability, keyFactors, historicalComps }
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type MomentumAnalytic = typeof momentumAnalytics.$inferSelect;
+
+// ============ WAVE 3: SITUATIONAL MASTERY ============
+
+// Defensive Gap Assignment Analyzer
+export const gapAnalytics = mysqlTable("gap_analytics", {
+  id: int("id").autoincrement().primaryKey(),
+  sessionId: int("sessionId").notNull(),
+  gapAssignments: json("gapAssignments"), // { gap: { assignedPlayer, fillRate, yardsAllowed } }
+  blitzPackages: json("blitzPackages"), // { package: { frequency, pressureRate, coverage } }
+  runFitBreakdowns: json("runFitBreakdowns"), // Array of { play, gap, breakdown, yardage }
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type GapAnalytic = typeof gapAnalytics.$inferSelect;
+
+// Injury Impact Analyzer
+export const injuryImpactAnalytics = mysqlTable("injury_impact_analytics", {
+  id: int("id").autoincrement().primaryKey(),
+  sessionId: int("sessionId").notNull(),
+  keyPlayers: json("keyPlayers"), // Array of { player, position, impactScore, replacement, performanceDrop }
+  vulnerabilityWindows: json("vulnerabilityWindows"), // { scenario: { impact, adjustment } }
+  depthChart: json("depthChart"), // { position: { starter, backup, dropOff } }
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type InjuryImpactAnalytic = typeof injuryImpactAnalytics.$inferSelect;
+
+// Penalty Pattern Analyzer
+export const penaltyAnalytics = mysqlTable("penalty_analytics", {
+  id: int("id").autoincrement().primaryKey(),
+  sessionId: int("sessionId").notNull(),
+  penalties: json("penalties"), // Array of { type, player, quarter, yardage, situation }
+  patterns: json("patterns"), // { type: { frequency, situations, players } }
+  costAnalysis: json("costAnalysis"), // { totalYards, driveKillers, scoringImpact }
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type PenaltyAnalytic = typeof penaltyAnalytics.$inferSelect;
+
+// Red Zone & Goal Line Efficiency
+export const redZoneAnalytics = mysqlTable("red_zone_analytics", {
+  id: int("id").autoincrement().primaryKey(),
+  sessionId: int("sessionId").notNull(),
+  efficiency: json("efficiency"), // { attempts, touchdowns, fieldGoals, turnovers, rate }
+  goalLine: json("goalLine"), // { attempts, conversions, playTypes, successByFormation }
+  tendencies: json("tendencies"), // { run vs pass, formation preferences, personnel }
+  scoringBreakdown: json("scoringBreakdown"), // { method: count }
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type RedZoneAnalytic = typeof redZoneAnalytics.$inferSelect;
+
+// Third-Down Efficiency & Conversion
+export const thirdDownAnalytics = mysqlTable("third_down_analytics", {
+  id: int("id").autoincrement().primaryKey(),
+  sessionId: int("sessionId").notNull(),
+  conversionRate: json("conversionRate"), // { overall, short, medium, long }
+  byDistance: json("byDistance"), // { '1-3': {attempts,conversions}, '4-6': {...}, '7+': {...} }
+  playCallingPatterns: json("playCallingPatterns"), // { run, pass, screen, draw by distance }
+  defensiveTendencies: json("defensiveTendencies"), // { blitz, zone, man by distance }
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type ThirdDownAnalytic = typeof thirdDownAnalytics.$inferSelect;
+
+// Two-Minute Drill & Clutch Situations
+export const twoMinuteAnalytics = mysqlTable("two_minute_analytics", {
+  id: int("id").autoincrement().primaryKey(),
+  sessionId: int("sessionId").notNull(),
+  drillEfficiency: json("drillEfficiency"), // { attempts, scores, avgTimeUsed, avgPlays }
+  playSelection: json("playSelection"), // { hurryUp: {run,pass,screen}, normal: {run,pass} }
+  timeoutManagement: json("timeoutManagement"), // { optimal, wasted, impactful }
+  clutchPerformance: json("clutchPerformance"), // { qbRating, completionPct, bigPlays }
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type TwoMinuteAnalytic = typeof twoMinuteAnalytics.$inferSelect;
+
+// Situational Football Analyzer
+export const situationalAnalytics = mysqlTable("situational_analytics", {
+  id: int("id").autoincrement().primaryKey(),
+  sessionId: int("sessionId").notNull(),
+  downAndDistance: json("downAndDistance"), // { '1st-10': {run%,pass%,success%}, ... }
+  scoreDifferential: json("scoreDifferential"), // { ahead: {tendencies}, behind: {tendencies} }
+  fieldPosition: json("fieldPosition"), // { ownTerritory: {}, midfield: {}, opponent: {} }
+  timeRemaining: json("timeRemaining"), // { early: {}, middle: {}, late: {} }
+  predictiveModel: json("predictiveModel"), // { situation: { likelyPlay, confidence } }
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type SituationalAnalytic = typeof situationalAnalytics.$inferSelect;
+
+// Player Comparison Tool
+export const playerComparisons = mysqlTable("player_comparisons", {
+  id: int("id").autoincrement().primaryKey(),
+  sessionId: int("sessionId").notNull(),
+  comparisons: json("comparisons"), // Array of { ourPlayer, theirPlayer, position, metrics, advantage }
+  matchupAdvantages: json("matchupAdvantages"), // { matchup: { advantage, exploitStrategy } }
+  overallAssessment: json("overallAssessment"), // { teamStrength, weaknesses, keyMatchups }
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type PlayerComparison = typeof playerComparisons.$inferSelect;
