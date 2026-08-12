@@ -61,31 +61,30 @@ export default function WarRoomPage() {
 
   return (
     <div className="min-h-screen mesh-bg field-grid relative">
-      {/* Cinematic header */}
-      <div className="relative overflow-hidden border-b border-primary/15">
-        <div className="absolute inset-0 bg-gradient-to-r from-primary/8 via-transparent to-primary/5 pointer-events-none" />
+      {/* Broadcast header */}
+      <div className="broadcast-hero border-b border-primary/15">
         <div className="container py-6 relative">
           <div className="flex items-center gap-3 mb-2">
-            <Button variant="ghost" size="sm" className="gap-1 text-muted-foreground hover:text-foreground" onClick={() => setLocation(`/session/${sessionId}`)}>
+            <Button variant="ghost" size="sm" className="gap-1 bg-white/10 text-white/80 hover:bg-white/20 hover:text-white" onClick={() => setLocation(`/session/${sessionId}`)}>
               <ArrowLeft className="h-4 w-4" /> Session
             </Button>
-            <Badge variant="outline" className="font-tactical text-[10px] border-primary/40 text-primary anim-flicker">
-              <span className="inline-block h-1.5 w-1.5 rounded-full bg-primary mr-1.5 animate-pulse" />
+            <Badge variant="outline" className="font-tactical text-[10px] border-[#F4C542]/60 bg-[#F4C542]/10 text-[#F4C542] anim-flicker">
+              <span className="inline-block h-1.5 w-1.5 rounded-full bg-[#F4C542] mr-1.5 animate-pulse" />
               LIVE INTEL
             </Badge>
           </div>
           <div className="flex items-end justify-between flex-wrap gap-4">
             <div className="anim-rise">
-              <div className="font-tactical text-xs text-primary/70 mb-1">TACTICAL COMMAND CENTER</div>
-              <h1 className="font-display text-4xl md:text-5xl font-bold tracking-tight">
-                <span className="text-glow text-primary">WAR ROOM</span>
-                <span className="text-muted-foreground/60 mx-3 font-light">vs</span>
+              <div className="font-tactical text-xs text-[#F4C542] mb-1">TACTICAL COMMAND CENTER</div>
+              <h1 className="font-display text-4xl md:text-5xl font-bold tracking-tight text-white">
+                <span className="text-[#F4C542]">WAR ROOM</span>
+                <span className="text-white/50 mx-3 font-light">vs</span>
                 <span className="text-glow-white">{session.opponentName}</span>
               </h1>
             </div>
             <div className="flex items-center gap-2 anim-rise-2">
-              <Flame className="h-4 w-4 text-primary" />
-              <span className="font-tactical text-xs text-muted-foreground">Hudl stores the film. This tells you what to do next.</span>
+              <Flame className="h-4 w-4 text-[#F4C542]" />
+              <span className="font-tactical text-xs text-white/70">Hudl stores the film. This tells you what to do next.</span>
             </div>
           </div>
         </div>
@@ -93,7 +92,7 @@ export default function WarRoomPage() {
 
       {/* Workspace switcher */}
       <div className="container py-4 sticky top-0 z-20">
-        <div className="glass rounded-xl p-2 flex gap-1 overflow-x-auto">
+        <div className="broadcast-tab-list rounded-xl p-2 flex gap-1 overflow-x-auto">
           {WORKSPACES.map((w, i) => {
             const Icon = w.icon;
             const active = workspace === w.id;
@@ -103,8 +102,8 @@ export default function WarRoomPage() {
                 onClick={() => setWorkspace(w.id)}
                 className={`shrink-0 flex items-center gap-2 px-3.5 py-2 rounded-lg font-tactical text-[11px] transition-all duration-200 active:scale-[0.97] ${
                   active
-                    ? "bg-primary text-primary-foreground glow-primary-sm"
-                    : "text-muted-foreground hover:text-foreground hover:bg-accent"
+                    ? "bg-[#F4C542] text-[#102A56] shadow-lg"
+                    : "text-white/70 hover:text-white hover:bg-white/10"
                 }`}
                 style={{ animationDelay: `${i * 40}ms` }}
                 title={w.desc}

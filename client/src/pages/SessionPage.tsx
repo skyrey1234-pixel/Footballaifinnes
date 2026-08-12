@@ -94,25 +94,26 @@ export default function SessionPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={() => setLocation("/")}>
+      <div className="broadcast-hero rounded-2xl p-4 md:p-5 flex items-center gap-4">
+        <Button variant="ghost" size="icon" className="bg-white/10 text-white hover:bg-white/20 hover:text-white" onClick={() => setLocation("/")}>
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <div className="flex-1">
-          <h1 className="text-2xl font-bold">{session.opponentName}</h1>
-          <p className="text-sm text-muted-foreground">
+          <div className="font-tactical text-[10px] text-[#F4C542] mb-1">OPPONENT SCOUTING HUB</div>
+          <h1 className="text-2xl font-bold text-white">{session.opponentName}</h1>
+          <p className="text-sm text-white/70">
             {session.gameDate || "No date"} &middot; {session.sourceType === "youtube" ? "YouTube" : "Uploaded Video"}
           </p>
         </div>
         {session.status === "complete" && (
           <Button
             size="lg"
-            className="gap-2 font-tactical text-xs glow-primary-sm active:scale-[0.97] shrink-0"
+            className="gap-2 font-tactical text-xs bg-[#F4C542] text-[#102A56] hover:bg-[#FFD86A] shadow-lg active:scale-[0.97] shrink-0"
             onClick={() => setLocation(`/warroom/${sessionId}`)}
           >
             <Radio className="h-4 w-4" />
             ENTER WAR ROOM
-            <Badge variant="outline" className="text-[9px] px-1 py-0 border-primary-foreground/40 text-primary-foreground">
+            <Badge variant="outline" className="text-[9px] px-1 py-0 border-[#102A56]/25 bg-[#102A56]/10 text-[#102A56]">
               NEW
             </Badge>
           </Button>
@@ -158,7 +159,7 @@ export default function SessionPage() {
 
       {session.status === "complete" && report && (
         <Tabs defaultValue="report" className="w-full">
-          <TabsList className="flex-wrap h-auto">
+          <TabsList className="broadcast-tab-list flex-wrap h-auto w-full justify-start p-2 gap-1 [&_[data-slot=tabs-trigger]]:text-white/75 [&_[data-slot=tabs-trigger]:hover]:text-white">
             <TabsTrigger value="report">Scouting Report</TabsTrigger>
             <TabsTrigger value="film">AI Film Breakdown</TabsTrigger>
             <TabsTrigger value="players" className="gap-2">
@@ -175,21 +176,21 @@ export default function SessionPage() {
             <TabsTrigger value="play3d" className="gap-2">
               <Box className="h-3 w-3" />
               3D Plays
-              <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-[#00FF87]/50 text-[#00FF87]">
+              <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-blue-200 bg-blue-50 text-blue-700">
                 NEW
               </Badge>
             </TabsTrigger>
             <TabsTrigger value="mistakes" className="gap-2">
               <AlertTriangle className="h-3 w-3" />
               Mistakes
-              <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-orange-500/50 text-orange-400">
+              <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-orange-200 bg-orange-50 text-orange-700">
                 NEW
               </Badge>
             </TabsTrigger>
             <TabsTrigger value="highlights" className="gap-2">
               <Film className="h-3 w-3" />
               Highlight Reel
-              <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-yellow-500/50 text-yellow-400">
+              <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-yellow-300 bg-yellow-50 text-yellow-700">
                 NEW
               </Badge>
             </TabsTrigger>
@@ -209,18 +210,18 @@ export default function SessionPage() {
               <Mic className="h-3 w-3" />
               Voice Coach
             </TabsTrigger>
-            <TabsTrigger value="analytics" className="gap-2 border border-emerald-500/30">
-              <Box className="h-3 w-3 text-emerald-400" />
-              <span className="text-emerald-400">Analytics (15)</span>
+            <TabsTrigger value="analytics" className="gap-2 border border-[#F4C542]/50 bg-[#F4C542]/10 data-[state=active]:bg-[#F4C542] data-[state=active]:text-[#102A56]">
+              <Box className="h-3 w-3" />
+              <span>Analytics (15)</span>
             </TabsTrigger>
           </TabsList>
 
           {/* Action Buttons */}
-          <div className="flex items-center gap-2 mt-4">
+          <div className="flex items-center gap-2 mt-4 rounded-xl border border-border bg-card/80 p-2 shadow-sm">
             <Button
               variant="outline"
               size="sm"
-              className="gap-2"
+              className="gap-2 border-primary/25 bg-primary/5 text-primary hover:bg-primary hover:text-primary-foreground"
               onClick={() => exportPdfMutation.mutate({ sessionId })}
               disabled={exportPdfMutation.isPending}
             >
@@ -230,7 +231,7 @@ export default function SessionPage() {
             <Button
               variant="outline"
               size="sm"
-              className="gap-2"
+              className="gap-2 border-[#F4C542]/60 bg-[#F4C542]/10 text-foreground hover:bg-[#F4C542]"
               onClick={() => {
                 const desc = report.executiveSummary?.slice(0, 200) || "Standard football formation";
                 diagramMutation.mutate({ sessionId, playDescription: desc });
