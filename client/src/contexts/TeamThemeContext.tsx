@@ -12,8 +12,8 @@ type TeamTheme = {
 
 const DEFAULT_THEME = {
   schoolName: "Your Program",
-  primaryColor: "#1F6FEB",
-  secondaryColor: "#F4C542",
+  primaryColor: "#006778",
+  secondaryColor: "#D7A22A",
 };
 
 const TeamThemeContext = createContext<TeamTheme | undefined>(undefined);
@@ -89,7 +89,7 @@ export function useTeamTheme() {
 }
 
 export const TEAM_PALETTES = [
-  { name: "Tactical Blue", primary: "#1F6FEB", secondary: "#F4C542" },
+  { name: "Jaguars Teal", primary: "#006778", secondary: "#D7A22A" },
   { name: "Crimson Night", primary: "#9E1B32", secondary: "#0D1B2A" },
   { name: "Purple Reign", primary: "#4C1D95", secondary: "#F4C542" },
   { name: "Forest Edge", primary: "#166534", secondary: "#F8FAFC" },

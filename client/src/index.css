@@ -44,8 +44,8 @@
 
 :root {
   --radius: 0.9rem;
-  --school-primary: #1F6FEB;
-  --school-secondary: #F4C542;
+  --school-primary: #006778;
+  --school-secondary: #D7A22A;
   --school-primary-foreground: #FFFFFF;
   --school-secondary-foreground: #102A56;
   --background: oklch(0.965 0.012 250);
@@ -266,7 +266,7 @@
     overflow: hidden;
     color: white;
     background:
-      linear-gradient(118deg, var(--school-primary) 0%, #102A56 48%, var(--school-secondary) 132%);
+      linear-gradient(118deg, var(--school-primary) 0%, #101820 48%, var(--school-secondary) 132%);
     box-shadow: 0 18px 40px -28px oklch(0.24 0.08 255 / 0.95);
   }
   .broadcast-hero::before {
@@ -288,13 +288,13 @@
     box-shadow: 0 14px 32px -28px oklch(0.24 0.08 255 / 0.75);
   }
   .broadcast-tab-list {
-    background: linear-gradient(90deg, #102A56, var(--school-primary));
+    background: linear-gradient(90deg, #101820, var(--school-primary));
     border: 1px solid color-mix(in srgb, var(--school-primary) 60%, white 40%);
     box-shadow: 0 12px 24px -22px oklch(0.24 0.08 255 / 0.9);
   }
   .broadcast-ticker {
     color: oklch(0.98 0.004 250);
-    background: linear-gradient(90deg, var(--school-primary), #D9253A);
+    background: linear-gradient(90deg, #101820, var(--school-primary));
   }
   .team-blue { color: oklch(0.57 0.22 255); }
   .team-red { color: oklch(0.62 0.22 28); }

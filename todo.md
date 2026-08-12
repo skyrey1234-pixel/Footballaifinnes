@@ -253,3 +253,10 @@
 - [x] Update report-chart cards and chart series to use the blue, red, gold broadcast palette with clearer analytical hierarchy
 - [x] Build a scoreboard-style Game Day mode with possession, quarter, game clock, score, down, distance, field position, and momentum controls
 - [x] Verify responsive behavior, test the new interactions, and publish the complete upgrade
+
+## Reliability Audit & Jaguars Theme (Aug 12 request)
+- [ ] Capture and classify broken core workflows using browser, frontend console, network, server, and production diagnostics
+- [ ] Repair confirmed failures across film analysis, reports, War Room, analytics, game-day tools, theming, and navigation
+- [ ] Add regression coverage for all repaired backend and client-critical workflows
+- [ ] Apply a Jaguars-inspired teal, black, gold, and white color system with a preset available in Team Theme
+- [ ] Verify all high-priority coach workflows in the browser, run automated tests, and publish the repair pass

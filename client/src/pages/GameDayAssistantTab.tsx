@@ -159,7 +159,7 @@ export function GameDayAssistantTab({ sessionId, opponentName }: GameDayAssistan
         <div className="p-4 sm:p-6 text-white bg-[linear-gradient(90deg,rgba(255,255,255,0.05)_1px,transparent_1px)] bg-[size:52px_52px]">
           <div className="mb-5 flex items-center justify-between gap-3">
             <div>
-              <p className="font-tactical text-[10px] tracking-[0.2em] text-white/65">LIVE SCOREBOARD</p>
+              <p className="font-tactical text-[10px] tracking-[0.2em] text-white/65">JAGUARS-STYLE LIVE SCOREBOARD</p>
               <h2 className="font-display text-xl font-bold">Make the next call with the whole game in view.</h2>
             </div>
             <Button variant="ghost" size="sm" onClick={resetGame} className="gap-2 text-white/80 hover:bg-white/10 hover:text-white">
@@ -171,7 +171,7 @@ export function GameDayAssistantTab({ sessionId, opponentName }: GameDayAssistan
             <div className={`text-center rounded-xl px-2 py-3 ${game.possession === "us" ? "bg-white/15 ring-1 ring-white/40" : "bg-black/10"}`}>
               <p className="truncate text-xs font-semibold uppercase tracking-wider text-white/70">{schoolName}</p>
               <p className="font-display text-5xl font-black leading-none mt-1">{game.ourScore}</p>
-              {game.possession === "us" && <Badge className="mt-2 bg-white text-[#102A56] hover:bg-white">POSSESSION</Badge>}
+              {game.possession === "us" && <Badge className="mt-2 bg-white text-[#101820] hover:bg-white">POSSESSION</Badge>}
             </div>
             <div className="text-center">
               <p className="font-tactical text-[11px] text-white/65">Q{game.quarter}</p>
@@ -184,7 +184,7 @@ export function GameDayAssistantTab({ sessionId, opponentName }: GameDayAssistan
             <div className={`text-center rounded-xl px-2 py-3 ${game.possession === "them" ? "bg-white/15 ring-1 ring-white/40" : "bg-black/10"}`}>
               <p className="truncate text-xs font-semibold uppercase tracking-wider text-white/70">{opponentName}</p>
               <p className="font-display text-5xl font-black leading-none mt-1">{game.opponentScore}</p>
-              {game.possession === "them" && <Badge className="mt-2 bg-white text-[#102A56] hover:bg-white">POSSESSION</Badge>}
+              {game.possession === "them" && <Badge className="mt-2 bg-white text-[#101820] hover:bg-white">POSSESSION</Badge>}
             </div>
           </div>
         </div>
@@ -260,13 +260,13 @@ export function GameDayAssistantTab({ sessionId, opponentName }: GameDayAssistan
             <div className="p-5">
               <div className="grid grid-cols-7 gap-1.5">
                 {[-3, -2, -1, 0, 1, 2, 3].map((value) => (
-                  <button key={value} onClick={() => setGame((current) => ({ ...current, momentum: value }))} className={`h-12 rounded-lg border text-xs font-black transition-transform hover:-translate-y-0.5 ${game.momentum === value ? "scale-105 border-transparent text-white shadow-lg" : "border-border bg-card text-muted-foreground"}`} style={game.momentum === value ? { background: value < 0 ? "#D9253A" : value > 0 ? primaryColor : "#64748B" } : undefined}>
+                  <button key={value} onClick={() => setGame((current) => ({ ...current, momentum: value }))} className={`h-12 rounded-lg border text-xs font-black transition-transform hover:-translate-y-0.5 ${game.momentum === value ? "scale-105 border-transparent text-white shadow-lg" : "border-border bg-card text-muted-foreground"}`} style={game.momentum === value ? { background: value < 0 ? "#101820" : value > 0 ? primaryColor : "#64748B" } : undefined}>
                     {value > 0 ? `+${value}` : value}
                   </button>
                 ))}
               </div>
               <div className="mt-4 flex justify-between text-[10px] font-semibold uppercase tracking-wider text-muted-foreground"><span>{opponentName}</span><span>{schoolName}</span></div>
-              <div className="mt-2 h-2 overflow-hidden rounded-full bg-gradient-to-r from-[#D9253A] via-slate-300 to-[var(--school-primary)]" />
+              <div className="mt-2 h-2 overflow-hidden rounded-full bg-gradient-to-r from-[#101820] via-[#D7A22A] to-[var(--school-primary)]" />
               <p className="mt-4 text-xs text-muted-foreground">Tap the momentum point that best describes the current game state. Every logged play saves this context for a smarter next-call recommendation.</p>
             </div>
           </CardContent>
@@ -275,7 +275,7 @@ export function GameDayAssistantTab({ sessionId, opponentName }: GameDayAssistan
 
       <Card className="broadcast-card">
         <CardContent className="p-4 sm:p-5">
-          <div className="flex items-center gap-2 mb-4"><Flag className="h-4 w-4 text-[#D9253A]" /><div><p className="font-display font-bold">Log the opponent&apos;s last call</p><p className="text-xs text-muted-foreground">TacticalEdge records the live situation, momentum, and instant counter.</p></div></div>
+          <div className="flex items-center gap-2 mb-4"><Flag className="h-4 w-4 text-[#006778]" /><div><p className="font-display font-bold">Log the opponent&apos;s last call</p><p className="text-xs text-muted-foreground">TacticalEdge records the live situation, momentum, and instant counter.</p></div></div>
           <div className="grid grid-cols-1 sm:grid-cols-[150px_1fr_auto] gap-3">
             <Select value={playType} onValueChange={setPlayType}>
               <SelectTrigger><SelectValue /></SelectTrigger>

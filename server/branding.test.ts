@@ -37,8 +37,8 @@ describe("branding router", () => {
 
     await expect(createCaller().branding.get()).resolves.toEqual({
       schoolName: null,
-      schoolPrimaryColor: "#1F6FEB",
-      schoolSecondaryColor: "#F4C542",
+      schoolPrimaryColor: "#006778",
+      schoolSecondaryColor: "#D7A22A",
     });
   });
 

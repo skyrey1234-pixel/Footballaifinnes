@@ -44,8 +44,8 @@ export const appRouter = router({
       const user = await db.getUserById(ctx.user.id);
       return {
         schoolName: user?.schoolName ?? null,
-        schoolPrimaryColor: user?.schoolPrimaryColor ?? "#1F6FEB",
-        schoolSecondaryColor: user?.schoolSecondaryColor ?? "#F4C542",
+        schoolPrimaryColor: user?.schoolPrimaryColor ?? "#006778",
+        schoolSecondaryColor: user?.schoolSecondaryColor ?? "#D7A22A",
       };
     }),
     update: protectedProcedure
@@ -63,8 +63,8 @@ export const appRouter = router({
         if (!updated) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Could not save school branding" });
         return {
           schoolName: updated.schoolName ?? null,
-          schoolPrimaryColor: updated.schoolPrimaryColor ?? "#1F6FEB",
-          schoolSecondaryColor: updated.schoolSecondaryColor ?? "#F4C542",
+          schoolPrimaryColor: updated.schoolPrimaryColor ?? "#006778",
+          schoolSecondaryColor: updated.schoolSecondaryColor ?? "#D7A22A",
         };
       }),
   }),
