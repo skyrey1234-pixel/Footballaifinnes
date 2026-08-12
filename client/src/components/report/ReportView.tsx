@@ -72,10 +72,10 @@ export default function ReportView({ session, report }: ReportViewProps) {
 
   const getCategoryColor = (category: string) => {
     switch (category) {
-      case "offense": return "border-blue-500/50 text-blue-400 bg-blue-500/10";
-      case "defense": return "border-purple-500/50 text-purple-400 bg-purple-500/10";
-      case "special": return "border-yellow-500/50 text-yellow-400 bg-yellow-500/10";
-      case "mistake": return "border-red-500/50 text-red-400 bg-red-500/10";
+      case "offense": return "border-[#006778]/40 text-[#006778] bg-[#006778]/10";
+      case "defense": return "border-[#101820]/35 text-[#101820] bg-[#101820]/8";
+      case "special": return "border-[#D7A22A]/50 text-[#9A6F00] bg-[#D7A22A]/14";
+      case "mistake": return "border-[#B42318]/40 text-[#B42318] bg-[#B42318]/10";
       default: return "border-muted-foreground/50 text-muted-foreground";
     }
   };
@@ -116,7 +116,7 @@ export default function ReportView({ session, report }: ReportViewProps) {
                 <CardTitle className="text-lg">{section.title}</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="prose prose-invert prose-sm max-w-none text-muted-foreground">
+                <div className="prose prose-sm max-w-none text-muted-foreground">
                   <Streamdown>{section.content}</Streamdown>
                 </div>
               </CardContent>
@@ -204,8 +204,8 @@ export default function ReportView({ session, report }: ReportViewProps) {
                   <Badge
                     variant="outline"
                     className={highlight.verdict === "good"
-                      ? "border-green-500/50 text-green-400 bg-green-500/10"
-                      : "border-red-500/50 text-red-400 bg-red-500/10"
+                      ? "border-[#006778]/40 text-[#006778] bg-[#006778]/10"
+                      : "border-[#B42318]/40 text-[#B42318] bg-[#B42318]/10"
                     }
                   >
                     {highlight.verdict === "good" ? "Good Play" : "Mistake"}

@@ -298,6 +298,7 @@ export const appRouter = router({
 
         // Use LLM to generate a detailed image prompt for X's and O's diagram
         const diagramPromptResponse = await invokeLLM({
+          model: "gpt-5-mini",
           messages: [
             { role: "system", content: "You are a football diagram specialist. Generate a concise image generation prompt for creating a clean X's and O's football play diagram." },
             { role: "user", content: `Create an image prompt for a football play diagram based on this description: "${input.playDescription}". The diagram should show player positions as X's (offense) and O's (defense), with arrows showing routes/movements. Clean white background, professional coaching diagram style. Keep the prompt under 100 words.` },
@@ -357,7 +358,7 @@ Predictions: ${report.predictions || "N/A"}
           { role: "user" as const, content: input.message },
         ];
 
-        const response = await invokeLLM({ messages });
+        const response = await invokeLLM({ model: "gpt-5-mini", messages });
         const rawContent = response.choices?.[0]?.message?.content;
         const content = typeof rawContent === "string" ? rawContent : "I couldn't generate a response. Please try again.";
         return { response: content as string };
@@ -419,6 +420,7 @@ Color coding rules:
 Generate 4-8 annotations that tell the story of this play. Return ONLY valid JSON.`;
 
         const response = await invokeLLM({
+          model: "gpt-5-mini",
           messages: [
             { role: "system", content: "You are a football film analyst. Return only valid JSON." },
             { role: "user", content: prompt },
@@ -519,6 +521,7 @@ Return JSON:
 The circle marks where this player most likely lines up/operates in the frame (best guess from position: QB/RB center-backfield ~x50 y55; WR wide ~x15/x85 y45; LB middle ~x50 y35; DL line ~y45; DB deep ~y25). Give 1-2 arrows: red = his path/danger, blue = how your defender should attack. Return ONLY valid JSON.`;
 
         const response = await invokeLLM({
+          model: "gpt-5-mini",
           messages: [
             { role: "system", content: "You are a football film analyst. Return only valid JSON." },
             { role: "user", content: prompt },

@@ -255,8 +255,8 @@
 - [x] Verify responsive behavior, test the new interactions, and publish the complete upgrade
 
 ## Reliability Audit & Jaguars Theme (Aug 12 request)
-- [ ] Capture and classify broken core workflows using browser, frontend console, network, server, and production diagnostics
-- [ ] Repair confirmed failures across film analysis, reports, War Room, analytics, game-day tools, theming, and navigation
-- [ ] Add regression coverage for all repaired backend and client-critical workflows
-- [ ] Apply a Jaguars-inspired teal, black, gold, and white color system with a preset available in Team Theme
-- [ ] Verify all high-priority coach workflows in the browser, run automated tests, and publish the repair pass
+- [x] Capture and classify broken core workflows using browser, frontend console, network, server, and production diagnostics
+- [x] Repair confirmed failures across film analysis, reports, War Room, analytics, game-day tools, theming, and navigation
+- [x] Add regression coverage for all repaired backend and client-critical workflows
+- [x] Apply a Jaguars-inspired teal, black, gold, and white color system with a preset available in Team Theme
+- [x] Verify all high-priority coach workflows in the browser, run automated tests, and publish the repair pass

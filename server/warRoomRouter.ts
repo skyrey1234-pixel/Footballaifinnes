@@ -63,14 +63,21 @@ KEY MOMENTS (JSON): ${highlights}`;
 }
 
 async function llmJson<T>(prompt: string, schemaName: string, schema: Record<string, unknown>): Promise<T> {
-  const response = await invokeLLM({
-    messages: [{ role: "user", content: prompt }],
-    response_format: {
-      type: "json_schema",
-      json_schema: { name: schemaName, strict: true, schema },
-    },
-  });
+  const response = await Promise.race([
+    invokeLLM({
+      model: "gpt-5-mini",
+      messages: [{ role: "user", content: prompt }],
+      response_format: {
+        type: "json_schema",
+        json_schema: { name: schemaName, strict: true, schema },
+      },
+    }),
+    new Promise<never>((_, reject) => {
+      setTimeout(() => reject(new Error("War Room analysis timed out after 45 seconds. Please retry.")), 45_000);
+    }),
+  ]);
   const content = response.choices[0].message.content;
+  if (!content) throw new Error("War Room analysis returned no content. Please retry.");
   return (typeof content === "string" ? JSON.parse(content) : content) as T;
 }
 

@@ -28,6 +28,7 @@ export default function SessionPage() {
   const params = useParams<{ id: string }>();
   const sessionId = parseInt(params.id || "0");
   const [, setLocation] = useLocation();
+  const requestedTab = new URLSearchParams(window.location.search).get("tab");
 
   const exportPdfMutation = trpc.reports.exportPdf.useMutation({
     onSuccess: (data) => {
@@ -157,8 +158,33 @@ export default function SessionPage() {
         />
       )}
 
+      {session.status === "complete" && reportLoading && (
+        <Card className="broadcast-card">
+          <CardContent className="flex min-h-44 items-center justify-center gap-3 p-6 text-muted-foreground">
+            <Loader2 className="h-5 w-5 animate-spin text-primary" />
+            <span>Loading the scouting workspace…</span>
+          </CardContent>
+        </Card>
+      )}
+
+      {session.status === "complete" && !reportLoading && !report && (
+        <Card className="border-[var(--school-secondary)]/60 bg-[var(--school-secondary)]/10">
+          <CardContent className="flex flex-col items-center gap-3 py-10 text-center">
+            <AlertTriangle className="h-8 w-8 text-[var(--school-secondary)]" />
+            <div>
+              <p className="font-display font-bold">The report record is missing.</p>
+              <p className="mt-1 max-w-md text-sm text-muted-foreground">The film session is complete, but its report did not load. Rebuild it now to restore every coaching workspace.</p>
+            </div>
+            <Button onClick={() => reanalyzeMutation.mutate({ id: sessionId })} disabled={reanalyzeMutation.isPending} className="gap-2">
+              {reanalyzeMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+              Rebuild Report
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
       {session.status === "complete" && report && (
-        <Tabs defaultValue={new URLSearchParams(window.location.search).get("tab") === "gameday" ? "gameday" : "report"} className="w-full">
+        <Tabs defaultValue={requestedTab === "gameday" || requestedTab === "analytics" ? requestedTab : "report"} className="w-full">
           <TabsList className="broadcast-tab-list flex-wrap h-auto w-full justify-start p-2 gap-1 [&_[data-slot=tabs-trigger]]:text-white/75 [&_[data-slot=tabs-trigger]:hover]:text-white">
             <TabsTrigger value="report">Scouting Report</TabsTrigger>
             <TabsTrigger value="film">AI Film Breakdown</TabsTrigger>
