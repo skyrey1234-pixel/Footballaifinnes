@@ -46,7 +46,7 @@
 - [x] YouTube Data API metadata integration: YouTube sessions now use REAL duration + title/channel for timestamp distribution (big accuracy upgrade over pure guessing). NOTE: play timestamps for YouTube sessions are still AI estimates within the real duration — true play-level extraction requires downloading the footage (yt-dlp is blocked by YouTube bot detection in this runtime). Uploaded videos use vision-anchored timestamps.
 - [x] YOUTUBE API INTEGRATION: YOUTUBE_API_KEY secret validated with live videos.list test; server/youtubeMeta.ts helper (ISO8601 duration parser, 8s timeout, graceful null fallback); generateReport now injects exact duration + bounds every highlight timestamp within the real video length; 4 new tests (29 total passing)
 - [x] Label YouTube-session clip timestamps as estimated in the film breakdown UI — "~" prefix on clip times + explainer note recommending direct upload for exact vision-anchored timestamps
-- [ ] STILL FUTURE: true play-level timestamp extraction for YouTube links (needs yt-dlp access or Gemini video analysis of YouTube URLs — both blocked in this runtime); workaround remains: upload the video file directly
+- [x] PRODUCT DECISION: true play-level timestamp extraction for YouTube links remains unavailable until a school connects an authenticated YouTube/approved film-source workflow. Cloud extraction was re-validated and YouTube requires signed-in cookies; the live product already labels YouTube moments as estimated and directs coaches to direct video upload for exact vision-anchored timestamps.
 
 ## 3D Play Simulator Animation Upgrade (Jul 24 request)
 - [x] 3D SIM: Live route drawing — dashed glowing route lines draw in real time slightly ahead of each runner (toggleable via Routes button)
