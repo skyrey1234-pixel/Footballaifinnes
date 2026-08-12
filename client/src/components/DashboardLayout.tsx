@@ -25,6 +25,7 @@ import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation, Redirect } from "wouter";
 import { DashboardLayoutSkeleton } from './DashboardLayoutSkeleton';
 import { Button } from "./ui/button";
+import { TeamColorSelector } from "./TeamColorSelector";
 
 const menuItems = [
   { icon: LayoutDashboard, label: "Sessions", path: "/" },
@@ -138,14 +139,16 @@ function DashboardLayoutContent({
               >
                 <PanelLeft className="h-4 w-4 text-muted-foreground" />
               </button>
-              {!isCollapsed ? (
-                <div className="flex items-center gap-2 min-w-0">
-                  <Crosshair className="h-5 w-5 text-primary shrink-0" />
-                  <span className="font-semibold tracking-tight truncate" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
-                    TacticalEdge
-                  </span>
-                </div>
-              ) : null}
+              <div className="flex items-center gap-2 min-w-0 flex-1">
+                {!isCollapsed ? (
+                  <div className="flex items-center gap-2 min-w-0">
+                    <Crosshair className="h-5 w-5 text-sidebar-primary shrink-0" />
+                    <span className="font-semibold tracking-tight truncate" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
+                      TacticalEdge
+                    </span>
+                  </div>
+                ) : null}
+              </div>
             </div>
           </SidebarHeader>
 
@@ -171,6 +174,9 @@ function DashboardLayoutContent({
           </SidebarContent>
 
           <SidebarFooter className="p-3">
+            <div className="mb-3 group-data-[collapsible=icon]:mb-2">
+              <TeamColorSelector />
+            </div>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button className="flex items-center gap-3 rounded-lg px-1 py-1 hover:bg-accent/50 transition-colors w-full text-left group-data-[collapsible=icon]:justify-center focus:outline-none focus-visible:ring-2 focus-visible:ring-ring">

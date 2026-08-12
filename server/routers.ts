@@ -39,6 +39,36 @@ export const appRouter = router({
     }),
   }),
 
+  branding: router({
+    get: protectedProcedure.query(async ({ ctx }) => {
+      const user = await db.getUserById(ctx.user.id);
+      return {
+        schoolName: user?.schoolName ?? null,
+        schoolPrimaryColor: user?.schoolPrimaryColor ?? "#1F6FEB",
+        schoolSecondaryColor: user?.schoolSecondaryColor ?? "#F4C542",
+      };
+    }),
+    update: protectedProcedure
+      .input(z.object({
+        schoolName: z.string().trim().max(96).optional(),
+        schoolPrimaryColor: z.string().regex(/^#[0-9A-Fa-f]{6}$/, "Use a valid six-digit hex color"),
+        schoolSecondaryColor: z.string().regex(/^#[0-9A-Fa-f]{6}$/, "Use a valid six-digit hex color"),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const updated = await db.updateUserBranding(ctx.user.id, {
+          schoolName: input.schoolName?.trim() || null,
+          schoolPrimaryColor: input.schoolPrimaryColor.toUpperCase(),
+          schoolSecondaryColor: input.schoolSecondaryColor.toUpperCase(),
+        });
+        if (!updated) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Could not save school branding" });
+        return {
+          schoolName: updated.schoolName ?? null,
+          schoolPrimaryColor: updated.schoolPrimaryColor ?? "#1F6FEB",
+          schoolSecondaryColor: updated.schoolSecondaryColor ?? "#F4C542",
+        };
+      }),
+  }),
+
   sessions: router({
     list: protectedProcedure.query(async () => {
       const sessions = await db.listGameSessions();

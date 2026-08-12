@@ -44,6 +44,10 @@
 
 :root {
   --radius: 0.9rem;
+  --school-primary: #1F6FEB;
+  --school-secondary: #F4C542;
+  --school-primary-foreground: #FFFFFF;
+  --school-secondary-foreground: #102A56;
   --background: oklch(0.965 0.012 250);
   --foreground: oklch(0.24 0.055 250);
   --card: oklch(0.995 0.003 250);
@@ -262,7 +266,7 @@
     overflow: hidden;
     color: white;
     background:
-      linear-gradient(118deg, oklch(0.26 0.08 255) 0%, oklch(0.40 0.15 255) 56%, oklch(0.56 0.17 245) 100%);
+      linear-gradient(118deg, var(--school-primary) 0%, #102A56 48%, var(--school-secondary) 132%);
     box-shadow: 0 18px 40px -28px oklch(0.24 0.08 255 / 0.95);
   }
   .broadcast-hero::before {
@@ -274,8 +278,8 @@
     background:
       linear-gradient(90deg, transparent 0 48%, oklch(1 0 0 / 0.12) 48% 48.4%, transparent 48.4% 100%),
       repeating-linear-gradient(90deg, transparent 0 59px, oklch(1 0 0 / 0.08) 60px 62px, transparent 63px 120px),
-      radial-gradient(circle at 86% 18%, oklch(0.82 0.17 90 / 0.72), transparent 22%),
-      radial-gradient(circle at 77% 102%, oklch(0.66 0.22 28 / 0.78), transparent 28%);
+      radial-gradient(circle at 86% 18%, var(--school-secondary), transparent 22%),
+      radial-gradient(circle at 77% 102%, var(--school-primary), transparent 28%);
   }
   .broadcast-hero > * { position: relative; }
   .broadcast-card {
@@ -284,13 +288,13 @@
     box-shadow: 0 14px 32px -28px oklch(0.24 0.08 255 / 0.75);
   }
   .broadcast-tab-list {
-    background: linear-gradient(90deg, oklch(0.23 0.07 255), oklch(0.32 0.10 255));
-    border: 1px solid oklch(0.44 0.12 255 / 0.75);
+    background: linear-gradient(90deg, #102A56, var(--school-primary));
+    border: 1px solid color-mix(in srgb, var(--school-primary) 60%, white 40%);
     box-shadow: 0 12px 24px -22px oklch(0.24 0.08 255 / 0.9);
   }
   .broadcast-ticker {
     color: oklch(0.98 0.004 250);
-    background: linear-gradient(90deg, oklch(0.62 0.22 28), oklch(0.48 0.16 28));
+    background: linear-gradient(90deg, var(--school-primary), #D9253A);
   }
   .team-blue { color: oklch(0.57 0.22 255); }
   .team-red { color: oklch(0.62 0.22 28); }

@@ -247,3 +247,9 @@
 - [x] Redesign shared sidebar, buttons, cards, badges, charts, and tabs for a brighter broadcast-style interface
 - [x] Refresh dashboard, new-analysis, session, and War Room page layouts with colorful gradients and game-day surfaces
 - [x] Verify desktop and mobile visual output, run tests, and publish the redesigned app
+
+## Team Personalization & Live Scoreboard Upgrade (Aug 12 request)
+- [x] Add a persistent school-color selector with curated football palettes and custom primary/secondary color inputs
+- [x] Update report-chart cards and chart series to use the blue, red, gold broadcast palette with clearer analytical hierarchy
+- [x] Build a scoreboard-style Game Day mode with possession, quarter, game clock, score, down, distance, field position, and momentum controls
+- [x] Verify responsive behavior, test the new interactions, and publish the complete upgrade

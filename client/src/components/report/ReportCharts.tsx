@@ -16,19 +16,20 @@ type Highlight = {
 };
 
 const CATEGORY_COLORS: Record<string, string> = {
-  offense: "#3b82f6",
-  defense: "#a855f7",
-  special: "#eab308",
-  mistake: "#ef4444",
+  offense: "#1F6FEB",
+  defense: "#D9253A",
+  special: "#F4C542",
+  mistake: "#9E1B32",
   other: "#64748b",
 };
 
 const tooltipStyle = {
-  backgroundColor: "#09090b",
-  border: "1px solid rgba(16,185,129,0.35)",
-  borderRadius: 8,
+  backgroundColor: "#FFFFFF",
+  border: "1px solid rgba(31,111,235,0.28)",
+  borderRadius: 12,
   fontSize: 12,
-  color: "#e4e4e7",
+  color: "#102A56",
+  boxShadow: "0 12px 24px -16px rgba(16,42,86,0.45)",
 };
 
 export default function ReportCharts({ highlights }: { highlights: Highlight[] }) {
@@ -38,8 +39,8 @@ export default function ReportCharts({ highlights }: { highlights: Highlight[] }
     const good = highlights.filter(h => h.verdict === "good").length;
     const bad = highlights.length - good;
     return [
-      { name: "Good Plays", value: good, color: "#10b981" },
-      { name: "Mistakes", value: bad, color: "#ef4444" },
+      { name: "Good Plays", value: good, color: "#1F6FEB" },
+      { name: "Mistakes", value: bad, color: "#D9253A" },
     ].filter(d => d.value > 0);
   }, [highlights]);
 
@@ -71,10 +72,10 @@ export default function ReportCharts({ highlights }: { highlights: Highlight[] }
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
       {/* Verdict donut */}
-      <Card className="border-zinc-800 bg-zinc-950/60">
+      <Card className="broadcast-card overflow-hidden">
         <CardContent className="p-4">
           <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">
-            <PieIcon className="h-3.5 w-3.5 text-emerald-400" /> Play Verdicts
+            <PieIcon className="h-3.5 w-3.5 text-[#1F6FEB]" /> Play Verdicts
           </p>
           <div className="h-[170px]">
             <ResponsiveContainer width="100%" height="100%">
@@ -105,9 +106,9 @@ export default function ReportCharts({ highlights }: { highlights: Highlight[] }
           </div>
           <div className="flex justify-center gap-4 -mt-2">
             {verdictData.map(d => (
-              <span key={d.name} className="flex items-center gap-1.5 text-[11px] text-zinc-400">
+              <span key={d.name} className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
                 <span className="h-2 w-2 rounded-full" style={{ background: d.color }} />
-                {d.name}: <b className="text-zinc-200">{d.value}</b>
+                {d.name}: <b className="text-foreground">{d.value}</b>
               </span>
             ))}
           </div>
@@ -115,18 +116,18 @@ export default function ReportCharts({ highlights }: { highlights: Highlight[] }
       </Card>
 
       {/* Category bars */}
-      <Card className="border-zinc-800 bg-zinc-950/60">
+      <Card className="broadcast-card overflow-hidden">
         <CardContent className="p-4">
           <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">
-            <TrendingUp className="h-3.5 w-3.5 text-emerald-400" /> Phase Breakdown
+            <TrendingUp className="h-3.5 w-3.5 text-[#F4C542]" /> Phase Breakdown
           </p>
           <div className="h-[190px]">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={categoryData} margin={{ top: 10, right: 8, left: -22, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" vertical={false} />
-                <XAxis dataKey="name" tick={{ fontSize: 10, fill: "#71717a" }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 10, fill: "#71717a" }} axisLine={false} tickLine={false} allowDecimals={false} />
-                <Tooltip contentStyle={tooltipStyle} cursor={{ fill: "rgba(16,185,129,0.06)" }} />
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(31,111,235,0.13)" vertical={false} />
+                <XAxis dataKey="name" tick={{ fontSize: 10, fill: "#64748B" }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 10, fill: "#64748B" }} axisLine={false} tickLine={false} allowDecimals={false} />
+                <Tooltip contentStyle={tooltipStyle} cursor={{ fill: "rgba(31,111,235,0.07)" }} />
                 <Bar dataKey="count" radius={[6, 6, 0, 0]} isAnimationActive animationDuration={900} />
               </BarChart>
             </ResponsiveContainer>
@@ -135,15 +136,15 @@ export default function ReportCharts({ highlights }: { highlights: Highlight[] }
       </Card>
 
       {/* Timeline scatter */}
-      <Card className="border-zinc-800 bg-zinc-950/60">
+      <Card className="broadcast-card overflow-hidden">
         <CardContent className="p-4">
           <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">
-            <Activity className="h-3.5 w-3.5 text-emerald-400" /> Game Flow Timeline
+            <Activity className="h-3.5 w-3.5 text-[#D9253A]" /> Game Flow Timeline
           </p>
           <div className="h-[190px]">
             <ResponsiveContainer width="100%" height="100%">
               <ScatterChart margin={{ top: 15, right: 12, left: -18, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(31,111,235,0.13)" />
                 <XAxis
                   type="number"
                   dataKey="x"
@@ -176,15 +177,15 @@ export default function ReportCharts({ highlights }: { highlights: Highlight[] }
                     if (!p) return null;
                     return (
                       <div style={tooltipStyle} className="px-3 py-2">
-                        <p className="font-medium text-xs" style={{ color: p.verdict === "good" ? "#10b981" : "#ef4444" }}>{p.title}</p>
-                        <p className="text-[10px] text-zinc-400">{p.timestamp} · {p.verdict === "good" ? "Good Play" : "Mistake"}</p>
+                        <p className="font-medium text-xs" style={{ color: p.verdict === "good" ? "#1F6FEB" : "#D9253A" }}>{p.title}</p>
+                        <p className="text-[10px] text-muted-foreground">{p.timestamp} · {p.verdict === "good" ? "Good Play" : "Mistake"}</p>
                       </div>
                     );
                   }}
                 />
                 <Scatter data={timelineData} isAnimationActive animationDuration={900}>
                   {timelineData.map((d, i) => (
-                    <Cell key={i} fill={d.verdict === "good" ? "#10b981" : "#ef4444"} />
+                    <Cell key={i} fill={d.verdict === "good" ? "#1F6FEB" : "#D9253A"} />
                   ))}
                 </Scatter>
               </ScatterChart>

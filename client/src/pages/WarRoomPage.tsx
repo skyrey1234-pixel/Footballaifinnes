@@ -68,22 +68,22 @@ export default function WarRoomPage() {
             <Button variant="ghost" size="sm" className="gap-1 bg-white/10 text-white/80 hover:bg-white/20 hover:text-white" onClick={() => setLocation(`/session/${sessionId}`)}>
               <ArrowLeft className="h-4 w-4" /> Session
             </Button>
-            <Badge variant="outline" className="font-tactical text-[10px] border-[#F4C542]/60 bg-[#F4C542]/10 text-[#F4C542] anim-flicker">
-              <span className="inline-block h-1.5 w-1.5 rounded-full bg-[#F4C542] mr-1.5 animate-pulse" />
+            <Badge variant="outline" className="font-tactical text-[10px] border-[var(--school-secondary)]/60 bg-[var(--school-secondary)]/10 text-[var(--school-secondary)] anim-flicker">
+              <span className="inline-block h-1.5 w-1.5 rounded-full bg-[var(--school-secondary)] mr-1.5 animate-pulse" />
               LIVE INTEL
             </Badge>
           </div>
           <div className="flex items-end justify-between flex-wrap gap-4">
             <div className="anim-rise">
-              <div className="font-tactical text-xs text-[#F4C542] mb-1">TACTICAL COMMAND CENTER</div>
+              <div className="font-tactical text-xs text-[var(--school-secondary)] mb-1">TACTICAL COMMAND CENTER</div>
               <h1 className="font-display text-4xl md:text-5xl font-bold tracking-tight text-white">
-                <span className="text-[#F4C542]">WAR ROOM</span>
+                <span className="text-[var(--school-secondary)]">WAR ROOM</span>
                 <span className="text-white/50 mx-3 font-light">vs</span>
                 <span className="text-glow-white">{session.opponentName}</span>
               </h1>
             </div>
             <div className="flex items-center gap-2 anim-rise-2">
-              <Flame className="h-4 w-4 text-[#F4C542]" />
+              <Flame className="h-4 w-4 text-[var(--school-secondary)]" />
               <span className="font-tactical text-xs text-white/70">Hudl stores the film. This tells you what to do next.</span>
             </div>
           </div>
@@ -102,7 +102,7 @@ export default function WarRoomPage() {
                 onClick={() => setWorkspace(w.id)}
                 className={`shrink-0 flex items-center gap-2 px-3.5 py-2 rounded-lg font-tactical text-[11px] transition-all duration-200 active:scale-[0.97] ${
                   active
-                    ? "bg-[#F4C542] text-[#102A56] shadow-lg"
+                    ? "bg-[var(--school-secondary)] text-[var(--school-secondary-foreground)] shadow-lg"
                     : "text-white/70 hover:text-white hover:bg-white/10"
                 }`}
                 style={{ animationDelay: `${i * 40}ms` }}

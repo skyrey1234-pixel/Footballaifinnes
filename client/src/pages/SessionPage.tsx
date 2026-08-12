@@ -99,7 +99,7 @@ export default function SessionPage() {
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <div className="flex-1">
-          <div className="font-tactical text-[10px] text-[#F4C542] mb-1">OPPONENT SCOUTING HUB</div>
+          <div className="font-tactical text-[10px] text-[var(--school-secondary)] mb-1">OPPONENT SCOUTING HUB</div>
           <h1 className="text-2xl font-bold text-white">{session.opponentName}</h1>
           <p className="text-sm text-white/70">
             {session.gameDate || "No date"} &middot; {session.sourceType === "youtube" ? "YouTube" : "Uploaded Video"}
@@ -108,7 +108,7 @@ export default function SessionPage() {
         {session.status === "complete" && (
           <Button
             size="lg"
-            className="gap-2 font-tactical text-xs bg-[#F4C542] text-[#102A56] hover:bg-[#FFD86A] shadow-lg active:scale-[0.97] shrink-0"
+            className="gap-2 font-tactical text-xs bg-[var(--school-secondary)] text-[var(--school-secondary-foreground)] hover:brightness-110 shadow-lg active:scale-[0.97] shrink-0"
             onClick={() => setLocation(`/warroom/${sessionId}`)}
           >
             <Radio className="h-4 w-4" />
@@ -158,7 +158,7 @@ export default function SessionPage() {
       )}
 
       {session.status === "complete" && report && (
-        <Tabs defaultValue="report" className="w-full">
+        <Tabs defaultValue={new URLSearchParams(window.location.search).get("tab") === "gameday" ? "gameday" : "report"} className="w-full">
           <TabsList className="broadcast-tab-list flex-wrap h-auto w-full justify-start p-2 gap-1 [&_[data-slot=tabs-trigger]]:text-white/75 [&_[data-slot=tabs-trigger]:hover]:text-white">
             <TabsTrigger value="report">Scouting Report</TabsTrigger>
             <TabsTrigger value="film">AI Film Breakdown</TabsTrigger>
@@ -210,7 +210,7 @@ export default function SessionPage() {
               <Mic className="h-3 w-3" />
               Voice Coach
             </TabsTrigger>
-            <TabsTrigger value="analytics" className="gap-2 border border-[#F4C542]/50 bg-[#F4C542]/10 data-[state=active]:bg-[#F4C542] data-[state=active]:text-[#102A56]">
+            <TabsTrigger value="analytics" className="gap-2 border border-[var(--school-secondary)]/50 bg-[var(--school-secondary)]/10 data-[state=active]:bg-[var(--school-secondary)] data-[state=active]:text-[var(--school-secondary-foreground)]">
               <Box className="h-3 w-3" />
               <span>Analytics (15)</span>
             </TabsTrigger>
@@ -231,7 +231,7 @@ export default function SessionPage() {
             <Button
               variant="outline"
               size="sm"
-              className="gap-2 border-[#F4C542]/60 bg-[#F4C542]/10 text-foreground hover:bg-[#F4C542]"
+              className="gap-2 border-[var(--school-secondary)]/60 bg-[var(--school-secondary)]/10 text-foreground hover:bg-[var(--school-secondary)]"
               onClick={() => {
                 const desc = report.executiveSummary?.slice(0, 200) || "Standard football formation";
                 diagramMutation.mutate({ sessionId, playDescription: desc });
@@ -279,7 +279,7 @@ export default function SessionPage() {
             <BeatThisDefenseTab sessionId={sessionId} />
           </TabsContent>
           <TabsContent value="gameday" className="mt-6">
-            <GameDayAssistantTab sessionId={sessionId} />
+            <GameDayAssistantTab sessionId={sessionId} opponentName={session.opponentName} />
           </TabsContent>
           <TabsContent value="callsheet" className="mt-6">
             <CallSheetTab sessionId={sessionId} />

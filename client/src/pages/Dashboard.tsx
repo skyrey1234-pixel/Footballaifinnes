@@ -82,17 +82,17 @@ export default function Dashboard() {
         <div className="relative flex flex-wrap items-end justify-between gap-4">
           <div>
             <div className="font-tactical text-[10px] text-white/75 mb-2 flex items-center gap-2">
-              <span className="h-1.5 w-1.5 rounded-full bg-[#F4C542] animate-pulse" /> FILM INTELLIGENCE COMMAND
+              <span className="h-1.5 w-1.5 rounded-full bg-[var(--school-secondary)] animate-pulse" /> FILM INTELLIGENCE COMMAND
             </div>
             <h1 className="font-display text-3xl md:text-4xl font-bold tracking-tight text-white">
-              Game <span className="text-[#F4C542]">Sessions</span>
+              Game <span className="text-[var(--school-secondary)]">Sessions</span>
             </h1>
             <p className="text-sm text-white/75 mt-1.5">
               {sessions.length} opponent{sessions.length === 1 ? "" : "s"} broken down · every session unlocks a full War Room
             </p>
           </div>
           {isAdmin && (
-            <Button onClick={() => setLocation("/new")} className="gap-2 bg-[#F4C542] text-[#102A56] hover:bg-[#FFD86A] shadow-lg active:scale-[0.97]">
+            <Button onClick={() => setLocation("/new")} className="gap-2 bg-[var(--school-secondary)] text-[var(--school-secondary-foreground)] hover:brightness-110 shadow-lg active:scale-[0.97]">
               <PlusCircle className="h-4 w-4" />
               New Analysis
             </Button>
