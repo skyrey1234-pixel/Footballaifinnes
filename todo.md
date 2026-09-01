@@ -51,9 +51,9 @@
 - [x] PRODUCT DECISION: true play-level timestamp extraction for YouTube links remains unavailable until a school connects an authenticated YouTube/approved film-source workflow. Cloud extraction was re-validated and YouTube requires signed-in cookies; the live product already labels YouTube moments as estimated and directs coaches to direct video upload for exact vision-anchored timestamps.
 
 ## Strategic Partnership Exploration
-- [ ] Evaluate TacticalEdge AI’s fit for a Jacksonville Jaguars football-operations partnership or controlled pilot
-- [ ] Define a data-access requirements matrix and evidence-first analytics roadmap for an NFL-grade pilot
-- [ ] Prepare a credible Jaguars outreach brief that positions TacticalEdge as a coach-facing workflow layer, not a replacement for internal analytics
+- [x] Evaluate TacticalEdge AI’s fit for a Jacksonville Jaguars football-operations partnership or controlled pilot
+- [x] Define a data-access requirements matrix and evidence-first analytics roadmap for an NFL-grade pilot
+- [x] Prepare a credible Jaguars outreach brief that positions TacticalEdge as a coach-facing workflow layer, not a replacement for internal analytics
 
 ## 3D Play Simulator Animation Upgrade (Jul 24 request)
 - [x] 3D SIM: Live route drawing — dashed glowing route lines draw in real time slightly ahead of each runner (toggleable via Routes button)
