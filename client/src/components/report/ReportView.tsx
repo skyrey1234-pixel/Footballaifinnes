@@ -9,6 +9,7 @@ import { Separator } from "@/components/ui/separator";
 import { Send, Clock, MessageSquare, Loader2 } from "lucide-react";
 import { Streamdown } from "streamdown";
 import ReportCharts from "./ReportCharts";
+import YouTubeEmbed from "@/components/film/YouTubeEmbed";
 
 type Highlight = {
   timestamp: string;
@@ -87,14 +88,10 @@ export default function ReportView({ session, report }: ReportViewProps) {
         {/* Video Player */}
         {session.sourceType === "youtube" && session.youtubeVideoId && (
           <Card className="overflow-hidden">
-            <div className="aspect-video">
-              <iframe
-                src={`https://www.youtube.com/embed/${session.youtubeVideoId}`}
-                className="w-full h-full"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
-              />
-            </div>
+            <YouTubeEmbed
+              video={session.youtubeVideoId}
+              title={`${session.opponentName} game film`}
+            />
           </Card>
         )}
         {session.sourceType === "upload" && session.videoUrl && (

@@ -1,5 +1,7 @@
 # TacticalEdge AI — Project TODO
 
+- [x] BUG: YouTube-linked sessions show “Video unavailable” — fixed app-controlled causes with a strict referrer policy, referrer-aware shared player, canonical embed URLs, robust watch/share/Shorts/live/embed/mobile URL parsing, timestamp-aware YouTube fallback, and 18 URL/embed tests. Verified that standard embeddable videos play; some NFL/channel-restricted videos still refuse third-party iframe playback and now get a prominent “Open video on YouTube” path instead of a dead end.
+
 - [x] Database schema: gameSessions and scoutingReports tables
 - [x] Dark theme setup (#0D1117 bg, #00FF87 accent, Space Grotesk + Inter fonts)
 - [x] Backend: game session CRUD (create, list, get, delete)
@@ -47,6 +49,11 @@
 - [x] YOUTUBE API INTEGRATION: YOUTUBE_API_KEY secret validated with live videos.list test; server/youtubeMeta.ts helper (ISO8601 duration parser, 8s timeout, graceful null fallback); generateReport now injects exact duration + bounds every highlight timestamp within the real video length; 4 new tests (29 total passing)
 - [x] Label YouTube-session clip timestamps as estimated in the film breakdown UI — "~" prefix on clip times + explainer note recommending direct upload for exact vision-anchored timestamps
 - [x] PRODUCT DECISION: true play-level timestamp extraction for YouTube links remains unavailable until a school connects an authenticated YouTube/approved film-source workflow. Cloud extraction was re-validated and YouTube requires signed-in cookies; the live product already labels YouTube moments as estimated and directs coaches to direct video upload for exact vision-anchored timestamps.
+
+## Strategic Partnership Exploration
+- [ ] Evaluate TacticalEdge AI’s fit for a Jacksonville Jaguars football-operations partnership or controlled pilot
+- [ ] Define a data-access requirements matrix and evidence-first analytics roadmap for an NFL-grade pilot
+- [ ] Prepare a credible Jaguars outreach brief that positions TacticalEdge as a coach-facing workflow layer, not a replacement for internal analytics
 
 ## 3D Play Simulator Animation Upgrade (Jul 24 request)
 - [x] 3D SIM: Live route drawing — dashed glowing route lines draw in real time slightly ahead of each runner (toggleable via Routes button)

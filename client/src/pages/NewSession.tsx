@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Upload, Youtube, Loader2 } from "lucide-react";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
+import { extractYouTubeVideoId } from "@/lib/youtube";
 
 export default function NewSession() {
   const [, setLocation] = useLocation();
@@ -34,18 +35,6 @@ export default function NewSession() {
       toast.error(err.message || "Failed to create session");
     },
   });
-
-  const extractYoutubeId = (url: string): string | null => {
-    const patterns = [
-      /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\s?]+)/,
-      /^([a-zA-Z0-9_-]{11})$/,
-    ];
-    for (const pattern of patterns) {
-      const match = url.match(pattern);
-      if (match) return match[1];
-    }
-    return null;
-  };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -212,7 +201,7 @@ export default function NewSession() {
     }
 
     if (sourceType === "youtube") {
-      const videoId = extractYoutubeId(youtubeUrl);
+      const videoId = extractYouTubeVideoId(youtubeUrl);
       if (!videoId) {
         toast.error("Please enter a valid YouTube URL or video ID");
         return;
@@ -287,7 +276,7 @@ export default function NewSession() {
                   onChange={(e) => setYoutubeUrl(e.target.value)}
                 />
                 <p className="text-xs text-muted-foreground mt-1.5">
-                  Supports youtube.com/watch?v=... or youtu.be/... links
+                  Supports YouTube watch, share, Shorts, live, embed links, or a video ID
                 </p>
               </TabsContent>
               <TabsContent value="upload" className="mt-3">
