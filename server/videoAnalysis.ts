@@ -68,31 +68,25 @@ const execFileAsync = (cmd: string, args: string[]) =>
     });
   });
 
-type ResolvedVideoSource = {
-  source: string;
-  workDir: string;
-};
-
-/**
- * Resolve a video source without buffering the full game film in Node memory.
- * Uploaded S3 footage is passed directly to ffprobe/ffmpeg via a signed URL.
- */
+/** Resolve a video to a local file path. Returns null if it can't be obtained. */
 async function resolveVideoLocalPath(input: {
   videoFileKey?: string | null;
   youtubeVideoId?: string | null;
-}): Promise<ResolvedVideoSource | null> {
+}): Promise<string | null> {
   const workDir = await fs.mkdtemp(path.join(os.tmpdir(), "tacticaledge-"));
   const outPath = path.join(workDir, "source.mp4");
 
-  // 1) Uploaded file -> signed S3 URL. ffmpeg streams this directly, avoiding
-  // a multi-hundred-MB Buffer in the 512MB serverless runtime.
+  // 1) Uploaded file -> signed S3 URL -> download bytes.
   if (input.videoFileKey) {
     try {
       const signed = await storageGetSignedUrl(input.videoFileKey);
-      return { source: signed, workDir };
+      const resp = await fetch(signed);
+      if (!resp.ok) throw new Error(`signed URL fetch ${resp.status}`);
+      const buf = Buffer.from(await resp.arrayBuffer());
+      await fs.writeFile(outPath, buf);
+      return outPath;
     } catch (err) {
       console.warn("[VideoAnalysis] Could not fetch uploaded video:", (err as Error).message);
-      await fs.rm(workDir, { recursive: true, force: true });
       return null;
     }
   }
@@ -117,42 +111,20 @@ async function resolveVideoLocalPath(input: {
         outPath,
         `https://www.youtube.com/watch?v=${input.youtubeVideoId}`,
       ]);
-      return { source: outPath, workDir };
+      return outPath;
     } catch (err) {
       console.warn("[VideoAnalysis] YouTube download failed:", (err as Error).message);
-      await fs.rm(workDir, { recursive: true, force: true });
       return null;
     }
   }
 
-  await fs.rm(workDir, { recursive: true, force: true });
   return null;
 }
 
-export function parseDurationSeconds(value: string): number | null {
-  const duration = Number.parseFloat(value.trim());
-  return Number.isFinite(duration) && duration > 0 ? duration : null;
-}
-
-/** Probe duration using ffprobe first, then a defensive ffmpeg fallback. */
+/** Parse "Duration: HH:MM:SS.ss" from ffmpeg's stderr probe. */
 async function getVideoDurationSeconds(videoPath: string): Promise<number> {
-  let ffprobeError = "";
-  try {
-    const { stdout } = await execFileAsync("ffprobe", [
-      "-v", "error",
-      "-show_entries", "format=duration",
-      "-of", "default=noprint_wrappers=1:nokey=1",
-      videoPath,
-    ]);
-    const duration = parseDurationSeconds(stdout);
-    if (duration) return duration;
-    ffprobeError = "ffprobe returned an invalid duration";
-  } catch (err) {
-    ffprobeError = (err as Error).message;
-  }
-
   // NOTE: `ffmpeg -i` exits non-zero by design (no output file specified), so
-  // we do not treat that exit status as a failure — stderr carries the metadata.
+  // we run it without treating a non-zero exit as failure — we only need stderr.
   const stderr = await new Promise<string>((resolve) => {
     execFile(
       FFMPEG_PATH,
@@ -162,10 +134,7 @@ async function getVideoDurationSeconds(videoPath: string): Promise<number> {
     );
   });
   const m = stderr.match(/Duration:\s*(\d+):(\d+):(\d+(?:\.\d+)?)/);
-  if (!m) {
-    const diagnostic = stderr.slice(-400).replace(/\s+/g, " ").trim();
-    throw new Error(`Could not determine video duration. ffprobe: ${ffprobeError || "unavailable"}. ffmpeg: ${diagnostic || "no metadata returned"}`);
-  }
+  if (!m) throw new Error("Could not determine video duration");
   const hours = parseInt(m[1], 10);
   const mins = parseInt(m[2], 10);
   const secs = parseFloat(m[3]);
@@ -211,10 +180,10 @@ export async function analyzeFootballVideo(input: {
   videoFileKey?: string | null;
   youtubeVideoId?: string | null;
 }): Promise<VideoAnalysis> {
-  const resolved = await resolveVideoLocalPath(input);
-  if (!resolved) throw new Error("No analyzable video source available");
-  const { source: videoPath, workDir } = resolved;
+  const videoPath = await resolveVideoLocalPath(input);
+  if (!videoPath) throw new Error("No analyzable video source available");
 
+  const workDir = path.dirname(videoPath);
   let duration = 0;
   try {
     duration = await getVideoDurationSeconds(videoPath);
@@ -360,8 +329,8 @@ Only include detected_plays you can actually support from a frame. Set frameInde
     // de-dupe by seconds, keep first
     .filter((h, idx, arr) => arr.findIndex((x) => x.seconds === h.seconds) === idx);
 
-  // Stash a sentinel inside the temp directory so the caller can clean up all
-  // extracted frames afterward (the property is read via a cast in routers.ts).
+  // Stash the local path on the returned object so the caller can clean up
+  // temp files afterward (the property is read via a cast in routers.ts).
   const result: VideoAnalysis & { localPath?: string } = {
     visualSummary: parsed.visual_summary,
     observations: parsed.observations || [],
@@ -369,7 +338,7 @@ Only include detected_plays you can actually support from a frame. Set frameInde
     frameCount: imageParts.length,
     method: "vision",
   };
-  Object.defineProperty(result, "localPath", { value: path.join(workDir, "source.mp4"), enumerable: false });
+  Object.defineProperty(result, "localPath", { value: videoPath, enumerable: false });
   return result;
 }
 

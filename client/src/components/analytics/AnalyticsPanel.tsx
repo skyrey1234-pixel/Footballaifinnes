@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, RadarChart, Radar, PolarGrid, PolarAngleAxis } from "recharts";
-import { toast } from "sonner";
 
 interface AnalyticsPanelProps {
   sessionId: number;
@@ -96,44 +95,29 @@ export function AnalyticsPanel({ sessionId }: AnalyticsPanelProps) {
   const analyzePlayerComps = trpc.analytics2.analyzePlayerComparisons.useMutation({ onSuccess: () => playerComps.refetch() });
 
   const [runningAll, setRunningAll] = useState(false);
-  const [runningLabel, setRunningLabel] = useState("");
 
   const runAllAnalytics = async () => {
     setRunningAll(true);
-    const jobs = [
-      ["Formation Recognition", () => analyzeFormations.mutateAsync({ sessionId })],
-      ["Pre-Snap Reads", () => analyzePreSnap.mutateAsync({ sessionId })],
-      ["Turnover Predictor", () => analyzeTurnovers.mutateAsync({ sessionId })],
-      ["Player Heat Maps", () => analyzeHeatMaps.mutateAsync({ sessionId })],
-      ["Route Tree", () => analyzeRouteTree.mutateAsync({ sessionId })],
-      ["Blocking", () => analyzeBlocking.mutateAsync({ sessionId })],
-      ["Momentum", () => analyzeMomentum.mutateAsync({ sessionId })],
-      ["Gap Assignments", () => analyzeGaps.mutateAsync({ sessionId })],
-      ["Injury Impact", () => analyzeInjury.mutateAsync({ sessionId })],
-      ["Penalty Patterns", () => analyzePenalties.mutateAsync({ sessionId })],
-      ["Red Zone", () => analyzeRedZone.mutateAsync({ sessionId })],
-      ["Third Down", () => analyzeThirdDown.mutateAsync({ sessionId })],
-      ["Two Minute", () => analyzeTwoMinute.mutateAsync({ sessionId })],
-      ["Situational Football", () => analyzeSituational.mutateAsync({ sessionId })],
-      ["Player Comparisons", () => analyzePlayerComps.mutateAsync({ sessionId })],
-    ] as const;
-    let completed = 0;
-    let failed = 0;
     try {
-      for (const [label, run] of jobs) {
-        setRunningLabel(label);
-        try {
-          await run();
-          completed += 1;
-        } catch {
-          failed += 1;
-        }
-      }
-      if (failed === 0) toast.success("All 15 analytics modules are ready.");
-      else toast.warning(`${completed} analytics modules completed; ${failed} need a retry.`);
+      await Promise.allSettled([
+        analyzeFormations.mutateAsync({ sessionId }),
+        analyzePreSnap.mutateAsync({ sessionId }),
+        analyzeTurnovers.mutateAsync({ sessionId }),
+        analyzeHeatMaps.mutateAsync({ sessionId }),
+        analyzeRouteTree.mutateAsync({ sessionId }),
+        analyzeBlocking.mutateAsync({ sessionId }),
+        analyzeMomentum.mutateAsync({ sessionId }),
+        analyzeGaps.mutateAsync({ sessionId }),
+        analyzeInjury.mutateAsync({ sessionId }),
+        analyzePenalties.mutateAsync({ sessionId }),
+        analyzeRedZone.mutateAsync({ sessionId }),
+        analyzeThirdDown.mutateAsync({ sessionId }),
+        analyzeTwoMinute.mutateAsync({ sessionId }),
+        analyzeSituational.mutateAsync({ sessionId }),
+        analyzePlayerComps.mutateAsync({ sessionId }),
+      ]);
     } finally {
       setRunningAll(false);
-      setRunningLabel("");
     }
   };
 
@@ -142,15 +126,15 @@ export function AnalyticsPanel({ sessionId }: AnalyticsPanelProps) {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h2 className="text-2xl font-bold text-foreground">Advanced Video Analytics</h2>
-          <p className="text-muted-foreground text-sm mt-1">15 AI-powered analysis modules</p>
+          <h2 className="text-2xl font-bold text-white">Advanced Video Analytics</h2>
+          <p className="text-slate-400 text-sm mt-1">15 AI-powered analysis modules</p>
         </div>
         <Button
           onClick={runAllAnalytics}
           disabled={runningAll}
           className="bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-600 hover:to-cyan-600 text-white font-bold"
         >
-          {runningAll ? <><Spinner className="mr-2 h-4 w-4" /> {runningLabel || "Preparing"}…</> : "⚡ Run All 15 Analytics"}
+          {runningAll ? <><Spinner className="mr-2 h-4 w-4" /> Running All...</> : "⚡ Run All 15 Analytics"}
         </Button>
       </div>
 

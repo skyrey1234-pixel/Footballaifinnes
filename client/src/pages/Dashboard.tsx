@@ -71,28 +71,24 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-6">
-      <div className="broadcast-ticker flex items-center gap-3 rounded-xl px-4 py-2 font-tactical text-[10px] shadow-sm">
-        <span className="h-2 w-2 rounded-full bg-white animate-pulse" />
-        GAME WEEK INTELLIGENCE NETWORK
-        <span className="hidden sm:inline opacity-75">•</span>
-        <span className="hidden sm:inline opacity-85">LIVE SCOUTING • FILM • GAME PLAN • WAR ROOM</span>
-      </div>
       {/* Command-center hero header */}
-      <div className="broadcast-hero rounded-2xl p-6 md:p-8 anim-rise">
+      <div className="relative overflow-hidden rounded-2xl mesh-bg p-6 md:p-8 anim-rise">
+        <div className="absolute inset-0 field-grid opacity-40 pointer-events-none" />
+        <div className="absolute -top-24 left-1/3 h-48 w-96 bg-primary/10 blur-3xl rounded-full pointer-events-none" />
         <div className="relative flex flex-wrap items-end justify-between gap-4">
           <div>
-            <div className="font-tactical text-[10px] text-white/75 mb-2 flex items-center gap-2">
-              <span className="h-1.5 w-1.5 rounded-full bg-[var(--school-secondary)] animate-pulse" /> FILM INTELLIGENCE COMMAND
+            <div className="font-tactical text-[10px] text-primary mb-2 flex items-center gap-2">
+              <span className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" /> FILM INTELLIGENCE COMMAND
             </div>
-            <h1 className="font-display text-3xl md:text-4xl font-bold tracking-tight text-white">
-              Game <span className="text-[var(--school-secondary)]">Sessions</span>
+            <h1 className="font-display text-3xl md:text-4xl font-bold tracking-tight">
+              Game <span className="text-primary text-glow">Sessions</span>
             </h1>
-            <p className="text-sm text-white/75 mt-1.5">
+            <p className="text-sm text-muted-foreground mt-1.5">
               {sessions.length} opponent{sessions.length === 1 ? "" : "s"} broken down · every session unlocks a full War Room
             </p>
           </div>
           {isAdmin && (
-            <Button onClick={() => setLocation("/new")} className="gap-2 bg-[var(--school-secondary)] text-[var(--school-secondary-foreground)] hover:brightness-110 shadow-lg active:scale-[0.97]">
+            <Button onClick={() => setLocation("/new")} className="gap-2 glow-primary-sm active:scale-[0.97]">
               <PlusCircle className="h-4 w-4" />
               New Analysis
             </Button>
@@ -104,16 +100,16 @@ export default function Dashboard() {
         {sessions.map((session, idx) => (
           <Card
             key={session.id}
-            className={`broadcast-card hover:border-primary/50 transition-all cursor-pointer group anim-rise-${Math.min(idx + 1, 5)} hover:-translate-y-0.5`}
+            className={`glass hover:border-primary/40 transition-all cursor-pointer group anim-rise-${Math.min(idx + 1, 5)} hover:translate-x-1`}
             onClick={() => setLocation(`/session/${session.id}`)}
           >
             <CardContent className="flex items-center justify-between p-4">
               <div className="flex items-center gap-4">
-                <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-primary to-blue-400 flex items-center justify-center shrink-0 shadow-md transition-transform group-hover:scale-105">
-                  <Crosshair className="h-5 w-5 text-white" />
+                <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0 group-hover:glow-primary-sm transition-shadow">
+                  <Crosshair className="h-5 w-5 text-primary" />
                 </div>
                 <div>
-                  <h3 className="font-display font-semibold text-foreground group-hover:text-primary transition-colors">
+                  <h3 className="font-display font-semibold group-hover:text-primary transition-colors">
                     {session.opponentName}
                   </h3>
                   <div className="flex items-center gap-2 text-sm text-muted-foreground mt-0.5">
@@ -132,7 +128,7 @@ export default function Dashboard() {
                   <Button
                     variant="outline"
                     size="sm"
-                    className="gap-1.5 font-tactical text-[10px] border-primary/25 bg-primary/5 text-primary hover:bg-primary hover:text-primary-foreground hidden md:flex opacity-0 group-hover:opacity-100 transition-opacity active:scale-[0.97]"
+                    className="gap-1.5 font-tactical text-[10px] border-primary/30 text-primary hidden md:flex opacity-0 group-hover:opacity-100 transition-opacity active:scale-[0.97]"
                     onClick={(e) => {
                       e.stopPropagation();
                       setLocation(`/warroom/${session.id}`);

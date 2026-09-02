@@ -25,9 +25,6 @@ export const users = mysqlTable("users", {
   subscriptionTier: mysqlEnum("subscriptionTier", ["free", "scout", "strategist", "program"]).default("free").notNull(),
   subscriptionStatus: mysqlEnum("subscriptionStatus", ["active", "past_due", "canceled", "unpaid"]).default("active"),
   subscriptionEndsAt: timestamp("subscriptionEndsAt"),
-  schoolName: varchar("schoolName", { length: 96 }),
-  schoolPrimaryColor: varchar("schoolPrimaryColor", { length: 7 }),
-  schoolSecondaryColor: varchar("schoolSecondaryColor", { length: 7 }),
 });
 
 export type User = typeof users.$inferSelect;

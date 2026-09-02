@@ -43,13 +43,6 @@
       "when": 1786326827093,
       "tag": "0005_supreme_thaddeus_ross",
       "breakpoints": true
-    },
-    {
-      "idx": 6,
-      "version": "5",
-      "when": 1786558717480,
-      "tag": "0006_same_venus",
-      "breakpoints": true
     }
   ]
 }

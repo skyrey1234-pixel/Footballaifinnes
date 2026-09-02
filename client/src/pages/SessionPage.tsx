@@ -28,7 +28,6 @@ export default function SessionPage() {
   const params = useParams<{ id: string }>();
   const sessionId = parseInt(params.id || "0");
   const [, setLocation] = useLocation();
-  const requestedTab = new URLSearchParams(window.location.search).get("tab");
 
   const exportPdfMutation = trpc.reports.exportPdf.useMutation({
     onSuccess: (data) => {
@@ -95,26 +94,25 @@ export default function SessionPage() {
 
   return (
     <div className="space-y-6">
-      <div className="broadcast-hero rounded-2xl p-4 md:p-5 flex items-center gap-4">
-        <Button variant="ghost" size="icon" className="bg-white/10 text-white hover:bg-white/20 hover:text-white" onClick={() => setLocation("/")}>
+      <div className="flex items-center gap-4">
+        <Button variant="ghost" size="icon" onClick={() => setLocation("/")}>
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <div className="flex-1">
-          <div className="font-tactical text-[10px] text-[var(--school-secondary)] mb-1">OPPONENT SCOUTING HUB</div>
-          <h1 className="text-2xl font-bold text-white">{session.opponentName}</h1>
-          <p className="text-sm text-white/70">
+          <h1 className="text-2xl font-bold">{session.opponentName}</h1>
+          <p className="text-sm text-muted-foreground">
             {session.gameDate || "No date"} &middot; {session.sourceType === "youtube" ? "YouTube" : "Uploaded Video"}
           </p>
         </div>
         {session.status === "complete" && (
           <Button
             size="lg"
-            className="gap-2 font-tactical text-xs bg-[var(--school-secondary)] text-[var(--school-secondary-foreground)] hover:brightness-110 shadow-lg active:scale-[0.97] shrink-0"
+            className="gap-2 font-tactical text-xs glow-primary-sm active:scale-[0.97] shrink-0"
             onClick={() => setLocation(`/warroom/${sessionId}`)}
           >
             <Radio className="h-4 w-4" />
             ENTER WAR ROOM
-            <Badge variant="outline" className="text-[9px] px-1 py-0 border-[#102A56]/25 bg-[#102A56]/10 text-[#102A56]">
+            <Badge variant="outline" className="text-[9px] px-1 py-0 border-primary-foreground/40 text-primary-foreground">
               NEW
             </Badge>
           </Button>
@@ -158,34 +156,9 @@ export default function SessionPage() {
         />
       )}
 
-      {session.status === "complete" && reportLoading && (
-        <Card className="broadcast-card">
-          <CardContent className="flex min-h-44 items-center justify-center gap-3 p-6 text-muted-foreground">
-            <Loader2 className="h-5 w-5 animate-spin text-primary" />
-            <span>Loading the scouting workspace…</span>
-          </CardContent>
-        </Card>
-      )}
-
-      {session.status === "complete" && !reportLoading && !report && (
-        <Card className="border-[var(--school-secondary)]/60 bg-[var(--school-secondary)]/10">
-          <CardContent className="flex flex-col items-center gap-3 py-10 text-center">
-            <AlertTriangle className="h-8 w-8 text-[var(--school-secondary)]" />
-            <div>
-              <p className="font-display font-bold">The report record is missing.</p>
-              <p className="mt-1 max-w-md text-sm text-muted-foreground">The film session is complete, but its report did not load. Rebuild it now to restore every coaching workspace.</p>
-            </div>
-            <Button onClick={() => reanalyzeMutation.mutate({ id: sessionId })} disabled={reanalyzeMutation.isPending} className="gap-2">
-              {reanalyzeMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-              Rebuild Report
-            </Button>
-          </CardContent>
-        </Card>
-      )}
-
       {session.status === "complete" && report && (
-        <Tabs defaultValue={requestedTab === "gameday" || requestedTab === "analytics" ? requestedTab : "report"} className="w-full">
-          <TabsList className="broadcast-tab-list flex-wrap h-auto w-full justify-start p-2 gap-1 [&_[data-slot=tabs-trigger]]:text-white/75 [&_[data-slot=tabs-trigger]:hover]:text-white">
+        <Tabs defaultValue="report" className="w-full">
+          <TabsList className="flex-wrap h-auto">
             <TabsTrigger value="report">Scouting Report</TabsTrigger>
             <TabsTrigger value="film">AI Film Breakdown</TabsTrigger>
             <TabsTrigger value="players" className="gap-2">
@@ -202,21 +175,21 @@ export default function SessionPage() {
             <TabsTrigger value="play3d" className="gap-2">
               <Box className="h-3 w-3" />
               3D Plays
-              <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-blue-200 bg-blue-50 text-blue-700">
+              <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-[#00FF87]/50 text-[#00FF87]">
                 NEW
               </Badge>
             </TabsTrigger>
             <TabsTrigger value="mistakes" className="gap-2">
               <AlertTriangle className="h-3 w-3" />
               Mistakes
-              <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-orange-200 bg-orange-50 text-orange-700">
+              <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-orange-500/50 text-orange-400">
                 NEW
               </Badge>
             </TabsTrigger>
             <TabsTrigger value="highlights" className="gap-2">
               <Film className="h-3 w-3" />
               Highlight Reel
-              <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-yellow-300 bg-yellow-50 text-yellow-700">
+              <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-yellow-500/50 text-yellow-400">
                 NEW
               </Badge>
             </TabsTrigger>
@@ -236,18 +209,18 @@ export default function SessionPage() {
               <Mic className="h-3 w-3" />
               Voice Coach
             </TabsTrigger>
-            <TabsTrigger value="analytics" className="gap-2 border border-[var(--school-secondary)]/50 bg-[var(--school-secondary)]/10 data-[state=active]:bg-[var(--school-secondary)] data-[state=active]:text-[var(--school-secondary-foreground)]">
-              <Box className="h-3 w-3" />
-              <span>Analytics (15)</span>
+            <TabsTrigger value="analytics" className="gap-2 border border-emerald-500/30">
+              <Box className="h-3 w-3 text-emerald-400" />
+              <span className="text-emerald-400">Analytics (15)</span>
             </TabsTrigger>
           </TabsList>
 
           {/* Action Buttons */}
-          <div className="flex items-center gap-2 mt-4 rounded-xl border border-border bg-card/80 p-2 shadow-sm">
+          <div className="flex items-center gap-2 mt-4">
             <Button
               variant="outline"
               size="sm"
-              className="gap-2 border-primary/25 bg-primary/5 text-primary hover:bg-primary hover:text-primary-foreground"
+              className="gap-2"
               onClick={() => exportPdfMutation.mutate({ sessionId })}
               disabled={exportPdfMutation.isPending}
             >
@@ -257,7 +230,7 @@ export default function SessionPage() {
             <Button
               variant="outline"
               size="sm"
-              className="gap-2 border-[var(--school-secondary)]/60 bg-[var(--school-secondary)]/10 text-foreground hover:bg-[var(--school-secondary)]"
+              className="gap-2"
               onClick={() => {
                 const desc = report.executiveSummary?.slice(0, 200) || "Standard football formation";
                 diagramMutation.mutate({ sessionId, playDescription: desc });
@@ -305,7 +278,7 @@ export default function SessionPage() {
             <BeatThisDefenseTab sessionId={sessionId} />
           </TabsContent>
           <TabsContent value="gameday" className="mt-6">
-            <GameDayAssistantTab sessionId={sessionId} opponentName={session.opponentName} />
+            <GameDayAssistantTab sessionId={sessionId} />
           </TabsContent>
           <TabsContent value="callsheet" className="mt-6">
             <CallSheetTab sessionId={sessionId} />

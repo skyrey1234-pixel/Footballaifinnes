@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { Play, Pause, RotateCcw, Film } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import YouTubeEmbed from "./YouTubeEmbed";
 
 /**
  * ClipPlayer — plays ONLY a timed segment of the session video.
@@ -100,17 +99,14 @@ export default function ClipPlayer({
 
   if (sourceType === "youtube" && youtubeVideoId) {
     return (
-      <div className={`relative rounded-lg overflow-hidden bg-black border border-border ${className}`}>
-        <YouTubeEmbed
-          video={youtubeVideoId}
-          title={`Game-film clip ${fmt(startSeconds)} to ${fmt(endSeconds)}`}
-          startSeconds={startSeconds}
-          endSeconds={endSeconds}
-          autoPlay={autoPlay}
-          className="h-full w-full"
-          overlay={overlay}
-          showExternalFallback
+      <div className={`relative aspect-video rounded-lg overflow-hidden bg-black border border-border ${className}`}>
+        <iframe
+          src={`https://www.youtube.com/embed/${youtubeVideoId}?start=${Math.floor(startSeconds)}&end=${Math.ceil(endSeconds)}&autoplay=${autoPlay ? 1 : 0}&rel=0`}
+          className="w-full h-full"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+          allowFullScreen
         />
+        {overlay}
         <div className="absolute top-2 left-2 flex items-center gap-1.5 rounded-full bg-black/70 px-2.5 py-1 text-[10px] font-semibold text-emerald-300 uppercase tracking-wider pointer-events-none">
           <Film className="h-3 w-3" /> Clip {fmt(startSeconds)}–{fmt(endSeconds)}
         </div>

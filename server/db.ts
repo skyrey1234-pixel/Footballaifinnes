@@ -110,17 +110,6 @@ export async function updateUserSubscription(userId: number, data: {
   await db.update(users).set(data).where(eq(users.id, userId));
 }
 
-export async function updateUserBranding(userId: number, data: {
-  schoolName: string | null;
-  schoolPrimaryColor: string;
-  schoolSecondaryColor: string;
-}) {
-  const db = await getDb();
-  if (!db) return undefined;
-  await db.update(users).set(data).where(eq(users.id, userId));
-  return getUserById(userId);
-}
-
 export async function getUserByStripeCustomerId(customerId: string) {
   const db = await getDb();
   if (!db) return undefined;
