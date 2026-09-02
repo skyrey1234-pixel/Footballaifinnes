@@ -1,5 +1,9 @@
 # TacticalEdge AI — Project TODO
 
+- [ ] BLOCKED: Production Google sign-in 403 after rollback — verified TacticalEdge generates the correct production callback, app ID, nonce/state cookie, and Manus login page; an existing authenticated browser still enters the dashboard successfully, and production logs show no rejected app callback. Complete the upstream Manus account-restoration/provider support flow before a fresh login can be verified.
+- [x] Add user-facing landing-page guidance for the account-restoration prompt, Google 403 alternatives, and the official sign-in support path
+- [ ] After the upstream account/provider issue is resolved, run a fresh unauthenticated production sign-in and verify arrival at the TacticalEdge dashboard
+
 - [x] Database schema: gameSessions and scoutingReports tables
 - [x] Dark theme setup (#0D1117 bg, #00FF87 accent, Space Grotesk + Inter fonts)
 - [x] Backend: game session CRUD (create, list, get, delete)

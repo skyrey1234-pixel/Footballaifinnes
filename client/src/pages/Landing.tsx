@@ -17,6 +17,8 @@ import {
   Gamepad2,
   Swords,
   ChevronRight,
+  CircleHelp,
+  ExternalLink,
 } from "lucide-react";
 
 const tiers = [
@@ -268,6 +270,25 @@ export default function Landing() {
                 See features <ChevronRight size={14} />
               </a>
             </div>
+            {!isAuthenticated && (
+              <div className="mt-5 flex max-w-xl items-start gap-3 rounded-xl border border-amber-400/20 bg-amber-400/[0.06] p-4 text-sm text-gray-300">
+                <CircleHelp className="mt-0.5 h-4 w-4 shrink-0 text-amber-300" />
+                <p className="leading-relaxed">
+                  <strong className="text-white">Sign-in trouble?</strong> If the login page says your
+                  account was deleted, complete the account-restoration prompt first. If Google shows
+                  a 403, try the email, Microsoft, Apple, or passkey option instead, or contact{" "}
+                  <a
+                    href="https://help.manus.im"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1 font-semibold text-[#00FF87] hover:underline"
+                  >
+                    sign-in support <ExternalLink className="h-3 w-3" />
+                  </a>
+                  .
+                </p>
+              </div>
+            )}
           </motion.div>
 
           <motion.div
