@@ -169,6 +169,7 @@ export default function LiveViewPage() {
   const [uploadProgress, setUploadProgress] = useState<VideoUploadProgress | null>(null);
   const [uploading, setUploading] = useState(false);
   const [launchMessage, setLaunchMessage] = useState("");
+  const [feedIssue, setFeedIssue] = useState("");
   const [runState, setRunState] = useState<LiveRunState>("idle");
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [secondsToNextRead, setSecondsToNextRead] = useState(LIVE_WINDOW_SECONDS);
@@ -404,6 +405,7 @@ export default function LiveViewPage() {
   const startSession = async () => {
     if (!selectedId || !selectedSession) return;
     try {
+      setFeedIssue("");
       if (selectedSession.sourceType === "camera") {
         const stream = await navigator.mediaDevices.getUserMedia({
           video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: "environment" },
@@ -417,7 +419,6 @@ export default function LiveViewPage() {
         cameraStartedAtRef.current = performance.now();
       } else {
         if (!videoRef.current) return;
-        await videoRef.current.play();
       }
 
       const nextState = transitionLiveRunState(runStateRef.current, "start");
@@ -426,6 +427,17 @@ export default function LiveViewPage() {
       await updateMutation.mutateAsync({ id: selectedId, status: "live", situation });
       if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
       animationFrameRef.current = requestAnimationFrame(runCaptureLoop);
+      if (selectedSession.sourceType === "upload" && videoRef.current) {
+        void videoRef.current.play().catch(async () => {
+          const message = "The replay could not start in this browser. Press play on the video, then Resume Analysis again.";
+          setFeedIssue(message);
+          runStateRef.current = "paused";
+          setRunState("paused");
+          if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
+          await updateMutation.mutateAsync({ id: selectedId, status: "paused", situation }).catch(() => undefined);
+          toast.error(message);
+        });
+      }
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Could not start the live feed");
     }
@@ -645,8 +657,17 @@ export default function LiveViewPage() {
               src={selectedSession.sourceType === "upload" ? videoSource : undefined}
               className="aspect-video w-full bg-black object-contain"
               playsInline
+              preload={selectedSession.sourceType === "upload" ? "auto" : "metadata"}
               controls={selectedSession.sourceType === "upload"}
               crossOrigin="anonymous"
+              onCanPlay={() => setFeedIssue("")}
+              onPlaying={() => setFeedIssue("")}
+              onWaiting={() => {
+                if (selectedSession.sourceType === "upload") setFeedIssue("Replay buffering. TacticalEdge will resume frame capture automatically when video frames are ready.");
+              }}
+              onError={() => {
+                if (selectedSession.sourceType === "upload") setFeedIssue("This replay could not be decoded or loaded. Re-upload the MP4, or try another browser.");
+              }}
               onLoadedMetadata={(event) => {
                 if (selectedSession.sourceType !== "upload") return;
                 const restoreAt = Math.min(
@@ -672,13 +693,14 @@ export default function LiveViewPage() {
           </section>
 
           <section className="grid gap-px bg-white/10 md:grid-cols-4">
-            <Metric icon={ScanLine} label="Next AI read" value={runState === "running" ? `${secondsToNextRead}s` : "Paused"} accent />
+            <Metric icon={ScanLine} label="Next AI read" value={runState === "running" ? (feedIssue ? "Waiting for frames" : `${secondsToNextRead}s`) : "Paused"} accent />
             <Metric icon={Activity} label="Windows analyzed" value={String(events.length)} />
             <Metric icon={Gauge} label="Latest confidence" value={latestEvent ? `${latestEvent.confidence}%` : "—"} />
             <Metric icon={BrainCircuit} label="AI queue" value={isAnalyzing ? (queuedWindows ? `${queuedWindows} queued` : "Analyzing") : "Ready"} />
           </section>
 
           {selectedSession.errorMessage ? <section className="border border-amber-400/25 bg-amber-400/[0.06] p-4 text-sm text-amber-100"><div className="flex items-start gap-3"><AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-300" /><div><p className="font-semibold">Latest scan needs another read</p><p className="mt-1 leading-6 text-amber-100/65">{selectedSession.errorMessage}</p></div></div></section> : null}
+          {feedIssue ? <section className="border border-sky-400/25 bg-sky-400/[0.06] p-4 text-sm text-sky-100"><div className="flex items-start gap-3"><Video className="mt-0.5 h-4 w-4 shrink-0 text-sky-300" /><div><p className="font-semibold">Video feed status</p><p className="mt-1 leading-6 text-sky-100/65">{feedIssue}</p></div></div></section> : null}
 
           <SituationBoard situation={situation} setSituation={setSituation} disabled={runState === "complete"} />
 
