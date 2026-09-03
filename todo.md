@@ -9,7 +9,7 @@
 - [x] LIVE 5S: Display separate offense intelligence, defense intelligence, player-impact leaders, and two next-play prediction cards in Live View
 - [x] LIVE 5S: Persist cumulative game memory and player-impact data so refresh, pause, and resume do not reset the learned profile
 - [x] LIVE 5S: Add regression tests for cadence, possession classification, two-prediction normalization, memory accumulation, race safety, and identity uncertainty
-- [ ] LIVE 5S: Validate the upgraded loop with real football footage, verify desktop/mobile production behavior, and publish
+- [x] LIVE 5S: Validated two sequential five-second windows with real football footage, verified desktop/mobile layouts, confirmed a new production session stores interval 5, and published
 
 - [x] BUG: Open Live Command Center launch repaired — removed the silent disabled state, added actionable replay selection and camera-ready guidance, verified camera-mode creation on production through session 390003, and removed the temporary verification session
 
@@ -18,8 +18,8 @@
 - [x] LIVE INTELLIGENCE: Add a dedicated Live View section accessible from the main navigation
 - [x] LIVE INTELLIGENCE: Support uploaded game footage as a controllable live-feed simulator for testing
 - [x] LIVE INTELLIGENCE: Add browser camera/live-stream input architecture with explicit start, pause, resume, and stop controls
-- [x] LIVE INTELLIGENCE: Analyze rolling 15-second footage windows without overlapping jobs or duplicate predictions
-- [x] LIVE INTELLIGENCE: Generate next-play probabilities, formation, personnel, coverage/front, tendency shifts, risk alerts, and recommended counter calls
+- [x] LIVE INTELLIGENCE: Analyze rolling five-second footage windows without overlapping jobs or duplicate predictions
+- [x] LIVE INTELLIGENCE: Generate exactly two ranked next-play probabilities plus formation, personnel, coverage/front, tendency shifts, risk alerts, and recommended counter calls
 - [x] LIVE INTELLIGENCE: Show timestamped evidence, confidence, input source, and AI-estimated labels for every live insight
 - [x] LIVE INTELLIGENCE: Build a cinematic command center with video, live status, scoreboard/situation controls, prediction cards, tendency charts, and analysis timeline
 - [x] LIVE INTELLIGENCE: Persist live sessions and analysis events with owner-only access and safe recovery after refresh
