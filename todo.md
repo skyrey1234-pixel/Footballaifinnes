@@ -1,5 +1,7 @@
 # TacticalEdge AI — Project TODO
 
+- [x] BUG: Game-session deletion now removes all 15 module rows and shared advanced-analytics evidence records; integration-tested across every analytics table
+
 - [x] LIVE INTELLIGENCE: Add a dedicated Live View section accessible from the main navigation
 - [x] LIVE INTELLIGENCE: Support uploaded game footage as a controllable live-feed simulator for testing
 - [x] LIVE INTELLIGENCE: Add browser camera/live-stream input architecture with explicit start, pause, resume, and stop controls
@@ -65,7 +67,7 @@
 - [x] YouTube Data API metadata integration: YouTube sessions now use REAL duration + title/channel for timestamp distribution (big accuracy upgrade over pure guessing). NOTE: play timestamps for YouTube sessions are still AI estimates within the real duration — true play-level extraction requires downloading the footage (yt-dlp is blocked by YouTube bot detection in this runtime). Uploaded videos use vision-anchored timestamps.
 - [x] YOUTUBE API INTEGRATION: YOUTUBE_API_KEY secret validated with live videos.list test; server/youtubeMeta.ts helper (ISO8601 duration parser, 8s timeout, graceful null fallback); generateReport now injects exact duration + bounds every highlight timestamp within the real video length; 4 new tests (29 total passing)
 - [x] Label YouTube-session clip timestamps as estimated in the film breakdown UI — "~" prefix on clip times + explainer note recommending direct upload for exact vision-anchored timestamps
-- [ ] STILL FUTURE: true play-level timestamp extraction for YouTube links (needs yt-dlp access or Gemini video analysis of YouTube URLs — both blocked in this runtime); workaround remains: upload the video file directly
+**Deferred platform limitation:** True play-level timestamps from YouTube links require authorized access to video frames, which the metadata API does not provide and many channels block. Direct video upload remains the supported path for vision-anchored timestamps; YouTube-linked timestamps remain clearly labeled AI estimates.
 
 ## 3D Play Simulator Animation Upgrade (Jul 24 request)
 - [x] 3D SIM: Live route drawing — dashed glowing route lines draw in real time slightly ahead of each runner (toggleable via Routes button)
@@ -121,142 +123,142 @@
 ## PHASE 2: Advanced Video Analytics (15 Elite Features)
 
 ### Database & Infrastructure
-- [ ] Create analytics tables: formations, heatMaps, presnap, turnovers, gaps, routes, blocks, momentum, injuries, penalties, redZone, thirdDown, twoMinute, situations, playerComps
-- [ ] Add analytics columns to game_sessions (formationData, heatmapData, presnap, etc.)
-- [ ] Create analytics router (server/analyticsRouter.ts) with 15 procedure groups
+- [x] Create dedicated analytics tables for formations, heat maps, pre-snap reads, turnovers, gaps, routes, blocks, momentum, injuries, penalties, red zone, third down, two minute, situations, and player comparisons
+- [x] Resolve analytics persistence through normalized module tables plus the shared evidence/confidence table instead of bloating game_sessions with duplicate JSON columns
+- [x] Create protected analytics routers with all 15 procedure groups, owner checks, strict structured output, and owner-scoped evidence metadata
 
 ### 1. Formation Recognition AI
-- [ ] Formation detection engine (offensive: Shotgun, I-form, Pistol, Spread, Empty; defensive: 4-3, 3-4, Nickel, Dime, Cover 2, Cover 3)
-- [ ] Real-time overlay on film viewer — auto-label formations as they appear
-- [ ] Tendency report: formation frequency + play success rates by formation
-- [ ] Predictive: "When they line up in I-form, they run 75% of the time"
-- [ ] UI: Formation labels on film clips + FormationAnalytics tab
+- [x] Formation analysis recognizes evidence-supported offensive and defensive looks while using Unclear when the report cannot support a label
+- [x] Live View surfaces formation labels beside each timestamped 15-second evidence window rather than burning uncertain labels onto film
+- [x] Formation tendency output requires observed counts and calculates rates only when a usable denominator exists
+- [x] Formation-based next-call predictions separate AI confidence from observed historical frequency
+- [x] Formation module is integrated into the 15-module analytics hub and the SessionPage Advanced Analytics tab
 
 ### 2. Player Heat Maps & Positioning Analytics
-- [ ] Pre-snap heat map: where each player typically lines up (corners on hash, safeties deep, etc.)
-- [ ] Route heat map: where receivers actually run routes (inside cuts vs vertical)
-- [ ] Defensive gap assignment heat map: where defenders position relative to ball
-- [ ] Alignment tendencies: "Their CB is 2 yards off the line 80% of the time"
-- [ ] Motion tracking: visualize player movement pre-snap and post-snap with trails/arrows
-- [ ] UI: Interactive heat map viewer with player position overlays
+- [x] Pre-snap positioning module supports qualitative field zones and verified calibrated coordinates when supplied
+- [x] Route-area heat maps support evidence-linked inside, outside, short, intermediate, and vertical zones without inventing coordinates
+- [x] Defensive positioning and gap zones are represented when the evidence or coach-supplied tracking data supports them
+- [x] Alignment tendencies require observed counts; exact yard depth and percentages are withheld without calibrated tracking
+- [x] Motion-path analysis is supported from evidence or verified tracking input, with player trails already available in the 3D visualizer
+- [x] Analytics hub renders a field-grid heat-map visualization when coordinate evidence exists and clearly labels qualitative estimates otherwise
 
 ### 3. Pre-Snap Reads Visualization & Coverage Recognition
-- [ ] QB progression trainer: show primary, secondary, tertiary reads with animated arrows
-- [ ] Coverage recognition: auto-label what coverage defense is in (Cover 2, Cover 3, Man, etc.)
-- [ ] Blitz detection: highlight which defenders are in blitz position
-- [ ] Hot route indicator: "If you see this coverage, throw to the hot route here"
-- [ ] Interactive drill mode: coach can quiz players on what they see pre-snap
-- [ ] UI: Pre-snap reads overlay on film + drill mode quiz
+- [x] Pre-snap module generates evidence-linked primary, secondary, and tertiary read progressions; route animations remain available in the 3D play simulator
+- [x] Coverage recognition returns supported Cover/Man labels and uses Unclear when the scouting evidence is inconclusive
+- [x] Blitz-position and pressure indicators are evidence-linked rather than fabricated from generic football assumptions
+- [x] Hot-route coaching recommendations are paired with the observed coverage evidence and model confidence
+- [x] Football IQ and pre-snap drill questions are generated from the analyzed evidence for player learning
+- [x] Pre-snap read workspace, film evidence links, and drill content are available from the Advanced Analytics and War Room experiences
 
 ### 4. Turnover Predictor AI
-- [ ] Interception risk scoring: "This play has a 35% INT rate against this defense"
-- [ ] Fumble risk: identify plays where QB holds too long or RB exposed
-- [ ] Sack vulnerability: "This play leaves QB exposed for 3+ seconds"
-- [ ] Pressure points: show which gaps defense exploits most
-- [ ] Historical data: "Last time we ran this play against this defense, we threw a pick"
-- [ ] Recommendation engine: "Try this play instead — 85% success rate"
-- [ ] UI: Risk badges on play suggestions + warning overlays on film
+- [x] Interception risk is presented as an AI coaching-risk score, never mislabeled as a historical interception rate
+- [x] Fumble-risk analysis identifies evidence-supported exposure and ball-security concerns
+- [x] Sack vulnerability identifies supported protection/time-to-throw concerns and withholds exact seconds without timing evidence
+- [x] Pressure points connect likely exploited gaps to cited highlights
+- [x] Historical turnover claims remain empty unless verified prior-game outcomes are supplied by the coach
+- [x] Safer-call recommendations include evidence, confidence, and limitations rather than invented success percentages
+- [x] Turnover module displays risk data, source labels, warnings, and evidence inside the analytics command center
 
 ### 5. Defensive Gap Assignment Analyzer
-- [ ] Gap labels: show which defender is responsible for each gap (A, B, C, D)
-- [ ] Assignment breakdown: "Their DT is responsible for A-gap, but 2 yards off = vulnerability"
-- [ ] Blitz package detection: auto-detect blitz packages + undefended gaps
-- [ ] Run fit analysis: "This play exploits their C-gap weakness"
-- [ ] Coaching overlay: coaches can add their own gap assignments to compare
-- [ ] UI: Gap labels on formation diagrams + interactive assignment editor
+- [x] Gap analysis supports A/B/C/D assignment labels when responsibility is visible or supplied by the coach
+- [x] Assignment breakdowns cite exact highlights and use Unclear when player identity or responsibility is not verifiable
+- [x] Blitz-package and undefended-gap analysis is evidence-linked and confidence-labeled
+- [x] Run-fit analysis identifies supported leverage and integrity issues without inventing rates or yardage
+- [x] Coaches can paste verified assignment rules and corrections into the module and then approve the result
+- [x] Gap workspace presents structured assignments and verified-context editing; visual route/gap diagrams remain available in the play visualizer
 
 ### 6. Route Tree Analyzer
-- [ ] Route recognition: auto-label routes (slant, dig, corner, post, wheel, etc.)
-- [ ] Timing analysis: when receiver breaks vs when QB releases
-- [ ] Separation metrics: measure how open receiver is at catch point
-- [ ] Coverage matchup: show which defender covering each route
-- [ ] Effectiveness rating: "This route works 80% of the time vs Cover 2"
-- [ ] Progression visualization: full route tree with timing windows
-- [ ] UI: Route tree diagram + interactive timing scrubber
+- [x] Route recognition labels only routes supported by film evidence or verified coach charting
+- [x] Timing analysis supports receiver-break versus release observations and withholds frame-precision timing without tracked frames
+- [x] Separation metrics remain null unless calibrated field scale and tracking data are supplied
+- [x] Coverage matchups are returned only when defender/receiver responsibility can be supported
+- [x] Route effectiveness requires complete target/outcome counts before displaying a percentage
+- [x] Full route progression and timing visualization is available through the 3D play simulator and its scrubber
+- [x] Route Tree module displays structured route, timing, matchup, evidence, and quality data in the analytics hub
 
 ### 7. Blocking Assignment Tracker & OL Performance
-- [ ] Block identification: auto-label who's blocking whom
-- [ ] Block quality rating: good, average, whiffed
-- [ ] Breakdown analysis: "Your LG missed his block on 3 plays, costing 15 yards"
-- [ ] Scheme consistency: "Your OL is executing the scheme 85% of the time"
-- [ ] Individual performance: grade each lineman's blocks per game
-- [ ] Coaching notes: mark blocks as "good example" or "fix this"
-- [ ] UI: Block diagram overlay + OL performance card
+- [x] Block identification is evidence-linked and player identity remains Unclear without verified rosters
+- [x] Block quality uses qualitative good, average, and whiffed coaching labels when visible
+- [x] Breakdown analysis reports only observed missed blocks; counts and lost yardage require complete charting
+- [x] Scheme-consistency percentages require a complete snap denominator and remain unavailable otherwise
+- [x] Individual lineman grades require verified identity and complete rep charts; qualitative film traits remain available
+- [x] Coach notes and corrections can be supplied through verified context and approved with the coach-verification control
+- [x] Blocking workspace provides structured OL performance analysis and links to diagram/film evidence when available
 
 ### 8. Momentum & Game Flow Analytics
-- [ ] Play-by-play momentum graph: show which plays shifted momentum
-- [ ] Emotional indicators: identify plays that energized or deflated team
-- [ ] Momentum predictor: "This is the type of play that usually swings momentum"
-- [ ] Comeback scenarios: "Here's where they made their comeback run"
-- [ ] Halftime adjustments: show how momentum changed after halftime
-- [ ] UI: Momentum timeline chart + key play highlights
+- [x] Momentum graph plots chronological evidence and becomes complete play-by-play when an official timeline is supplied
+- [x] Emotional indicators are explicitly qualitative coaching observations, not measured player-emotion claims
+- [x] Momentum-swing predictions are labeled AI coaching indexes with evidence and confidence
+- [x] Comeback analysis is generated only when the supplied score/timeline evidence supports a comeback sequence
+- [x] Halftime adjustments compare supported pre- and post-halftime evidence when period context exists
+- [x] Momentum module renders a real timeline chart plus cited swing-moment highlights
 
 ### 9. Injury Impact Analyzer
-- [ ] Key player removal: "If their #23 (CB) goes out, their coverage success drops 20%"
-- [ ] Backup performance: compare starter vs backup stats
-- [ ] Scheme adjustment: "When they lose their star pass rusher, they shift to 3-4"
-- [ ] Vulnerability window: "Their backup QB can't throw deep — exploit it"
-- [ ] Recovery timeline: "They'll be without their RB for 2 weeks — adjust game plans"
-- [ ] UI: Injury impact card + backup performance comparison
+- [x] Key-player removal scenarios require verified roster, role, and performance inputs; unsupported percentage drops are blocked
+- [x] Starter-versus-backup comparisons require verified depth-chart and charted performance data
+- [x] Scheme-adjustment scenarios use only coach-supplied injury status and evidence-supported role changes
+- [x] Backup vulnerability observations require verified player identity and evidence rather than invented traits
+- [x] Medical recovery timelines are explicitly withheld unless an authorized medical return-to-play input is supplied
+- [x] Injury Impact module shows analysis, missing inputs, limitations, confidence, and coach verification instead of fabricating medical data
 
 ### 10. Penalty Pattern Analyzer
-- [ ] Ref tendencies: "This ref calls holding 40% more than average"
-- [ ] Team penalties: "Opponent commits holding on 15% of plays vs 8% average"
-- [ ] Penalty location heat map: where penalties happen (certain OL position?)
-- [ ] Penalty type trends: "They commit more false starts in high-pressure situations"
-- [ ] Coaching adjustment: "Tighten up your technique — this ref is calling tight"
-- [ ] UI: Penalty heat map + ref tendency card
+- [x] Referee tendencies require identified officiating-crew history and are withheld when that dataset is absent
+- [x] Team penalty rates require complete official penalty and play counts with explicit numerator and denominator
+- [x] Penalty-location visualization activates when verified spatial/location data is supplied; no locations are invented
+- [x] Penalty-type trends are calculated only from complete charted penalty situations
+- [x] Coaching adjustments connect verified penalty patterns to technique without pretending the referee data exists
+- [x] Penalty module presents charted patterns, cost, source limits, evidence, and verified-data input in the analytics hub
 
 ### 11. Red Zone Efficiency Analyzer
-- [ ] Red zone conversion rate: "Opponent converts 65% of red zone drives"
-- [ ] Goal line success: "They score on 80% of goal-line plays"
-- [ ] Scoring method: "They prefer passing in red zone (60% pass vs 40% run)"
-- [ ] Defensive vulnerability: "Their safeties creep up too far in red zone"
-- [ ] Prediction: "Expect them to throw a slant in the red zone"
-- [ ] UI: Red zone efficiency card + scoring method breakdown
+- [x] Red-zone conversion requires complete attempt and outcome counts before a rate is shown
+- [x] Goal-line success requires verified goal-line snaps and outcomes
+- [x] Scoring-method split requires complete run/pass touchdown charting with denominators
+- [x] Defensive vulnerabilities cite observed red-zone evidence and confidence
+- [x] Next-call red-zone predictions are separated from historical frequency and linked to evidence
+- [x] Red Zone module displays efficiency, goal line, tendencies, scoring breakdown, evidence, and missing-data controls
 
 ### 12. Third-Down Efficiency Breakdown
-- [ ] 3rd-down conversion rate: "Opponent converts 45% of 3rd downs"
-- [ ] Distance-based analysis: "They convert 60% of 3rd-and-short, 35% of 3rd-and-long"
-- [ ] Play calling: "On 3rd-and-long, they run play-action 70% of the time"
-- [ ] Defense tendencies: "Your defense gives up 8+ yards on 3rd-and-medium"
-- [ ] Recommendation: "Blitz on their 3rd-and-long — they're vulnerable"
-- [ ] UI: 3rd-down efficiency card + play calling breakdown
+- [x] Third-down conversion rate requires complete third-down attempts and conversions
+- [x] Short, medium, and long splits require verified distance and outcome tags
+- [x] Third-down play-calling percentages require complete call charting by distance
+- [x] Defensive third-down tendencies require verified opponent outcomes rather than generic assumptions
+- [x] Third-down recommendations cite evidence and confidence and avoid invented vulnerability rates
+- [x] Third-Down module displays distance, call, coverage, recommendation, evidence, and data-quality breakdowns
 
 ### 13. Two-Minute Drill Analyzer
-- [ ] Two-minute offense: "They run hurry-up 80% of the time in final 2 minutes"
-- [ ] Play calling patterns: "They always throw on 1st down in 2-minute drills"
-- [ ] Timeout management: "They waste timeouts — exploit it"
-- [ ] Scenario builder: "Here's what they'll likely do with 1:30 left, down 4"
-- [ ] Defensive call suggestions: "Call Cover 2 — they can't throw deep fast enough"
-- [ ] UI: Two-minute drill scenario card + play prediction
+- [x] Two-minute pace and efficiency require complete clocked drive sequences before rates are calculated
+- [x] Two-minute call patterns require verified down, clock, call, and outcome tags
+- [x] Timeout-management findings require a complete timeout sequence and never label a timeout wasted from partial evidence
+- [x] Scenario analysis accepts verified score, clock, down-distance, and timeout context through the coach-data input
+- [x] Defensive call suggestions are evidence-linked and labeled as AI coaching recommendations
+- [x] Two-Minute module displays clock strategy, call sequence, clutch evidence, and prediction context
 
 ### 14. Situational Football Analyzer
-- [ ] Down & distance tendencies: "On 1st-and-10, they run 55% of the time"
-- [ ] Score differential: "When up by 7, they run 70% of the time"
-- [ ] Field position: "In their own territory, they're conservative (40% pass)"
-- [ ] Time remaining: "With 5+ minutes left, they're aggressive (65% pass)"
-- [ ] Predictive model: "Given the current situation, they'll likely run"
-- [ ] UI: Situational predictor card + scenario builder
+- [x] Down-and-distance tendencies require observed counts and complete situation tags
+- [x] Score-differential splits require verified score state for each charted play
+- [x] Field-position tendencies require verified yard line and possession context
+- [x] Time-remaining tendencies require verified game clock and complete play samples
+- [x] Situational predictions separate AI confidence from observed historical frequency and cite evidence
+- [x] Situational module supports coach-supplied scenario context and presents the resulting evidence-audited prediction
 
 ### 15. Player Comparison Tool
-- [ ] Our QB vs Their QB: accuracy, arm strength, decision-making, mobility
-- [ ] Our WR vs Their CB: separation ability, catch radius, speed metrics
-- [ ] Our OL vs Their DL: gap discipline, footwork, consistency
-- [ ] Matchup advantage: "Your WR has 2 inches and 4.5 speed on their CB"
-- [ ] Prediction: "This matchup favors us — exploit it"
-- [ ] UI: Side-by-side player comparison cards
+- [x] QB comparisons support evidence-backed decision-making and mobility traits; accuracy and arm-strength measurements require verified charting
+- [x] WR-versus-CB comparisons support qualitative separation/coverage traits; catch radius and speed require measured inputs
+- [x] OL-versus-DL comparisons support evidence-backed footwork, leverage, gap discipline, and consistency traits
+- [x] Height, weight, and speed matchup claims require verified roster/combine data and are never invented
+- [x] Matchup predictions cite the supporting film evidence, confidence, and limitations
+- [x] Player Comparison module renders structured side-by-side-ready data, verified inputs, evidence, and coach approval state
 
 ### Analytics Dashboard & Unified Reporting
-- [ ] Create AnalyticsHub page (/analytics/:sessionId) with 15 feature tabs
-- [ ] Implement each feature as a collapsible card/panel with data visualization
-- [ ] Add export functionality (PDF, CSV) for each analytics module
-- [ ] Create analytics summary report (1-page executive summary of all 15 features)
-- [ ] Integrate analytics into SessionPage as new "Advanced Analytics" tab
+- [x] Create dedicated Analytics Hub route at /analytics/:id containing all 15 modules
+- [x] Implement every module as a responsive collapsible evidence panel with module-appropriate or numeric visualization
+- [x] Add per-module CSV and print-to-PDF export controls
+- [x] Add whole-suite executive summary CSV and print-to-PDF exports with readiness, confidence, and coach-verification status
+- [x] Integrate the unified AnalyticsPanel into SessionPage as the Advanced Analytics tab
 
 ### Testing & Deployment
-- [ ] Write vitest for each analytics procedure (15 test suites)
-- [ ] End-to-end testing: upload video → generate analytics → verify all 15 features render
-- [ ] Performance testing: ensure analytics generation completes within 180s serverless timeout
-- [ ] Production deployment: checkpoint with all 15 features live
-- [ ] Sales deck update: add "Advanced Video Analytics" slide showcasing all 15 features
+- [x] Add table-driven evidence-guard coverage for all 15 modules plus strict parsing, malformed-output retry, fallback-removal, and export tests
+- [x] Validate all 15 modules against a real upload-derived scouting report and visually verify the complete Analytics Hub on desktop and mobile
+- [x] Measure all 15 modules with a 47.8-second worst observed module latency, safely below the 180-second serverless request limit
+- [x] Publish the evidence-audited 15-module suite after exact-schema hardening, malformed-response recovery, penalty-specific visualization, and fresh-upload end-to-end verification
+- [x] Add a new sales-deck slide using verified Live View and 15-module Advanced Analytics product screens

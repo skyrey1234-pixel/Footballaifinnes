@@ -156,6 +156,15 @@ export async function setAnalysisStage(id: number, stage: string | null) {
 export async function deleteGameSession(id: number) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
+  const analyticsTables = [
+    advancedAnalyticsRuns, formationAnalytics, presnapsReads, turnoverPredictors,
+    heatMapAnalytics, routeTreeAnalytics, blockingAnalytics, momentumAnalytics,
+    gapAnalytics, injuryImpactAnalytics, penaltyAnalytics, redZoneAnalytics,
+    thirdDownAnalytics, twoMinuteAnalytics, situationalAnalytics, playerComparisons,
+  ] as const;
+  for (const table of analyticsTables) {
+    await db.delete(table).where(eq(table.sessionId, id));
+  }
   await db.delete(scoutingReports).where(eq(scoutingReports.sessionId, id));
   await db.delete(gameSessions).where(eq(gameSessions.id, id));
 }

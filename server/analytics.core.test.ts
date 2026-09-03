@@ -15,7 +15,7 @@ describe("advanced analytics evidence guard", () => {
   });
 
   it.each(ADVANCED_ANALYTICS_MODULES)("returns insufficient rather than inventing %s data without evidence", async (module) => {
-    const result = await runGuardedAnalytics({ module, report: {}, instructions: "Analyze only supported facts." });
+    const result = await runGuardedAnalytics({ module, report: {}, instructions: "Analyze only supported facts.", analysisFields: ["result"] });
     expect(result._quality.status).toBe("insufficient");
     expect(result._quality.confidence).toBe(0);
     expect(result._quality.evidence).toEqual([]);
@@ -34,14 +34,14 @@ describe("advanced analytics evidence guard", () => {
             evidence: [{ highlightIndex: 0, startSeconds: 12, endSeconds: 20, description: "Shotgun alignment" }],
             missingInputs: [],
             limitations: ["Report-derived estimate"],
-            analysisJson: JSON.stringify({ formations: [{ formation: "Shotgun", observedCount: 1 }] }),
+            analysis: { formations: JSON.stringify([{ formation: "Shotgun", observedCount: 1 }]) },
           }),
         },
         index: 0,
         finish_reason: "stop",
       }],
     } as any);
-    const result = await runGuardedAnalytics({ module: "formations", report: { highlights: [{ startSeconds: 12, endSeconds: 20 }] }, instructions: "Analyze formations." });
+    const result = await runGuardedAnalytics({ module: "formations", report: { highlights: [{ startSeconds: 12, endSeconds: 20 }] }, instructions: "Analyze formations.", analysisFields: ["formations"] });
     expect(result._quality.status).toBe("ready");
     expect(result._quality.confidence).toBe(78);
     expect(result._quality.evidence[0]?.startSeconds).toBe(12);
@@ -50,7 +50,8 @@ describe("advanced analytics evidence guard", () => {
 
   it("fails loudly on malformed model output instead of substituting fictional metrics", async () => {
     vi.mocked(invokeLLM).mockResolvedValue({ choices: [{ message: { role: "assistant", content: "not json" }, index: 0, finish_reason: "stop" }] } as any);
-    await expect(runGuardedAnalytics({ module: "turnovers", report: { highlights: [{}] }, instructions: "Analyze risk." })).rejects.toThrow();
+    await expect(runGuardedAnalytics({ module: "turnovers", report: { highlights: [{}] }, instructions: "Analyze risk.", analysisFields: ["plays"] })).rejects.toThrow();
+    expect(invokeLLM).toHaveBeenCalledTimes(2);
   });
 
   it("keeps legacy hard-coded fallback statistics out of both analytics routers", async () => {

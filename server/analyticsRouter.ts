@@ -61,6 +61,7 @@ export const analyticsRouter = router({
         module: "formations",
         report,
         verifiedContext: input.context,
+        analysisFields: ["formations", "offensiveFormations", "defensiveFormations", "predictions"],
         instructions: `Return analysisJson with: offensiveFormations and defensiveFormations objects; formations array containing formation, side, observedCount, frequencyPct, successRatePct, playTypes, evidenceHighlightIndexes; predictions object by situation containing formation, predictedPlay, confidence, evidenceHighlightIndexes. Only calculate frequencyPct when the highlights provide a usable formation denominator. Never imply automatic frame-level formation recognition from report text.`,
       }));
       await saveFormationAnalytics(input.sessionId, {
@@ -87,6 +88,7 @@ export const analyticsRouter = router({
         module: "presnap",
         report,
         verifiedContext: input.context,
+        analysisFields: ["reads", "coverageTypes", "blitzTendencies", "drilQuestions"],
         instructions: `Return analysisJson with: reads array containing playId, coverage, blitzPackage, hotRoute, qbProgression, difficulty, evidenceHighlightIndexes; coverageTypes object using observed counts or evidence-supported percentages; blitzTendencies array; drilQuestions array containing scenario, correctAnswer, explanation, evidenceHighlightIndexes. Label uncertain coverage or blitz identification as Unclear.`,
       }));
       await savePreSnapReads(input.sessionId, {
@@ -113,6 +115,7 @@ export const analyticsRouter = router({
         module: "turnovers",
         report,
         verifiedContext: input.context,
+        analysisFields: ["plays", "riskSummary", "historicalData"],
         instructions: `Return analysisJson with: plays array containing playId, interceptionRisk, fumbleRisk, sackVulnerability, pressurePoints, recommendation, evidenceHighlightIndexes; riskSummary containing avgInterceptionRisk, avgFumbleRisk, avgSackVulnerability, highRiskPlays; historicalData object. Risk values are AI-estimated coaching risk scores from 0 to 100, never historical rates. Leave historicalData empty unless the supplied evidence explicitly contains prior outcomes.`,
       }));
       await saveTurnoverPredictors(input.sessionId, {
