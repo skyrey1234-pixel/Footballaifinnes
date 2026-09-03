@@ -355,3 +355,32 @@ export const liveAnalysisEvents = mysqlTable(
 
 export type LiveAnalysisEvent = typeof liveAnalysisEvents.$inferSelect;
 export type InsertLiveAnalysisEvent = typeof liveAnalysisEvents.$inferInsert;
+
+// Shared trust layer for the 15 advanced analytics modules. Module-specific
+// tables store the analysis payload; this table records what evidence supports
+// it, how confident the model is, and what inputs are still missing.
+export const advancedAnalyticsRuns = mysqlTable(
+  "advanced_analytics_runs",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    sessionId: int("sessionId").notNull(),
+    userId: int("userId").notNull(),
+    module: varchar("module", { length: 64 }).notNull(),
+    status: mysqlEnum("status", ["ready", "insufficient", "failed"]).default("ready").notNull(),
+    summary: text("summary"),
+    confidence: int("confidence").default(0).notNull(),
+    dataBasis: varchar("dataBasis", { length: 160 }).default("AI estimate from scouting-report evidence").notNull(),
+    evidence: json("evidence"),
+    missingInputs: json("missingInputs"),
+    limitations: json("limitations"),
+    coachVerified: int("coachVerified").default(0).notNull(),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  },
+  (table) => ({
+    analyticsRunUnique: uniqueIndex("analytics_run_session_module_unique").on(table.sessionId, table.module),
+  }),
+);
+
+export type AdvancedAnalyticsRun = typeof advancedAnalyticsRuns.$inferSelect;
+export type InsertAdvancedAnalyticsRun = typeof advancedAnalyticsRuns.$inferInsert;

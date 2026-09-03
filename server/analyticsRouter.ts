@@ -1,5 +1,5 @@
-import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
 import { z } from "zod";
+import { protectedProcedure, router } from "./_core/trpc";
 import {
   getGameSession,
   getReportBySessionId,
@@ -9,246 +9,124 @@ import {
   getPreSnapReadsBySession,
   saveTurnoverPredictors,
   getTurnoverPredictorsBySession,
+  listAdvancedAnalyticsRuns,
+  setAdvancedAnalyticsCoachVerified,
 } from "./db";
-import { invokeLLM } from "./_core/llm";
+import {
+  ADVANCED_ANALYTICS_MODULES,
+  persistAnalyticsQuality,
+  runGuardedAnalytics,
+  type AdvancedAnalyticsModule,
+} from "./analyticsCore";
 
-/**
- * Wave 1 Advanced Video Analytics Router
- * Handles: Formation Recognition, Pre-Snap Reads, Turnover Predictor
- */
+async function getOwnedReport(sessionId: number, userId: number) {
+  const session = await getGameSession(sessionId);
+  if (!session) throw new Error("Session not found");
+  if (session.userId !== userId) throw new Error("Unauthorized");
+  const report = await getReportBySessionId(sessionId);
+  if (!report) throw new Error("Scouting report not found");
+  return report;
+}
+
+async function recordQuality(sessionId: number, userId: number, module: AdvancedAnalyticsModule, data: Awaited<ReturnType<typeof runGuardedAnalytics>>) {
+  await persistAnalyticsQuality({ sessionId, userId, module, data });
+  return data;
+}
 
 export const analyticsRouter = router({
-  /**
-   * FORMATION RECOGNITION AI
-   * Auto-detects offensive/defensive formations, generates tendency reports
-   */
-  analyzeFormations: protectedProcedure
+  getQualityRuns: protectedProcedure
     .input(z.object({ sessionId: z.number() }))
+    .query(async ({ input, ctx }) => {
+      await getOwnedReport(input.sessionId, ctx.user.id);
+      return listAdvancedAnalyticsRuns(input.sessionId, ctx.user.id);
+    }),
+
+  setCoachVerified: protectedProcedure
+    .input(z.object({
+      sessionId: z.number(),
+      module: z.enum(ADVANCED_ANALYTICS_MODULES),
+      verified: z.boolean(),
+    }))
     .mutation(async ({ input, ctx }) => {
-      const session = await getGameSession(input.sessionId);
-      if (!session) throw new Error("Session not found");
-      if (session.userId !== ctx.user.id) throw new Error("Unauthorized");
+      await getOwnedReport(input.sessionId, ctx.user.id);
+      await setAdvancedAnalyticsCoachVerified(input.sessionId, ctx.user.id, input.module, input.verified);
+      return { success: true };
+    }),
 
-      const report = await getReportBySessionId(input.sessionId);
-      if (!report) throw new Error("Scouting report not found");
-
-      // Parse highlights from the report
-      const highlights = Array.isArray(report.highlights) ? report.highlights : [];
-
-      // Call LLM to analyze formations
-      const analysisPrompt = `
-You are an elite football coach analyzing game film. Based on the following highlights and plays from the scouting report, identify and analyze all formations used by the offense and defense.
-
-Highlights: ${JSON.stringify(highlights)}
-
-Provide a detailed JSON response with:
-1. offensiveFormations: Object with formation names (Shotgun, IForm, Pistol, Spread, Empty, etc.) as keys and their frequency percentages as values
-2. defensiveFormations: Object with defensive formations (4-3, 3-4, Nickel, Dime, Cover2, Cover3, etc.) as keys and frequency percentages as values
-3. formations: Array of { formation, frequency, successRate, playTypes }
-4. predictions: Object mapping situation keys (e.g., "1st-and-10", "3rd-and-long") to { formation, confidence, predictedPlay }
-
-Return ONLY valid JSON, no markdown or extra text.
-`;
-
-      const response = await invokeLLM({
-        model: "gemini-2.5-flash",
-        messages: [{ role: "user", content: analysisPrompt }],
+  analyzeFormations: protectedProcedure
+    .input(z.object({ sessionId: z.number(), context: z.string().max(20_000).optional() }))
+    .mutation(async ({ input, ctx }) => {
+      const report = await getOwnedReport(input.sessionId, ctx.user.id);
+      const data = await recordQuality(input.sessionId, ctx.user.id, "formations", await runGuardedAnalytics({
+        module: "formations",
+        report,
+        verifiedContext: input.context,
+        instructions: `Return analysisJson with: offensiveFormations and defensiveFormations objects; formations array containing formation, side, observedCount, frequencyPct, successRatePct, playTypes, evidenceHighlightIndexes; predictions object by situation containing formation, predictedPlay, confidence, evidenceHighlightIndexes. Only calculate frequencyPct when the highlights provide a usable formation denominator. Never imply automatic frame-level formation recognition from report text.`,
+      }));
+      await saveFormationAnalytics(input.sessionId, {
+        formations: data.formations,
+        offensiveFormations: data.offensiveFormations,
+        defensiveFormations: data.defensiveFormations,
+        predictions: data.predictions,
       });
-
-      const responseText = response.choices[0]?.message?.content || '';
-      const contentStr = typeof responseText === 'string' ? responseText : JSON.stringify(responseText);
-
-      let analysisData;
-      try {
-        const jsonMatch = contentStr.match(/\{[\s\S]*\}/);
-        analysisData = jsonMatch ? JSON.parse(jsonMatch[0]) : {};
-      } catch {
-        analysisData = {
-          offensiveFormations: { Shotgun: 45, IForm: 30, Spread: 25 },
-          defensiveFormations: { "4-3": 60, Nickel: 40 },
-          formations: [],
-          predictions: {},
-        };
-      }
-
-      await saveFormationAnalytics(input.sessionId, analysisData);
-      return analysisData;
+      return data;
     }),
 
   getFormations: protectedProcedure
     .input(z.object({ sessionId: z.number() }))
     .query(async ({ input, ctx }) => {
-      const session = await getGameSession(input.sessionId);
-      if (!session) throw new Error("Session not found");
-      if (session.userId !== ctx.user.id) throw new Error("Unauthorized");
-
-      return await getFormationAnalyticsBySession(input.sessionId);
+      await getOwnedReport(input.sessionId, ctx.user.id);
+      return getFormationAnalyticsBySession(input.sessionId);
     }),
 
-  /**
-   * PRE-SNAP READS & COVERAGE RECOGNITION
-   * Analyzes QB reads, coverage types, blitz packages, hot routes
-   */
   analyzePreSnapReads: protectedProcedure
-    .input(z.object({ sessionId: z.number() }))
+    .input(z.object({ sessionId: z.number(), context: z.string().max(20_000).optional() }))
     .mutation(async ({ input, ctx }) => {
-      const session = await getGameSession(input.sessionId);
-      if (!session) throw new Error("Session not found");
-      if (session.userId !== ctx.user.id) throw new Error("Unauthorized");
-
-      const report = await getReportBySessionId(input.sessionId);
-      if (!report) throw new Error("Scouting report not found");
-
-      const highlights = Array.isArray(report.highlights) ? report.highlights : [];
-
-      const analysisPrompt = `
-You are an elite football coach analyzing pre-snap reads and coverage recognition from game film.
-
-Based on the following plays and highlights, analyze:
-1. Coverage types used (Cover 2, Cover 3, Man, Two-Deep, etc.) with frequency
-2. Blitz packages and tendencies
-3. QB progression reads (primary, secondary, tertiary)
-4. Hot routes and checkdowns
-5. Difficulty ratings for each play (1-10 scale)
-
-Highlights: ${JSON.stringify(highlights)}
-
-Return a JSON response with:
-{
-  "reads": [ { "playId": "...", "coverage": "Cover 2", "blitzPackage": "...", "hotRoute": "...", "qbProgression": ["primary", "secondary", "tertiary"], "difficulty": 7 } ],
-  "coverageTypes": { "Cover2": 40, "Cover3": 35, "Man": 20, "TwoDeep": 5 },
-  "blitzTendencies": [ { "blitzType": "LB Blitz", "frequency": 30, "effectiveness": 0.65 } ],
-  "drilQuestions": [ { "scenario": "...", "correctAnswer": "...", "explanation": "..." } ]
-}
-
-Return ONLY valid JSON.
-`;
-
-      const response = await invokeLLM({
-        model: "gemini-2.5-flash",
-        messages: [{ role: "user", content: analysisPrompt }],
+      const report = await getOwnedReport(input.sessionId, ctx.user.id);
+      const data = await recordQuality(input.sessionId, ctx.user.id, "presnap", await runGuardedAnalytics({
+        module: "presnap",
+        report,
+        verifiedContext: input.context,
+        instructions: `Return analysisJson with: reads array containing playId, coverage, blitzPackage, hotRoute, qbProgression, difficulty, evidenceHighlightIndexes; coverageTypes object using observed counts or evidence-supported percentages; blitzTendencies array; drilQuestions array containing scenario, correctAnswer, explanation, evidenceHighlightIndexes. Label uncertain coverage or blitz identification as Unclear.`,
+      }));
+      await savePreSnapReads(input.sessionId, {
+        reads: data.reads,
+        coverageTypes: data.coverageTypes,
+        blitzTendencies: data.blitzTendencies,
+        drilQuestions: data.drilQuestions,
       });
-
-      const responseText = response.choices[0]?.message?.content || '';
-      const contentStr = typeof responseText === 'string' ? responseText : JSON.stringify(responseText);
-
-      let analysisData;
-      try {
-        const jsonMatch = contentStr.match(/\{[\s\S]*\}/);
-        analysisData = jsonMatch ? JSON.parse(jsonMatch[0]) : {};
-      } catch {
-        analysisData = {
-          reads: [],
-          coverageTypes: { Cover2: 40, Cover3: 35, Man: 20, TwoDeep: 5 },
-          blitzTendencies: [{ blitzType: "LB Blitz", frequency: 30, effectiveness: 0.65 }],
-          drilQuestions: [],
-        };
-      }
-
-      await savePreSnapReads(input.sessionId, analysisData);
-      return analysisData;
+      return data;
     }),
 
   getPreSnapReads: protectedProcedure
     .input(z.object({ sessionId: z.number() }))
     .query(async ({ input, ctx }) => {
-      const session = await getGameSession(input.sessionId);
-      if (!session) throw new Error("Session not found");
-      if (session.userId !== ctx.user.id) throw new Error("Unauthorized");
-
-      return await getPreSnapReadsBySession(input.sessionId);
+      await getOwnedReport(input.sessionId, ctx.user.id);
+      return getPreSnapReadsBySession(input.sessionId);
     }),
 
-  /**
-   * TURNOVER PREDICTOR AI
-   * Analyzes interception risk, fumble risk, sack vulnerability
-   */
   analyzeTurnovers: protectedProcedure
-    .input(z.object({ sessionId: z.number() }))
+    .input(z.object({ sessionId: z.number(), context: z.string().max(20_000).optional() }))
     .mutation(async ({ input, ctx }) => {
-      const session = await getGameSession(input.sessionId);
-      if (!session) throw new Error("Session not found");
-      if (session.userId !== ctx.user.id) throw new Error("Unauthorized");
-
-      const report = await getReportBySessionId(input.sessionId);
-      if (!report) throw new Error("Scouting report not found");
-
-      const highlights = Array.isArray(report.highlights) ? report.highlights : [];
-
-      const analysisPrompt = `
-You are an elite football coach analyzing turnover risk from game film.
-
-Based on the following plays, analyze turnover risk for each play:
-1. Interception risk (0-100 scale)
-2. Fumble risk (0-100 scale)
-3. Sack vulnerability (0-100 scale)
-4. Pressure points (which gaps are exposed)
-5. Recommendations for safer alternatives
-
-Highlights: ${JSON.stringify(highlights)}
-
-Return a JSON response with:
-{
-  "plays": [
-    {
-      "playId": "...",
-      "interceptionRisk": 35,
-      "fumbleRisk": 15,
-      "sackVulnerability": 45,
-      "pressurePoints": ["A-gap", "edge"],
-      "recommendation": "Try play-action instead"
-    }
-  ],
-  "riskSummary": {
-    "avgInterceptionRisk": 30,
-    "avgFumbleRisk": 12,
-    "avgSackVulnerability": 40,
-    "highRiskPlays": 3
-  },
-  "historicalData": {
-    "playType": { "successRate": 0.65, "turnoverRate": 0.15, "lastOccurrence": "Q3" }
-  }
-}
-
-Return ONLY valid JSON.
-`;
-
-      const response = await invokeLLM({
-        model: "gemini-2.5-flash",
-        messages: [{ role: "user", content: analysisPrompt }],
+      const report = await getOwnedReport(input.sessionId, ctx.user.id);
+      const data = await recordQuality(input.sessionId, ctx.user.id, "turnovers", await runGuardedAnalytics({
+        module: "turnovers",
+        report,
+        verifiedContext: input.context,
+        instructions: `Return analysisJson with: plays array containing playId, interceptionRisk, fumbleRisk, sackVulnerability, pressurePoints, recommendation, evidenceHighlightIndexes; riskSummary containing avgInterceptionRisk, avgFumbleRisk, avgSackVulnerability, highRiskPlays; historicalData object. Risk values are AI-estimated coaching risk scores from 0 to 100, never historical rates. Leave historicalData empty unless the supplied evidence explicitly contains prior outcomes.`,
+      }));
+      await saveTurnoverPredictors(input.sessionId, {
+        plays: data.plays,
+        riskSummary: data.riskSummary,
+        historicalData: data.historicalData,
       });
-
-      const responseText = response.choices[0]?.message?.content || '';
-      const contentStr = typeof responseText === 'string' ? responseText : JSON.stringify(responseText);
-
-      let analysisData;
-      try {
-        const jsonMatch = contentStr.match(/\{[\s\S]*\}/);
-        analysisData = jsonMatch ? JSON.parse(jsonMatch[0]) : {};
-      } catch {
-        analysisData = {
-          plays: [],
-          riskSummary: {
-            avgInterceptionRisk: 30,
-            avgFumbleRisk: 12,
-            avgSackVulnerability: 40,
-            highRiskPlays: 0,
-          },
-          historicalData: {},
-        };
-      }
-
-      await saveTurnoverPredictors(input.sessionId, analysisData);
-      return analysisData;
+      return data;
     }),
 
   getTurnovers: protectedProcedure
     .input(z.object({ sessionId: z.number() }))
     .query(async ({ input, ctx }) => {
-      const session = await getGameSession(input.sessionId);
-      if (!session) throw new Error("Session not found");
-      if (session.userId !== ctx.user.id) throw new Error("Unauthorized");
-
-      return await getTurnoverPredictorsBySession(input.sessionId);
+      await getOwnedReport(input.sessionId, ctx.user.id);
+      return getTurnoverPredictorsBySession(input.sessionId);
     }),
 });

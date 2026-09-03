@@ -1,7 +1,7 @@
 import { eq, desc } from "drizzle-orm";
 import { sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, users, gameSessions, scoutingReports, playerProfiles, mistakeAnalyses, highlightReels, formationAnalytics, presnapsReads, turnoverPredictors, heatMapAnalytics, routeTreeAnalytics, blockingAnalytics, momentumAnalytics, gapAnalytics, injuryImpactAnalytics, penaltyAnalytics, redZoneAnalytics, thirdDownAnalytics, twoMinuteAnalytics, situationalAnalytics, playerComparisons, liveGameSessions, liveAnalysisEvents, type InsertGameSession, type InsertScoutingReport, type InsertPlayerProfile, type InsertLiveGameSession, type InsertLiveAnalysisEvent } from "../drizzle/schema";
+import { InsertUser, users, gameSessions, scoutingReports, playerProfiles, mistakeAnalyses, highlightReels, formationAnalytics, presnapsReads, turnoverPredictors, heatMapAnalytics, routeTreeAnalytics, blockingAnalytics, momentumAnalytics, gapAnalytics, injuryImpactAnalytics, penaltyAnalytics, redZoneAnalytics, thirdDownAnalytics, twoMinuteAnalytics, situationalAnalytics, playerComparisons, liveGameSessions, liveAnalysisEvents, advancedAnalyticsRuns, type InsertGameSession, type InsertScoutingReport, type InsertPlayerProfile, type InsertLiveGameSession, type InsertLiveAnalysisEvent, type InsertAdvancedAnalyticsRun } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -646,4 +646,52 @@ export async function saveLiveAnalysisEvent(data: InsertLiveAnalysisEvent) {
       inputFrameCount: data.inputFrameCount,
     },
   });
+}
+
+export async function saveAdvancedAnalyticsRun(data: InsertAdvancedAnalyticsRun) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.insert(advancedAnalyticsRuns).values(data).onDuplicateKeyUpdate({
+    set: {
+      status: data.status,
+      summary: data.summary,
+      confidence: data.confidence,
+      dataBasis: data.dataBasis,
+      evidence: data.evidence,
+      missingInputs: data.missingInputs,
+      limitations: data.limitations,
+      coachVerified: data.coachVerified,
+      updatedAt: new Date(),
+    },
+  });
+}
+
+export async function listAdvancedAnalyticsRuns(sessionId: number, userId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select()
+    .from(advancedAnalyticsRuns)
+    .where(sql`${advancedAnalyticsRuns.sessionId} = ${sessionId} AND ${advancedAnalyticsRuns.userId} = ${userId}`)
+    .orderBy(desc(advancedAnalyticsRuns.updatedAt));
+}
+
+export async function getAdvancedAnalyticsRun(sessionId: number, userId: number, module: string) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const rows = await db
+    .select()
+    .from(advancedAnalyticsRuns)
+    .where(sql`${advancedAnalyticsRuns.sessionId} = ${sessionId} AND ${advancedAnalyticsRuns.userId} = ${userId} AND ${advancedAnalyticsRuns.module} = ${module}`)
+    .limit(1);
+  return rows[0];
+}
+
+export async function setAdvancedAnalyticsCoachVerified(sessionId: number, userId: number, module: string, verified: boolean) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db
+    .update(advancedAnalyticsRuns)
+    .set({ coachVerified: verified ? 1 : 0, updatedAt: new Date() })
+    .where(sql`${advancedAnalyticsRuns.sessionId} = ${sessionId} AND ${advancedAnalyticsRuns.userId} = ${userId} AND ${advancedAnalyticsRuns.module} = ${module}`);
 }
