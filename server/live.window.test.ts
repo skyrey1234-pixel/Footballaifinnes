@@ -1,13 +1,35 @@
-import { describe, expect, it } from "vitest";
 import {
+  enqueueLatestWindow,
   getCompletedWindowIndex,
   getLiveLaunchIssue,
+  LIVE_WINDOW_SECONDS,
   selectFramesForWindow,
   shouldContinueAfterWindowFailure,
   transitionLiveRunState,
 } from "../client/src/lib/liveWindow";
+import { describe, expect, it } from "vitest";
 
 describe("Live View browser window scheduler", () => {
+  it("uses one shared five-second cadence", () => {
+    expect(LIVE_WINDOW_SECONDS).toBe(5);
+    expect(getCompletedWindowIndex(4.99)).toBe(-1);
+    expect(getCompletedWindowIndex(5)).toBe(0);
+    expect(getCompletedWindowIndex(9.99)).toBe(0);
+    expect(getCompletedWindowIndex(10)).toBe(1);
+  });
+
+  it("selects only chronological evidence inside the completed five-second window", () => {
+    const selected = selectFramesForWindow([
+      { second: 1, dataUrl: "frame-0" },
+      { second: 5, dataUrl: "frame-1" },
+      { second: 6.2, dataUrl: "frame-2" },
+      { second: 8.7, dataUrl: "frame-3" },
+      { second: 10.2, dataUrl: "frame-4" },
+      { second: 14, dataUrl: "frame-5" },
+    ], 1);
+    expect(selected).toEqual(["frame-1", "frame-2", "frame-3", "frame-4"]);
+  });
+
   it("transitions start, pause, resume, and stop deterministically", () => {
     expect(transitionLiveRunState("idle", "start")).toBe("running");
     expect(transitionLiveRunState("running", "pause")).toBe("paused");
@@ -16,28 +38,19 @@ describe("Live View browser window scheduler", () => {
     expect(transitionLiveRunState("complete", "start")).toBe("complete");
   });
 
-  it("dispatches exactly one completed 15-second window boundary", () => {
-    expect(getCompletedWindowIndex(14.99)).toBe(-1);
-    expect(getCompletedWindowIndex(15)).toBe(0);
-    expect(getCompletedWindowIndex(29.99)).toBe(0);
-    expect(getCompletedWindowIndex(30)).toBe(1);
-  });
-
-  it("selects only chronological evidence inside the completed window", () => {
-    const selected = selectFramesForWindow([
-      { second: 2, dataUrl: "frame-0" },
-      { second: 15, dataUrl: "frame-1" },
-      { second: 18, dataUrl: "frame-2" },
-      { second: 24, dataUrl: "frame-3" },
-      { second: 31, dataUrl: "frame-4" },
-    ], 1);
-    expect(selected).toEqual(["frame-1", "frame-2", "frame-3", "frame-4"]);
-  });
-
   it("continues after a failed window only while the coach remains live", () => {
     expect(shouldContinueAfterWindowFailure("running")).toBe(true);
     expect(shouldContinueAfterWindowFailure("paused")).toBe(false);
     expect(shouldContinueAfterWindowFailure("complete")).toBe(false);
+  });
+
+  it("queues five-second windows without duplicates and retains only the latest bounded backlog", () => {
+    let queue: Array<{ windowIndex: number }> = [];
+    for (let windowIndex = 0; windowIndex < 9; windowIndex += 1) {
+      queue = enqueueLatestWindow(queue, { windowIndex }, 6);
+    }
+    queue = enqueueLatestWindow(queue, { windowIndex: 8 }, 6);
+    expect(queue.map((item) => item.windowIndex)).toEqual([3, 4, 5, 6, 7, 8]);
   });
 
   it("never silently disables camera launch and gives replay mode an actionable missing-file state", () => {

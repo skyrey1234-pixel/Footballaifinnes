@@ -589,7 +589,7 @@ export async function getLiveGameSession(id: number, userId: number) {
 export async function updateLiveGameSession(
   id: number,
   userId: number,
-  data: Partial<Pick<InsertLiveGameSession, "status" | "currentVideoSecond" | "situation" | "latestSummary" | "errorMessage" | "startedAt" | "endedAt">>,
+  data: Partial<Pick<InsertLiveGameSession, "status" | "currentVideoSecond" | "situation" | "gameMemory" | "latestSummary" | "errorMessage" | "startedAt" | "endedAt">>,
 ) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
@@ -640,12 +640,18 @@ export async function saveLiveAnalysisEvent(data: InsertLiveAnalysisEvent) {
       windowStartSeconds: data.windowStartSeconds,
       windowEndSeconds: data.windowEndSeconds,
       visibleAction: data.visibleAction,
+      teamPhase: data.teamPhase,
+      phaseReason: data.phaseReason,
       formation: data.formation,
       personnel: data.personnel,
       defensiveLook: data.defensiveLook,
       playCall: data.playCall,
       predictionSummary: data.predictionSummary,
       nextPlayProbabilities: data.nextPlayProbabilities,
+      offenseInsights: data.offenseInsights,
+      defenseInsights: data.defenseInsights,
+      impactPlayers: data.impactPlayers,
+      keyMatchups: data.keyMatchups,
       tendencyShift: data.tendencyShift,
       counterCall: data.counterCall,
       riskLevel: data.riskLevel,
@@ -653,6 +659,7 @@ export async function saveLiveAnalysisEvent(data: InsertLiveAnalysisEvent) {
       evidence: data.evidence,
       confidence: data.confidence,
       inputFrameCount: data.inputFrameCount,
+      latencyMs: data.latencyMs,
     },
   });
 }

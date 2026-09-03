@@ -292,7 +292,7 @@ export type PlayerComparison = typeof playerComparisons.$inferSelect;
 // ============ LIVE GAME INTELLIGENCE ============
 
 // One durable Live View run. Uploaded replay footage and browser camera sessions
-// share the same lifecycle; the active browser supplies sampled frames.
+// share the same lifecycle; the active browser supplies five-second evidence windows.
 export const liveGameSessions = mysqlTable("live_game_sessions", {
   id: int("id").autoincrement().primaryKey(),
   userId: int("userId").notNull(),
@@ -304,9 +304,10 @@ export const liveGameSessions = mysqlTable("live_game_sessions", {
   status: mysqlEnum("status", ["setup", "ready", "live", "paused", "complete", "failed"])
     .default("setup")
     .notNull(),
-  analysisIntervalSeconds: int("analysisIntervalSeconds").default(15).notNull(),
+  analysisIntervalSeconds: int("analysisIntervalSeconds").default(5).notNull(),
   currentVideoSecond: int("currentVideoSecond").default(0).notNull(),
   situation: json("situation"),
+  gameMemory: json("gameMemory"),
   latestSummary: text("latestSummary"),
   errorMessage: text("errorMessage"),
   startedAt: timestamp("startedAt"),
@@ -318,7 +319,7 @@ export const liveGameSessions = mysqlTable("live_game_sessions", {
 export type LiveGameSession = typeof liveGameSessions.$inferSelect;
 export type InsertLiveGameSession = typeof liveGameSessions.$inferInsert;
 
-// One AI result per 15-second footage window. The unique window index prevents
+// One AI result per five-second footage window. The unique window index prevents
 // retries, slow networks, or double clicks from creating duplicate predictions.
 export const liveAnalysisEvents = mysqlTable(
   "live_analysis_events",
@@ -330,12 +331,18 @@ export const liveAnalysisEvents = mysqlTable(
     windowStartSeconds: int("windowStartSeconds").notNull(),
     windowEndSeconds: int("windowEndSeconds").notNull(),
     visibleAction: text("visibleAction"),
+    teamPhase: mysqlEnum("teamPhase", ["offense", "defense", "special_teams", "transition", "unclear"]).default("unclear").notNull(),
+    phaseReason: text("phaseReason"),
     formation: varchar("formation", { length: 96 }),
     personnel: varchar("personnel", { length: 96 }),
     defensiveLook: varchar("defensiveLook", { length: 128 }),
     playCall: varchar("playCall", { length: 160 }),
     predictionSummary: text("predictionSummary"),
     nextPlayProbabilities: json("nextPlayProbabilities"),
+    offenseInsights: json("offenseInsights"),
+    defenseInsights: json("defenseInsights"),
+    impactPlayers: json("impactPlayers"),
+    keyMatchups: json("keyMatchups"),
     tendencyShift: text("tendencyShift"),
     counterCall: text("counterCall"),
     riskLevel: mysqlEnum("riskLevel", ["low", "moderate", "high", "critical"]).default("low").notNull(),
@@ -343,6 +350,7 @@ export const liveAnalysisEvents = mysqlTable(
     evidence: json("evidence"),
     confidence: int("confidence").default(0).notNull(),
     inputFrameCount: int("inputFrameCount").default(0).notNull(),
+    latencyMs: int("latencyMs").default(0).notNull(),
     createdAt: timestamp("createdAt").defaultNow().notNull(),
   },
   (table) => ({

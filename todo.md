@@ -1,5 +1,16 @@
 # TacticalEdge AI — Project TODO
 
+- [x] LIVE 5S: Change the rolling analysis cadence from 15 seconds to 5 seconds across schema defaults, backend validation, UI timing, labels, and tests
+- [x] LIVE 5S: Prevent overlapping AI requests and safely queue or skip windows when a model response takes longer than five seconds
+- [x] LIVE 5S: Classify each window as filmed team on offense, defense, special teams, transition, or unclear with evidence and confidence
+- [x] LIVE 5S: Maintain separate cumulative offense and defense tendency memory throughout each live session
+- [x] LIVE 5S: Generate exactly two ranked next-play predictions with probabilities, evidence, reasoning, and recommended counters every analyzed window
+- [x] LIVE 5S: Track the most impactful offensive and defensive players across the game without inventing player identities
+- [x] LIVE 5S: Display separate offense intelligence, defense intelligence, player-impact leaders, and two next-play prediction cards in Live View
+- [x] LIVE 5S: Persist cumulative game memory and player-impact data so refresh, pause, and resume do not reset the learned profile
+- [x] LIVE 5S: Add regression tests for cadence, possession classification, two-prediction normalization, memory accumulation, race safety, and identity uncertainty
+- [ ] LIVE 5S: Validate the upgraded loop with real football footage, verify desktop/mobile production behavior, and publish
+
 - [x] BUG: Open Live Command Center launch repaired — removed the silent disabled state, added actionable replay selection and camera-ready guidance, verified camera-mode creation on production through session 390003, and removed the temporary verification session
 
 - [x] BUG: Game-session deletion now removes all 15 module rows and shared advanced-analytics evidence records; integration-tested across every analytics table

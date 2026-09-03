@@ -1,6 +1,8 @@
 export type LiveRunState = "idle" | "running" | "paused" | "complete";
 export type LiveRunAction = "start" | "pause" | "end";
 export type BufferedLiveFrame = { second: number; dataUrl: string };
+export const LIVE_WINDOW_SECONDS = 5;
+export const LIVE_FRAME_CAPTURE_SECONDS = 1.2;
 
 export function getLiveLaunchIssue(sourceType: "upload" | "camera", uploadedFileKey: string) {
   if (sourceType === "upload" && !uploadedFileKey.trim()) return "Choose game footage before opening replay mode.";
@@ -13,7 +15,7 @@ export function transitionLiveRunState(current: LiveRunState, action: LiveRunAct
   return current === "complete" ? "complete" : "running";
 }
 
-export function getCompletedWindowIndex(currentSecond: number, windowSeconds = 15) {
+export function getCompletedWindowIndex(currentSecond: number, windowSeconds = LIVE_WINDOW_SECONDS) {
   if (!Number.isFinite(currentSecond) || currentSecond < windowSeconds) return -1;
   return Math.floor(currentSecond / windowSeconds) - 1;
 }
@@ -21,8 +23,8 @@ export function getCompletedWindowIndex(currentSecond: number, windowSeconds = 1
 export function selectFramesForWindow(
   frames: BufferedLiveFrame[],
   windowIndex: number,
-  windowSeconds = 15,
-  maxFrames = 6,
+  windowSeconds = LIVE_WINDOW_SECONDS,
+  maxFrames = 4,
 ) {
   const start = windowIndex * windowSeconds;
   const end = start + windowSeconds;
@@ -34,4 +36,9 @@ export function selectFramesForWindow(
 
 export function shouldContinueAfterWindowFailure(state: LiveRunState) {
   return state === "running";
+}
+
+export function enqueueLatestWindow<T extends { windowIndex: number }>(queue: T[], window: T, maxQueued = 6) {
+  if (queue.some((item) => item.windowIndex === window.windowIndex)) return queue;
+  return [...queue, window].slice(-Math.max(1, maxQueued));
 }

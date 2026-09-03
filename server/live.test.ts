@@ -1,5 +1,5 @@
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { appRouter } from "./routers";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import * as db from "./db";
 import { normalizeLiveResult, parseLiveJson, type LiveWindowResult } from "./liveAnalysis";
 import type { TrpcContext } from "./_core/context";
@@ -25,6 +25,34 @@ const viewerContext = {
   user: { ...adminContext.user!, id: 2, role: "user" as const },
 } as TrpcContext;
 
+function liveResult(overrides: Partial<LiveWindowResult> = {}): LiveWindowResult {
+  return {
+    visibleAction: "Shotgun pre-snap alignment",
+    teamPhase: "offense",
+    phaseReason: "The entered possession and visible offensive alignment agree.",
+    formation: "Trips right",
+    personnel: "11 personnel",
+    defensiveLook: "Nickel shell",
+    playCall: "Pre-snap",
+    predictionSummary: "Inside zone and quick game are the top two possibilities.",
+    nextPlayProbabilities: [
+      { label: "Inside zone", probability: 6, reason: "Light box." },
+      { label: "Quick pass", probability: 4, reason: "Trips leverage." },
+    ],
+    offenseInsights: { summary: "Spread structure.", tendencies: ["Trips strength"], strengths: ["Spacing"], vulnerabilities: ["Interior pressure"] },
+    defenseInsights: { summary: "Nickel shell.", tendencies: ["Two-high disguise"], strengths: ["Speed"], vulnerabilities: ["Light box"] },
+    impactPlayers: [{ playerLabel: "Boundary WR — identity unclear", unit: "offense", reason: "Commands cushion.", evidenceFrameIndex: 0, confidence: 72 }],
+    keyMatchups: ["Boundary WR vs off corner"],
+    tendencyShift: "No confirmed shift.",
+    counterCall: "Run at the light box.",
+    riskLevel: "moderate",
+    alerts: [],
+    evidence: [{ frameIndex: 0, observation: "Trips alignment is visible." }],
+    confidence: 82,
+    ...overrides,
+  };
+}
+
 describe("Live Game Intelligence", () => {
   let liveSessionId = 0;
 
@@ -35,7 +63,7 @@ describe("Live Game Intelligence", () => {
       opponentName: "Test Opponent",
       sourceType: "camera",
       status: "ready",
-      analysisIntervalSeconds: 15,
+      analysisIntervalSeconds: 5,
     });
   });
 
@@ -43,56 +71,31 @@ describe("Live Game Intelligence", () => {
     if (liveSessionId) await db.deleteLiveGameSession(liveSessionId, 1);
   });
 
-  it("normalizes next-play probabilities and confidence", () => {
-    const raw: LiveWindowResult = {
-      visibleAction: "Shotgun pre-snap alignment",
-      formation: "Trips right",
-      personnel: "11 personnel",
-      defensiveLook: "Nickel shell",
-      playCall: "Pre-snap",
-      predictionSummary: "Pass is the leading estimate.",
+  it("returns exactly two normalized next-play predictions and clamps confidence", () => {
+    const normalized = normalizeLiveResult(liveResult({
       nextPlayProbabilities: [
-        { label: "Pass", probability: 6, reason: "Three detached receivers." },
+        { label: "Pass", probability: 6, reason: "Detached receivers." },
         { label: "Run", probability: 3, reason: "Light box." },
         { label: "Screen", probability: 1, reason: "Pressure answer." },
       ],
-      tendencyShift: "No confirmed shift.",
-      counterCall: "Show pressure and bail.",
-      riskLevel: "moderate",
-      alerts: [],
-      evidence: [{ frameIndex: 0, observation: "Trips alignment is visible." }],
       confidence: 112,
-    };
-
-    const normalized = normalizeLiveResult(raw);
+    }));
+    expect(normalized.nextPlayProbabilities).toHaveLength(2);
     expect(normalized.nextPlayProbabilities.reduce((sum, item) => sum + item.probability, 0)).toBe(100);
-    expect(normalized.nextPlayProbabilities.map((item) => item.probability)).toEqual([60, 30, 10]);
+    expect(normalized.nextPlayProbabilities.map((item) => item.probability)).toEqual([67, 33]);
     expect(normalized.confidence).toBe(100);
   });
 
   it("accepts a fenced structured response without weakening JSON parsing", () => {
-    const parsed = parseLiveJson('```json\n{"visibleAction":"Pre-snap","formation":"Spread","personnel":"11","defensiveLook":"Nickel","playCall":"Unclear","predictionSummary":"Pass lean","nextPlayProbabilities":[],"tendencyShift":"None","counterCall":"Hold","riskLevel":"low","alerts":[],"evidence":[],"confidence":50}\n```');
-    expect(parsed.formation).toBe("Spread");
-    expect(parsed.confidence).toBe(50);
+    const parsed = parseLiveJson(`\`\`\`json\n${JSON.stringify(liveResult())}\n\`\`\``);
+    expect(parsed.formation).toBe("Trips right");
+    expect(parsed.teamPhase).toBe("offense");
   });
 
-  it("converts a zero-to-one confidence response to the UI percentage scale", () => {
-    const normalized = normalizeLiveResult({
-      visibleAction: "Static pre-snap look",
-      formation: "Unclear",
-      personnel: "Unclear",
-      defensiveLook: "Unclear",
-      playCall: "Unclear",
-      predictionSummary: "Low-evidence estimate",
-      nextPlayProbabilities: [],
-      tendencyShift: "None",
-      counterCall: "Confirm the look",
-      riskLevel: "low",
-      alerts: [],
-      evidence: [],
-      confidence: 0.72,
-    });
+  it("converts zero-to-one confidence and preserves identity-safe player labels", () => {
+    const normalized = normalizeLiveResult(liveResult({ confidence: 0.72 }));
     expect(normalized.confidence).toBe(72);
+    expect(normalized.impactPlayers[0]?.playerLabel).toContain("identity unclear");
   });
 
   it("prevents viewers from creating a live session", async () => {
@@ -101,38 +104,54 @@ describe("Live Game Intelligence", () => {
       name: "Forbidden session",
       opponentName: "Opponent",
       sourceType: "camera",
-      analysisIntervalSeconds: 15,
+      analysisIntervalSeconds: 5,
     })).rejects.toMatchObject({ code: "FORBIDDEN" });
   });
 
   it("keeps live sessions owner scoped", async () => {
     const ownerSession = await db.getLiveGameSession(liveSessionId, 1);
     const otherUserSession = await db.getLiveGameSession(liveSessionId, 999_999);
-    expect(ownerSession?.name).toBe("Live integration test");
+    expect(ownerSession?.analysisIntervalSeconds).toBe(5);
     expect(otherUserSession).toBeUndefined();
   });
 
-  it("upserts duplicate 15-second windows instead of duplicating events", async () => {
+  it("upserts duplicate five-second windows instead of duplicating events", async () => {
+    const result = liveResult();
     const base = {
       liveSessionId,
       userId: 1,
       windowIndex: 0,
       windowStartSeconds: 0,
-      windowEndSeconds: 15,
-      formation: "Trips right",
-      playCall: "Inside zone",
-      predictionSummary: "Initial estimate",
-      nextPlayProbabilities: [{ label: "Run", probability: 60, reason: "Light box" }],
-      riskLevel: "low" as const,
-      confidence: 70,
+      windowEndSeconds: 5,
+      visibleAction: result.visibleAction,
+      teamPhase: result.teamPhase,
+      phaseReason: result.phaseReason,
+      formation: result.formation,
+      personnel: result.personnel,
+      defensiveLook: result.defensiveLook,
+      playCall: result.playCall,
+      predictionSummary: result.predictionSummary,
+      nextPlayProbabilities: result.nextPlayProbabilities,
+      offenseInsights: result.offenseInsights,
+      defenseInsights: result.defenseInsights,
+      impactPlayers: result.impactPlayers,
+      keyMatchups: result.keyMatchups,
+      tendencyShift: result.tendencyShift,
+      counterCall: result.counterCall,
+      riskLevel: result.riskLevel,
+      alerts: result.alerts,
+      evidence: result.evidence,
+      confidence: result.confidence,
       inputFrameCount: 4,
+      latencyMs: 900,
     };
     await db.saveLiveAnalysisEvent(base);
-    await db.saveLiveAnalysisEvent({ ...base, predictionSummary: "Updated estimate", confidence: 82 });
+    await db.saveLiveAnalysisEvent({ ...base, predictionSummary: "Updated estimate", confidence: 88 });
 
     const events = await db.listLiveAnalysisEvents(liveSessionId, 1);
     expect(events).toHaveLength(1);
+    expect(events[0]?.windowEndSeconds).toBe(5);
     expect(events[0]?.predictionSummary).toBe("Updated estimate");
-    expect(events[0]?.confidence).toBe(82);
+    expect(events[0]?.confidence).toBe(88);
   });
 });

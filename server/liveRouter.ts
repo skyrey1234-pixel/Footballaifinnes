@@ -2,7 +2,8 @@ import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { protectedProcedure, router } from "./_core/trpc";
 import * as db from "./db";
-import { analyzeLiveWindow, type LiveSituation } from "./liveAnalysis";
+import { analyzeLiveWindow, LIVE_WINDOW_SECONDS, type LiveSituation } from "./liveAnalysis";
+import { mergeLiveGameMemory, normalizeLiveGameMemory } from "./liveMemory";
 
 const adminProcedure = protectedProcedure.use(({ ctx, next }) => {
   if (ctx.user.role !== "admin") {
@@ -52,7 +53,7 @@ export const liveRouter = router({
       sourceType: z.enum(["upload", "camera"]),
       videoFileKey: z.string().max(2_000).optional(),
       videoUrl: z.string().max(4_000).optional(),
-      analysisIntervalSeconds: z.literal(15).default(15),
+      analysisIntervalSeconds: z.literal(5).default(5),
     }))
     .mutation(async ({ ctx, input }) => {
       if (input.sourceType === "upload" && !input.videoFileKey) {
@@ -66,7 +67,7 @@ export const liveRouter = router({
         videoFileKey: input.videoFileKey ?? null,
         videoUrl: input.videoUrl ?? null,
         status: "ready",
-        analysisIntervalSeconds: 15,
+        analysisIntervalSeconds: LIVE_WINDOW_SECONDS,
         situation: {
           quarter: "1st",
           clock: "15:00",
@@ -126,8 +127,8 @@ export const liveRouter = router({
       const existing = await db.getLiveAnalysisEventByWindow(input.id, ctx.user.id, input.windowIndex);
       if (existing) return { event: existing, duplicate: true };
 
-      const recent = await db.listLiveAnalysisEvents(input.id, ctx.user.id, 4);
       try {
+        const analysisStartedAt = Date.now();
         const result = await Promise.race([
           analyzeLiveWindow({
             opponentName: session.opponentName,
@@ -135,12 +136,7 @@ export const liveRouter = router({
             windowEndSeconds: input.windowEndSeconds,
             frames: input.frames,
             situation: input.situation as LiveSituation,
-            recentContext: recent.map((event) => ({
-              windowIndex: event.windowIndex,
-              formation: event.formation,
-              playCall: event.playCall,
-              predictionSummary: event.predictionSummary,
-            })),
+            gameMemory: normalizeLiveGameMemory(session.gameMemory),
           }),
           new Promise<never>((_, reject) => {
             setTimeout(() => reject(new Error("Live AI window timed out after 55 seconds")), 55_000);
@@ -151,6 +147,7 @@ export const liveRouter = router({
         // end, or delete the session while the request is in flight.
         const currentSession = await db.getLiveGameSession(input.id, ctx.user.id);
         if (!currentSession) return { event: undefined, duplicate: false, canceled: true };
+        const gameMemory = mergeLiveGameMemory(currentSession.gameMemory, result, input.windowIndex);
 
         await db.saveLiveAnalysisEvent({
           liveSessionId: input.id,
@@ -159,12 +156,18 @@ export const liveRouter = router({
           windowStartSeconds: input.windowStartSeconds,
           windowEndSeconds: input.windowEndSeconds,
           visibleAction: result.visibleAction,
+          teamPhase: result.teamPhase,
+          phaseReason: result.phaseReason,
           formation: result.formation,
           personnel: result.personnel,
           defensiveLook: result.defensiveLook,
           playCall: result.playCall,
           predictionSummary: result.predictionSummary,
           nextPlayProbabilities: result.nextPlayProbabilities,
+          offenseInsights: result.offenseInsights,
+          defenseInsights: result.defenseInsights,
+          impactPlayers: result.impactPlayers,
+          keyMatchups: result.keyMatchups,
           tendencyShift: result.tendencyShift,
           counterCall: result.counterCall,
           riskLevel: result.riskLevel,
@@ -172,6 +175,7 @@ export const liveRouter = router({
           evidence: result.evidence,
           confidence: result.confidence,
           inputFrameCount: input.frames.length,
+          latencyMs: Date.now() - analysisStartedAt,
         });
         await db.updateLiveGameSession(input.id, ctx.user.id, {
           status: currentSession.status === "ready" ? "live" : currentSession.status,
@@ -179,6 +183,7 @@ export const liveRouter = router({
           situation: currentSession.status === "live" || currentSession.status === "ready"
             ? input.situation
             : currentSession.situation,
+          gameMemory,
           latestSummary: result.predictionSummary,
           errorMessage: null,
           startedAt: currentSession.startedAt ?? new Date(),
@@ -196,7 +201,7 @@ export const liveRouter = router({
         });
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
-          message: "This 15-second window could not be analyzed. Playback can continue and the next window will retry.",
+          message: "This five-second window could not be analyzed. Playback can continue and the next window will retry.",
         });
       }
     }),
