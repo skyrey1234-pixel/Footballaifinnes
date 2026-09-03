@@ -15,7 +15,7 @@ vi.mock("./_core/sdk", () => ({ sdk: { authenticateRequest: authMock } }));
 vi.mock("./db", () => ({ getLiveGameSession: sessionMock }));
 vi.mock("./storage", () => ({ storageGetSignedUrl: signedUrlMock }));
 
-import { liveVideoRouter } from "./liveVideoRoute";
+import { LIVE_REPLAY_CHUNK_BYTES, liveVideoRouter, normalizeLiveReplayRange } from "./liveVideoRoute";
 
 const originalFetch = globalThis.fetch;
 
@@ -25,6 +25,12 @@ afterEach(() => {
 });
 
 describe("Live replay streaming", () => {
+  it("bounds open-ended browser ranges so one request cannot stream an entire multi-gigabyte replay", () => {
+    expect(normalizeLiveReplayRange("bytes=0-")).toBe(`bytes=0-${LIVE_REPLAY_CHUNK_BYTES - 1}`);
+    expect(normalizeLiveReplayRange("bytes=500-99999999")).toBe(`bytes=500-${500 + LIVE_REPLAY_CHUNK_BYTES - 1}`);
+    expect(normalizeLiveReplayRange("bytes=100-999")).toBe("bytes=100-999");
+  });
+
   it("forwards byte ranges and does not abort the upstream body when the request finishes", async () => {
     let upstreamSignal: AbortSignal | null = null;
     globalThis.fetch = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {

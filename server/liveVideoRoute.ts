@@ -6,6 +6,18 @@ import { storageGetSignedUrl } from "./storage";
 import { verifyLivePlaybackToken } from "./livePlaybackToken";
 
 export const liveVideoRouter = Router();
+export const LIVE_REPLAY_CHUNK_BYTES = 4 * 1024 * 1024;
+
+export function normalizeLiveReplayRange(range: string | undefined, chunkBytes = LIVE_REPLAY_CHUNK_BYTES) {
+  if (!range) return undefined;
+  const match = /^bytes=(\d+)-(\d*)$/i.exec(range.trim());
+  if (!match) return range;
+  const start = Number(match[1]);
+  const requestedEnd = match[2] ? Number(match[2]) : Number.POSITIVE_INFINITY;
+  if (!Number.isSafeInteger(start) || start < 0) return range;
+  const boundedEnd = Math.min(requestedEnd, start + Math.max(1, chunkBytes) - 1);
+  return `bytes=${start}-${boundedEnd}`;
+}
 
 const FORWARDED_RESPONSE_HEADERS = [
   "accept-ranges",
@@ -44,7 +56,7 @@ async function streamLiveReplay(req: Request, res: Response) {
     res.on("close", () => abortController.abort());
 
     const headers: Record<string, string> = { "Accept-Encoding": "identity" };
-    if (typeof req.headers.range === "string") headers.Range = req.headers.range;
+    if (typeof req.headers.range === "string") headers.Range = normalizeLiveReplayRange(req.headers.range) ?? req.headers.range;
     if (typeof req.headers["if-range"] === "string") headers["If-Range"] = req.headers["if-range"];
 
     const upstream = await fetch(signedUrl, {
