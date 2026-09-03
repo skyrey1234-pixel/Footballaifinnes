@@ -108,6 +108,73 @@ export function parseLiveJson(raw: string): LiveWindowResult {
   throw new Error(`Live vision model returned invalid JSON: ${trimmed.slice(0, 240)}`);
 }
 
+export function asLiveText(content: unknown) {
+  if (typeof content === "string") return content;
+  if (Array.isArray(content)) {
+    return content.map((part) => typeof part === "object" && part && "text" in part ? String(part.text) : "").join("");
+  }
+  return content ? JSON.stringify(content) : "";
+}
+
+function topLabel(values: Record<string, number> | undefined) {
+  return Object.entries(values ?? {}).sort((a, b) => b[1] - a[1])[0]?.[0] || "Unclear";
+}
+
+export function buildRecoveredLiveResult(input: {
+  situation: LiveSituation;
+  frames: string[];
+  gameMemory?: LiveGameMemory | null;
+}): LiveWindowResult {
+  const memory = input.gameMemory ?? emptyLiveGameMemory();
+  const teamPhase: TeamPhase = input.situation.possession === "us"
+    ? "offense"
+    : input.situation.possession === "opponent" ? "defense" : "unclear";
+  const memoryCalls = Object.entries(memory.offense.calls ?? {}).sort((a, b) => b[1] - a[1]).slice(0, 2);
+  const concepts = memoryCalls.length >= 2
+    ? memoryCalls.map(([label, count]) => ({ label, count }))
+    : [
+        { label: memoryCalls[0]?.[0] || "Primary concept unclear", count: memoryCalls[0]?.[1] || 1 },
+        { label: "Secondary concept unclear", count: 1 },
+      ];
+  const total = concepts.reduce((sum, item) => sum + item.count, 0);
+  const firstProbability = Math.round((concepts[0].count / Math.max(1, total)) * 100);
+
+  return normalizeLiveResult({
+    visibleAction: "Frames were captured, but the AI response was incomplete. This window remains available for coach review while the next scan continues.",
+    teamPhase,
+    phaseReason: teamPhase === "unclear" ? "Entered possession is unknown and the incomplete model response could not safely classify the filmed team." : `Classification uses the coach-entered possession: ${input.situation.possession}.`,
+    formation: topLabel(memory.offense.formations),
+    personnel: topLabel(memory.offense.personnel),
+    defensiveLook: topLabel(memory.defense.looks),
+    playCall: "Window requires coach verification",
+    predictionSummary: memory.totalWindows > 0 ? "Predictions are temporarily based on prior verified live-window memory while the next five-second scan continues." : "Current-frame predictions are unavailable; both concepts remain uncertain until the next completed scan.",
+    nextPlayProbabilities: [
+      { label: concepts[0].label, probability: firstProbability, reason: memory.totalWindows > 0 ? `Based only on ${memory.totalWindows} previously completed live window${memory.totalWindows === 1 ? "" : "s"}.` : "Insufficient completed live evidence." },
+      { label: concepts[1].label, probability: 100 - firstProbability, reason: "Secondary possibility retained because the current structured response was incomplete." },
+    ],
+    offenseInsights: {
+      summary: memory.offense.latestSummary || "Offensive tendency is not yet clear.",
+      tendencies: memory.offense.tendencies ?? [],
+      strengths: memory.offense.strengths ?? [],
+      vulnerabilities: memory.offense.vulnerabilities ?? [],
+    },
+    defenseInsights: {
+      summary: memory.defense.latestSummary || "Defensive tendency is not yet clear.",
+      tendencies: memory.defense.tendencies ?? [],
+      strengths: memory.defense.strengths ?? [],
+      vulnerabilities: memory.defense.vulnerabilities ?? [],
+    },
+    impactPlayers: [],
+    keyMatchups: [],
+    tendencyShift: "No new shift is claimed from an incomplete scan.",
+    counterCall: "Hold the current call and verify the look while TacticalEdge continues scanning.",
+    riskLevel: "moderate",
+    alerts: ["This window used automatic structured-response recovery; verify against the field."],
+    evidence: input.frames.length > 0 ? [{ frameIndex: 0, observation: "Visual evidence was captured, but the model response was incomplete." }] : [],
+    confidence: 0,
+  });
+}
+
 export function normalizeLiveResult(result: LiveWindowResult): LiveWindowResult {
   const rawConfidence = Number(result.confidence) || 0;
   const confidence = rawConfidence > 0 && rawConfidence <= 1
@@ -187,15 +254,16 @@ Tasks:
 5. Identify impactful players on either unit. Never invent a name or jersey number. If identity is unreadable, use a role such as "Boundary WR — identity unclear" or "Edge defender — identity unclear".
 6. Identify key matchups, one practical counter call, tendency shifts, and urgent risks. Cite frame-index evidence.
 
-Every output is an AI estimate for coach verification. Never claim a full-game percentage from partial windows. Return only the requested JSON.`;
+Every output is an AI estimate for coach verification. Never claim a full-game percentage from partial windows. Keep summaries to two short sentences, each list to three short items, impact players to four, matchups to three, alerts to three, and evidence to four observations. Return only the requested JSON.`;
 
-  const response = await invokeLLM({
+  const messages = [
+    { role: "system" as const, content: "You are a fast, evidence-first football analyst. Produce two next-snap possibilities, learn across the game, and never invent player identities or statistics." },
+    { role: "user" as const, content: [{ type: "text" as const, text: prompt }, ...imageParts] },
+  ];
+  const request = {
     model: LIVE_VISION_MODEL,
-    maxTokens: 4_096,
-    messages: [
-      { role: "system", content: "You are a fast, evidence-first football analyst. Produce two next-snap possibilities, learn across the game, and never invent player identities or statistics." },
-      { role: "user", content: [{ type: "text", text: prompt }, ...imageParts] },
-    ],
+    maxTokens: 6_144,
+    messages,
     response_format: {
       type: "json_schema",
       json_schema: {
@@ -267,9 +335,27 @@ Every output is an AI estimate for coach verification. Never claim a full-game p
         },
       },
     },
-  });
+  } as const;
 
-  const raw = response.choices?.[0]?.message?.content;
-  if (typeof raw !== "string") throw new Error("Live vision model returned no content");
-  return normalizeLiveResult(parseLiveJson(raw));
+  let response = await invokeLLM(request);
+  try {
+    const raw = asLiveText(response.choices?.[0]?.message?.content);
+    if (!raw) throw new Error("Live vision model returned no content");
+    return normalizeLiveResult(parseLiveJson(raw));
+  } catch (firstError) {
+    console.warn("[Live Intelligence] Retrying incomplete structured response", firstError);
+    try {
+      response = await invokeLLM({
+        ...request,
+        maxTokens: 8_192,
+        messages: [...messages, { role: "user" as const, content: "The prior JSON was incomplete. Return the exact same schema again, compactly: two predictions, at most three list items per section, four impact players, three matchups, three alerts, and four evidence observations. Output JSON only." }],
+      });
+      const raw = asLiveText(response.choices?.[0]?.message?.content);
+      if (!raw) throw new Error("Live vision retry returned no content");
+      return normalizeLiveResult(parseLiveJson(raw));
+    } catch (retryError) {
+      console.error("[Live Intelligence] Structured response recovery used", retryError);
+      return buildRecoveredLiveResult({ situation: input.situation, frames: input.frames, gameMemory: memory });
+    }
+  }
 }

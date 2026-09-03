@@ -1,5 +1,7 @@
 # TacticalEdge AI — Project TODO
 
+- [ ] BUG: Live Mode starts but does not complete or display five-second AI scans; reproduce both camera and replay paths, trace frame capture and analyzeWindow requests, fix the failure, add regression coverage, and verify a real production scan
+
 - [x] LIVE 5S: Change the rolling analysis cadence from 15 seconds to 5 seconds across schema defaults, backend validation, UI timing, labels, and tests
 - [x] LIVE 5S: Prevent overlapping AI requests and safely queue or skip windows when a model response takes longer than five seconds
 - [x] LIVE 5S: Classify each window as filmed team on offense, defense, special teams, transition, or unclear with evidence and confidence

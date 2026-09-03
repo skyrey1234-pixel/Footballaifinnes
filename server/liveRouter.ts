@@ -196,9 +196,11 @@ export const liveRouter = router({
           windowIndex: input.windowIndex,
           error,
         });
-        await db.updateLiveGameSession(input.id, ctx.user.id, {
-          errorMessage: error instanceof Error ? error.message.slice(0, 1_000) : "Live analysis failed",
-        });
+        const technicalMessage = error instanceof Error ? error.message : "Live analysis failed";
+        const publicMessage = technicalMessage.includes("timed out")
+          ? "The AI read took too long. TacticalEdge kept the feed running and will try the next five-second window automatically."
+          : "The last AI read was incomplete. TacticalEdge kept the feed running and will retry automatically.";
+        await db.updateLiveGameSession(input.id, ctx.user.id, { errorMessage: publicMessage });
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
           message: "This five-second window could not be analyzed. Playback can continue and the next window will retry.",

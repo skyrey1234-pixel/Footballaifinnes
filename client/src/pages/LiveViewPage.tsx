@@ -678,6 +678,8 @@ export default function LiveViewPage() {
             <Metric icon={BrainCircuit} label="AI queue" value={isAnalyzing ? (queuedWindows ? `${queuedWindows} queued` : "Analyzing") : "Ready"} />
           </section>
 
+          {selectedSession.errorMessage ? <section className="border border-amber-400/25 bg-amber-400/[0.06] p-4 text-sm text-amber-100"><div className="flex items-start gap-3"><AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-300" /><div><p className="font-semibold">Latest scan needs another read</p><p className="mt-1 leading-6 text-amber-100/65">{selectedSession.errorMessage}</p></div></div></section> : null}
+
           <SituationBoard situation={situation} setSituation={setSituation} disabled={runState === "complete"} />
 
           <section className="grid gap-4 lg:grid-cols-2 2xl:grid-cols-[1fr_1fr_0.9fr]">

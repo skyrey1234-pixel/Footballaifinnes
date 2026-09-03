@@ -1,7 +1,7 @@
 import { appRouter } from "./routers";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import * as db from "./db";
-import { normalizeLiveResult, parseLiveJson, type LiveWindowResult } from "./liveAnalysis";
+import { asLiveText, buildRecoveredLiveResult, normalizeLiveResult, parseLiveJson, type LiveWindowResult } from "./liveAnalysis";
 import type { TrpcContext } from "./_core/context";
 
 const adminContext = {
@@ -96,6 +96,22 @@ describe("Live Game Intelligence", () => {
     const normalized = normalizeLiveResult(liveResult({ confidence: 0.72 }));
     expect(normalized.confidence).toBe(72);
     expect(normalized.impactPlayers[0]?.playerLabel).toContain("identity unclear");
+  });
+
+  it("flattens structured content parts before strict JSON parsing", () => {
+    expect(asLiveText([{ type: "text", text: "{\"ok\":" }, { type: "text", text: "true}" }])).toBe('{"ok":true}');
+  });
+
+  it("recovers an incomplete structured response without dropping the five-second window", () => {
+    const recovered = buildRecoveredLiveResult({
+      situation: { quarter: "1st", clock: "12:00", down: 2, distance: 7, yardLine: "40", ourScore: 0, opponentScore: 0, possession: "unknown" },
+      frames: ["frame"],
+      gameMemory: null,
+    });
+    expect(recovered.nextPlayProbabilities).toHaveLength(2);
+    expect(recovered.nextPlayProbabilities.reduce((sum, row) => sum + row.probability, 0)).toBe(100);
+    expect(recovered.confidence).toBe(0);
+    expect(recovered.alerts[0]).toMatch(/recovery/i);
   });
 
   it("prevents viewers from creating a live session", async () => {
