@@ -6,6 +6,7 @@ import { trpc } from "@/lib/trpc";
 import { uploadVideoInChunks, type VideoUploadProgress } from "@/lib/chunkedVideoUpload";
 import {
   getCompletedWindowIndex,
+  getLiveLaunchIssue,
   selectFramesForWindow,
   shouldContinueAfterWindowFailure,
   transitionLiveRunState,
@@ -107,6 +108,7 @@ export default function LiveViewPage() {
   const [localPreviewUrl, setLocalPreviewUrl] = useState("");
   const [uploadProgress, setUploadProgress] = useState<VideoUploadProgress | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [launchMessage, setLaunchMessage] = useState("");
   const [runState, setRunState] = useState<LiveRunState>("idle");
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [secondsToNextRead, setSecondsToNextRead] = useState(15);
@@ -115,6 +117,7 @@ export default function LiveViewPage() {
   const [situation, setSituation] = useState<Situation>(DEFAULT_SITUATION);
 
   const videoRef = useRef<HTMLVideoElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const animationFrameRef = useRef<number | null>(null);
@@ -289,6 +292,7 @@ export default function LiveViewPage() {
   };
 
   const handleUpload = async (file: File) => {
+    setLaunchMessage("");
     setUploading(true);
     setUploadProgress(null);
     setUploadedFileKey("");
@@ -308,18 +312,18 @@ export default function LiveViewPage() {
   };
 
   const createSession = async () => {
-    if (!name.trim() || !opponentName.trim()) {
-      toast.error("Add a session name and opponent.");
+    const issue = getLiveLaunchIssue(sourceType, uploadedFileKey);
+    if (issue) {
+      setLaunchMessage(issue);
+      toast.error(issue);
+      fileInputRef.current?.click();
       return;
     }
-    if (sourceType === "upload" && !uploadedFileKey) {
-      toast.error("Upload game footage first.");
-      return;
-    }
+    setLaunchMessage("");
     try {
       const result = await createMutation.mutateAsync({
-        name: name.trim(),
-        opponentName: opponentName.trim(),
+        name: name.trim() || "Live Game Intelligence",
+        opponentName: opponentName.trim() || "Live Opponent",
         sourceType,
         videoFileKey: sourceType === "upload" ? uploadedFileKey : undefined,
         videoUrl: sourceType === "upload" ? uploadedVideoUrl : undefined,
@@ -432,12 +436,12 @@ export default function LiveViewPage() {
               </div>
 
               <div className="grid grid-cols-2 gap-3">
-                <button onClick={() => setSourceType("upload")} className={`p-4 text-left transition-colors ${sourceType === "upload" ? "bg-emerald-400 text-black" : "border border-white/10 bg-white/[0.03] text-white hover:border-emerald-400/30"}`}>
+                <button onClick={() => { setSourceType("upload"); setLaunchMessage(""); }} className={`p-4 text-left transition-colors ${sourceType === "upload" ? "bg-emerald-400 text-black" : "border border-white/10 bg-white/[0.03] text-white hover:border-emerald-400/30"}`}>
                   <Upload className="h-5 w-5" />
                   <span className="mt-8 block font-semibold">Upload replay</span>
                   <span className={`mt-1 block text-xs ${sourceType === "upload" ? "text-black/65" : "text-white/45"}`}>Best for testing the full live workflow</span>
                 </button>
-                <button onClick={() => setSourceType("camera")} className={`p-4 text-left transition-colors ${sourceType === "camera" ? "bg-emerald-400 text-black" : "border border-white/10 bg-white/[0.03] text-white hover:border-emerald-400/30"}`}>
+                <button onClick={() => { setSourceType("camera"); setLaunchMessage(""); }} className={`p-4 text-left transition-colors ${sourceType === "camera" ? "bg-emerald-400 text-black" : "border border-white/10 bg-white/[0.03] text-white hover:border-emerald-400/30"}`}>
                   <Camera className="h-5 w-5" />
                   <span className="mt-8 block font-semibold">Live camera</span>
                   <span className={`mt-1 block text-xs ${sourceType === "camera" ? "text-black/65" : "text-white/45"}`}>Film from this phone, tablet, or laptop</span>
@@ -457,7 +461,7 @@ export default function LiveViewPage() {
 
               {sourceType === "upload" ? (
                 <label className="block cursor-pointer border border-dashed border-white/15 bg-white/[0.025] p-5 transition-colors hover:border-emerald-400/50">
-                  <input type="file" accept="video/*" className="hidden" onChange={(event) => {
+                  <input ref={fileInputRef} type="file" accept="video/*" className="hidden" onChange={(event) => {
                     const file = event.target.files?.[0];
                     if (file) void handleUpload(file);
                   }} />
@@ -491,10 +495,13 @@ export default function LiveViewPage() {
                 </div>
               )}
 
-              <Button onClick={() => void createSession()} disabled={createMutation.isPending || uploading || !name.trim() || !opponentName.trim() || (sourceType === "upload" && !uploadedFileKey)} className="h-12 w-full bg-emerald-400 font-semibold text-black hover:bg-emerald-300">
+              <Button onClick={() => void createSession()} disabled={createMutation.isPending || uploading} className="h-12 w-full bg-emerald-400 font-semibold text-black hover:bg-emerald-300 disabled:bg-emerald-400/40">
                 {createMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Crosshair className="mr-2 h-4 w-4" />}
-                Open Live Command Center
+                {sourceType === "upload" && !uploadedFileKey ? "Choose Footage to Open Command Center" : "Open Live Command Center"}
               </Button>
+              <div aria-live="polite" className={`border px-4 py-3 text-xs leading-5 ${launchMessage ? "border-amber-400/30 bg-amber-400/10 text-amber-100" : "border-white/8 bg-black/20 text-white/45"}`}>
+                {launchMessage || (sourceType === "upload" ? "Replay mode opens as soon as your selected footage finishes uploading." : "Camera mode is ready now. Camera permission is requested after you enter and press Go Live.")}
+              </div>
             </div>
           </section>
 

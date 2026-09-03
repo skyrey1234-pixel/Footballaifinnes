@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   getCompletedWindowIndex,
+  getLiveLaunchIssue,
   selectFramesForWindow,
   shouldContinueAfterWindowFailure,
   transitionLiveRunState,
@@ -37,5 +38,11 @@ describe("Live View browser window scheduler", () => {
     expect(shouldContinueAfterWindowFailure("running")).toBe(true);
     expect(shouldContinueAfterWindowFailure("paused")).toBe(false);
     expect(shouldContinueAfterWindowFailure("complete")).toBe(false);
+  });
+
+  it("never silently disables camera launch and gives replay mode an actionable missing-file state", () => {
+    expect(getLiveLaunchIssue("camera", "")).toBeNull();
+    expect(getLiveLaunchIssue("upload", "")).toMatch(/Choose game footage/);
+    expect(getLiveLaunchIssue("upload", "videos/game.mp4")).toBeNull();
   });
 });

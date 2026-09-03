@@ -1,5 +1,7 @@
 # TacticalEdge AI — Project TODO
 
+- [ ] BUG: Open Live Command Center does not launch from Live View setup; reproduce on production, trace setup/session/routing failure, repair it, add regression coverage, and verify the full production click-through
+
 - [x] BUG: Game-session deletion now removes all 15 module rows and shared advanced-analytics evidence records; integration-tested across every analytics table
 
 - [x] LIVE INTELLIGENCE: Add a dedicated Live View section accessible from the main navigation

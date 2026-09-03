@@ -2,6 +2,11 @@ export type LiveRunState = "idle" | "running" | "paused" | "complete";
 export type LiveRunAction = "start" | "pause" | "end";
 export type BufferedLiveFrame = { second: number; dataUrl: string };
 
+export function getLiveLaunchIssue(sourceType: "upload" | "camera", uploadedFileKey: string) {
+  if (sourceType === "upload" && !uploadedFileKey.trim()) return "Choose game footage before opening replay mode.";
+  return null;
+}
+
 export function transitionLiveRunState(current: LiveRunState, action: LiveRunAction): LiveRunState {
   if (action === "end") return "complete";
   if (action === "pause") return current === "complete" ? "complete" : "paused";
