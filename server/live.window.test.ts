@@ -2,9 +2,11 @@ import {
   enqueueLatestWindow,
   getCompletedWindowIndex,
   getLiveLaunchIssue,
+  getLiveVideoSource,
   LIVE_WINDOW_SECONDS,
   selectFramesForWindow,
   shouldContinueAfterWindowFailure,
+  shouldRenderLiveVideo,
   transitionLiveRunState,
 } from "../client/src/lib/liveWindow";
 import { describe, expect, it } from "vitest";
@@ -57,5 +59,18 @@ describe("Live View browser window scheduler", () => {
     expect(getLiveLaunchIssue("camera", "")).toBeNull();
     expect(getLiveLaunchIssue("upload", "")).toMatch(/Choose game footage/);
     expect(getLiveLaunchIssue("upload", "videos/game.mp4")).toBeNull();
+  });
+
+  it("never passes an empty string to video src while a protected replay URL is loading", () => {
+    expect(getLiveVideoSource("upload", "")).toBeUndefined();
+    expect(getLiveVideoSource("upload", "   ")).toBeUndefined();
+    expect(shouldRenderLiveVideo("upload", "")).toBe(false);
+    expect(getLiveVideoSource("upload", "/api/live/video/55?access=signed")).toBe("/api/live/video/55?access=signed");
+    expect(shouldRenderLiveVideo("upload", "/api/live/video/55?access=signed")).toBe(true);
+  });
+
+  it("keeps the video element available for a camera srcObject without a URL", () => {
+    expect(getLiveVideoSource("camera", "")).toBeUndefined();
+    expect(shouldRenderLiveVideo("camera", "")).toBe(true);
   });
 });

@@ -4,6 +4,16 @@ export type BufferedLiveFrame = { second: number; dataUrl: string };
 export const LIVE_WINDOW_SECONDS = 5;
 export const LIVE_FRAME_CAPTURE_SECONDS = 1.2;
 
+export function getLiveVideoSource(sourceType: "upload" | "camera" | undefined, playbackUrl: string | undefined) {
+  if (sourceType !== "upload") return undefined;
+  const source = playbackUrl?.trim();
+  return source || undefined;
+}
+
+export function shouldRenderLiveVideo(sourceType: "upload" | "camera" | undefined, playbackUrl: string | undefined) {
+  return sourceType === "camera" || Boolean(getLiveVideoSource(sourceType, playbackUrl));
+}
+
 export function getLiveLaunchIssue(sourceType: "upload" | "camera", uploadedFileKey: string) {
   if (sourceType === "upload" && !uploadedFileKey.trim()) return "Choose game footage before opening replay mode.";
   return null;

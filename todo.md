@@ -1,5 +1,7 @@
 # TacticalEdge AI — Project TODO
 
+- [ ] BUG: Prevent Live View from rendering a video element with src="" while the protected replay URL is loading; preserve camera mode, add source-readiness regression coverage, and verify the console warning is gone
+
 - [ ] BUG: Live Mode scan failure — model truncation recovery and direct production API analysis are fixed, but the browser replay path can still remain on “Waiting for frames” without submitting analyzeWindow; fix the end-to-end browser capture path
 - [ ] BUG: Verify a new uploaded-replay session in production advances from playback to a persisted five-second event visible in the timeline without direct API assistance
 - [ ] BUG: Verify a real camera-mode production session captures frames and displays a new five-second event; preserve clear permission/error guidance when no camera is available

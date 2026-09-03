@@ -7,11 +7,13 @@ import { uploadVideoInChunks, type VideoUploadProgress } from "@/lib/chunkedVide
 import {
   getCompletedWindowIndex,
   getLiveLaunchIssue,
+  getLiveVideoSource,
   enqueueLatestWindow,
   LIVE_FRAME_CAPTURE_SECONDS,
   LIVE_WINDOW_SECONDS,
   selectFramesForWindow,
   shouldContinueAfterWindowFailure,
+  shouldRenderLiveVideo,
   transitionLiveRunState,
   type BufferedLiveFrame,
   type LiveRunState,
@@ -214,9 +216,8 @@ export default function LiveViewPage() {
   const selectedSession = sessionQuery.data;
   const events = eventsQuery.data ?? [];
   const latestEvent = events[0];
-  const videoSource = selectedSession?.sourceType === "upload" && selectedId
-    ? playbackUrlQuery.data?.url ?? ""
-    : "";
+  const videoSource = getLiveVideoSource(selectedSession?.sourceType, playbackUrlQuery.data?.url);
+  const shouldRenderVideo = shouldRenderLiveVideo(selectedSession?.sourceType, playbackUrlQuery.data?.url);
 
   useEffect(() => {
     selectedIdRef.current = selectedId;
@@ -422,7 +423,14 @@ export default function LiveViewPage() {
         }
         cameraStartedAtRef.current = performance.now();
       } else {
-        if (!videoRef.current) return;
+        if (!videoSource || !videoRef.current) {
+          const message = playbackUrlQuery.error
+            ? "The secure replay link could not be prepared. Refresh Live View and try again."
+            : "Securing the replay stream. Wait a moment, then press Go Live again.";
+          setFeedIssue(message);
+          toast.info(message);
+          return;
+        }
       }
 
       const nextState = transitionLiveRunState(runStateRef.current, "start");
@@ -656,10 +664,10 @@ export default function LiveViewPage() {
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1.5fr)_minmax(360px,0.8fr)]">
         <div className="space-y-5">
           <section className="relative overflow-hidden border border-white/10 bg-black">
-            <video
+            {shouldRenderVideo ? <video
               key={`live-video-${selectedId}`}
               ref={videoRef}
-              src={selectedSession.sourceType === "upload" ? videoSource : undefined}
+              src={videoSource}
               className="aspect-video w-full bg-black object-contain"
               playsInline
               preload={selectedSession.sourceType === "upload" ? "auto" : "metadata"}
@@ -682,7 +690,15 @@ export default function LiveViewPage() {
                 event.currentTarget.currentTime = restoreAt;
               }}
               onEnded={() => void endSession()}
-            />
+            /> : (
+              <div className="grid aspect-video w-full place-items-center bg-[radial-gradient(circle_at_center,rgba(16,185,129,0.08),transparent_55%),#020405] px-6 text-center">
+                <div>
+                  <ScanLine className="mx-auto h-8 w-8 animate-pulse text-emerald-400" />
+                  <p className="mt-4 text-sm font-semibold uppercase tracking-[0.18em] text-white">Securing replay stream</p>
+                  <p className="mt-2 text-xs text-white/45">The player will appear as soon as the protected video link is ready.</p>
+                </div>
+              </div>
+            )}
             <canvas ref={canvasRef} className="hidden" />
             <div className="pointer-events-none absolute inset-x-0 top-0 flex items-start justify-between bg-gradient-to-b from-black/80 to-transparent p-4">
               <div className="flex items-center gap-2">
