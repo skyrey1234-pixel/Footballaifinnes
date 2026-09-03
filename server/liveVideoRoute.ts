@@ -3,6 +3,7 @@ import { Readable } from "node:stream";
 import { getLiveGameSession } from "./db";
 import { sdk } from "./_core/sdk";
 import { storageGetSignedUrl } from "./storage";
+import { verifyLivePlaybackToken } from "./livePlaybackToken";
 
 export const liveVideoRouter = Router();
 
@@ -17,14 +18,20 @@ const FORWARDED_RESPONSE_HEADERS = [
 
 async function streamLiveReplay(req: Request, res: Response) {
   try {
-    const user = await sdk.authenticateRequest(req);
     const id = Number(req.params.id);
     if (!Number.isInteger(id) || id <= 0) {
       res.status(400).json({ error: "Invalid live session" });
       return;
     }
 
-    const session = await getLiveGameSession(id, user.id);
+    const accessToken = typeof req.query.access === "string" ? req.query.access : "";
+    const playbackAccess = accessToken ? verifyLivePlaybackToken(accessToken) : null;
+    if (accessToken && (!playbackAccess || playbackAccess.sessionId !== id)) {
+      res.status(401).json({ error: "Replay access expired. Refresh Live View to continue." });
+      return;
+    }
+    const userId = playbackAccess?.userId ?? (await sdk.authenticateRequest(req)).id;
+    const session = await getLiveGameSession(id, userId);
     if (!session || session.sourceType !== "upload" || !session.videoFileKey) {
       res.status(404).json({ error: "Replay not found" });
       return;

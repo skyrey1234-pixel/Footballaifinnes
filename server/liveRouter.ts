@@ -4,6 +4,7 @@ import { protectedProcedure, router } from "./_core/trpc";
 import * as db from "./db";
 import { analyzeLiveWindow, LIVE_WINDOW_SECONDS, type LiveSituation } from "./liveAnalysis";
 import { mergeLiveGameMemory, normalizeLiveGameMemory } from "./liveMemory";
+import { createLivePlaybackToken } from "./livePlaybackToken";
 
 const adminProcedure = protectedProcedure.use(({ ctx, next }) => {
   if (ctx.user.role !== "admin") {
@@ -38,6 +39,17 @@ export const liveRouter = router({
   get: protectedProcedure
     .input(z.object({ id: z.number().int().positive() }))
     .query(({ ctx, input }) => requireOwnedSession(input.id, ctx.user.id)),
+
+  playbackUrl: protectedProcedure
+    .input(z.object({ id: z.number().int().positive() }))
+    .query(async ({ ctx, input }) => {
+      const session = await requireOwnedSession(input.id, ctx.user.id);
+      if (session.sourceType !== "upload" || !session.videoFileKey) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "This live session does not have uploaded replay footage" });
+      }
+      const { token, expiresAt } = createLivePlaybackToken(session.id, ctx.user.id);
+      return { url: `/api/live/video/${session.id}?access=${encodeURIComponent(token)}`, expiresAt };
+    }),
 
   events: protectedProcedure
     .input(z.object({ id: z.number().int().positive(), limit: z.number().int().min(1).max(300).optional() }))

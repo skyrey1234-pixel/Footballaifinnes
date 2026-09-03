@@ -202,6 +202,10 @@ export default function LiveViewPage() {
     { id: selectedId ?? 0, limit: 120 },
     { enabled: selectedId !== null, refetchInterval: runState === "running" ? 5_000 : false },
   );
+  const playbackUrlQuery = trpc.live.playbackUrl.useQuery(
+    { id: selectedId ?? 0 },
+    { enabled: selectedId !== null && sessionQuery.data?.sourceType === "upload", staleTime: 5 * 60 * 60 * 1_000 },
+  );
   const createMutation = trpc.live.create.useMutation();
   const updateMutation = trpc.live.update.useMutation();
   const deleteMutation = trpc.live.delete.useMutation();
@@ -211,7 +215,7 @@ export default function LiveViewPage() {
   const events = eventsQuery.data ?? [];
   const latestEvent = events[0];
   const videoSource = selectedSession?.sourceType === "upload" && selectedId
-    ? `/api/live/video/${selectedId}`
+    ? playbackUrlQuery.data?.url ?? ""
     : "";
 
   useEffect(() => {
