@@ -15,6 +15,7 @@ import { canAccessFeature } from "./stripe";
 import { warRoomRouter } from "./warRoomRouter";
 import { analyticsRouter } from "./analyticsRouter";
 import { analyticsRouter2 } from "./analyticsRouter2";
+import { liveRouter } from "./liveRouter";
 
 // Admin-only procedure
 const adminProcedure = protectedProcedure.use(({ ctx, next }) => {
@@ -30,6 +31,7 @@ export const appRouter = router({
   warRoom: warRoomRouter,
   analytics: analyticsRouter,
   analytics2: analyticsRouter2,
+  live: liveRouter,
   auth: router({
     me: publicProcedure.query(opts => opts.ctx.user),
     logout: publicProcedure.mutation(({ ctx }) => {

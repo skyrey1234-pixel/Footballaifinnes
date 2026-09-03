@@ -1,7 +1,7 @@
 import { eq, desc } from "drizzle-orm";
 import { sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, users, gameSessions, scoutingReports, playerProfiles, mistakeAnalyses, highlightReels, formationAnalytics, presnapsReads, turnoverPredictors, heatMapAnalytics, routeTreeAnalytics, blockingAnalytics, momentumAnalytics, gapAnalytics, injuryImpactAnalytics, penaltyAnalytics, redZoneAnalytics, thirdDownAnalytics, twoMinuteAnalytics, situationalAnalytics, playerComparisons, type InsertGameSession, type InsertScoutingReport, type InsertPlayerProfile } from "../drizzle/schema";
+import { InsertUser, users, gameSessions, scoutingReports, playerProfiles, mistakeAnalyses, highlightReels, formationAnalytics, presnapsReads, turnoverPredictors, heatMapAnalytics, routeTreeAnalytics, blockingAnalytics, momentumAnalytics, gapAnalytics, injuryImpactAnalytics, penaltyAnalytics, redZoneAnalytics, thirdDownAnalytics, twoMinuteAnalytics, situationalAnalytics, playerComparisons, liveGameSessions, liveAnalysisEvents, type InsertGameSession, type InsertScoutingReport, type InsertPlayerProfile, type InsertLiveGameSession, type InsertLiveAnalysisEvent } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -545,4 +545,105 @@ export async function getPlayerComparisonsBySession(sessionId: number) {
   if (!db) return null;
   const rows = await db.select().from(playerComparisons).where(eq(playerComparisons.sessionId, sessionId)).limit(1);
   return rows[0] ?? null;
+}
+
+// ===== Live Game Intelligence =====
+
+export async function createLiveGameSession(data: InsertLiveGameSession) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const result = await db.insert(liveGameSessions).values(data);
+  return result[0].insertId;
+}
+
+export async function listLiveGameSessions(userId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select()
+    .from(liveGameSessions)
+    .where(eq(liveGameSessions.userId, userId))
+    .orderBy(desc(liveGameSessions.createdAt));
+}
+
+export async function getLiveGameSession(id: number, userId: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const rows = await db
+    .select()
+    .from(liveGameSessions)
+    .where(sql`${liveGameSessions.id} = ${id} AND ${liveGameSessions.userId} = ${userId}`)
+    .limit(1);
+  return rows[0];
+}
+
+export async function updateLiveGameSession(
+  id: number,
+  userId: number,
+  data: Partial<Pick<InsertLiveGameSession, "status" | "currentVideoSecond" | "situation" | "latestSummary" | "errorMessage" | "startedAt" | "endedAt">>,
+) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db
+    .update(liveGameSessions)
+    .set(data)
+    .where(sql`${liveGameSessions.id} = ${id} AND ${liveGameSessions.userId} = ${userId}`);
+}
+
+export async function deleteLiveGameSession(id: number, userId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db
+    .delete(liveAnalysisEvents)
+    .where(sql`${liveAnalysisEvents.liveSessionId} = ${id} AND ${liveAnalysisEvents.userId} = ${userId}`);
+  await db
+    .delete(liveGameSessions)
+    .where(sql`${liveGameSessions.id} = ${id} AND ${liveGameSessions.userId} = ${userId}`);
+}
+
+export async function listLiveAnalysisEvents(liveSessionId: number, userId: number, limit = 120) {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select()
+    .from(liveAnalysisEvents)
+    .where(sql`${liveAnalysisEvents.liveSessionId} = ${liveSessionId} AND ${liveAnalysisEvents.userId} = ${userId}`)
+    .orderBy(desc(liveAnalysisEvents.windowIndex))
+    .limit(Math.max(1, Math.min(limit, 300)));
+}
+
+export async function getLiveAnalysisEventByWindow(liveSessionId: number, userId: number, windowIndex: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const rows = await db
+    .select()
+    .from(liveAnalysisEvents)
+    .where(sql`${liveAnalysisEvents.liveSessionId} = ${liveSessionId} AND ${liveAnalysisEvents.userId} = ${userId} AND ${liveAnalysisEvents.windowIndex} = ${windowIndex}`)
+    .limit(1);
+  return rows[0];
+}
+
+export async function saveLiveAnalysisEvent(data: InsertLiveAnalysisEvent) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.insert(liveAnalysisEvents).values(data).onDuplicateKeyUpdate({
+    set: {
+      windowStartSeconds: data.windowStartSeconds,
+      windowEndSeconds: data.windowEndSeconds,
+      visibleAction: data.visibleAction,
+      formation: data.formation,
+      personnel: data.personnel,
+      defensiveLook: data.defensiveLook,
+      playCall: data.playCall,
+      predictionSummary: data.predictionSummary,
+      nextPlayProbabilities: data.nextPlayProbabilities,
+      tendencyShift: data.tendencyShift,
+      counterCall: data.counterCall,
+      riskLevel: data.riskLevel,
+      alerts: data.alerts,
+      evidence: data.evidence,
+      confidence: data.confidence,
+      inputFrameCount: data.inputFrameCount,
+    },
+  });
 }

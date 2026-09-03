@@ -20,7 +20,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { useIsMobile } from "@/hooks/useMobile";
-import { LayoutDashboard, PlusCircle, LogOut, PanelLeft, Crosshair, TrendingUp, Gamepad2 } from "lucide-react";
+import { LayoutDashboard, PlusCircle, LogOut, PanelLeft, Crosshair, TrendingUp, Gamepad2, Radio } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation, Redirect } from "wouter";
 import { DashboardLayoutSkeleton } from './DashboardLayoutSkeleton';
@@ -29,6 +29,7 @@ import { Button } from "./ui/button";
 const menuItems = [
   { icon: LayoutDashboard, label: "Sessions", path: "/" },
   { icon: PlusCircle, label: "New Analysis", path: "/new" },
+  { icon: Radio, label: "Live View", path: "/live" },
   { icon: TrendingUp, label: "Season Intel", path: "/season" },
   { icon: Gamepad2, label: "Scouting Challenge", path: "/challenge" },
 ];

@@ -1,12 +1,23 @@
 # TacticalEdge AI — Project TODO
 
+- [x] LIVE INTELLIGENCE: Add a dedicated Live View section accessible from the main navigation
+- [x] LIVE INTELLIGENCE: Support uploaded game footage as a controllable live-feed simulator for testing
+- [x] LIVE INTELLIGENCE: Add browser camera/live-stream input architecture with explicit start, pause, resume, and stop controls
+- [x] LIVE INTELLIGENCE: Analyze rolling 15-second footage windows without overlapping jobs or duplicate predictions
+- [x] LIVE INTELLIGENCE: Generate next-play probabilities, formation, personnel, coverage/front, tendency shifts, risk alerts, and recommended counter calls
+- [x] LIVE INTELLIGENCE: Show timestamped evidence, confidence, input source, and AI-estimated labels for every live insight
+- [x] LIVE INTELLIGENCE: Build a cinematic command center with video, live status, scoreboard/situation controls, prediction cards, tendency charts, and analysis timeline
+- [x] LIVE INTELLIGENCE: Persist live sessions and analysis events with owner-only access and safe recovery after refresh
+- [x] LIVE INTELLIGENCE: Add backend and frontend tests for timing, permissions, parsing, start/stop behavior, and error recovery
+- [x] LIVE INTELLIGENCE: Verify uploaded-footage simulation end to end and publish the feature
+
 - [x] BUG: Fresh production sign-in reached /api/oauth/callback but returned {"error":"OAuth callback failed"} — production logs identified a users-table schema mismatch; added the three missing school profile columns, repaired the duplicated 0006 migration statement, and added a live-schema OAuth upsert regression test. Final owner browser verification is tracked separately below.
 
 - [x] ACCESS: Identified the sole verified project-owner user record, enforced the admin role on that exact account only, and confirmed the stored role is admin without changing any other users
 
 - [x] Production Google/provider handoff now reaches TacticalEdge’s OAuth callback with the correct app ID, redirect URI, state nonce, and cookie
 - [x] Add user-facing landing-page guidance for the account-restoration prompt, Google 403 alternatives, and the official sign-in support path
-- [ ] After the upstream account/provider issue is resolved, run a fresh unauthenticated production sign-in and verify arrival at the TacticalEdge dashboard
+- [x] After resolving the provider and callback issues, verified production sign-in reaches the TacticalEdge dashboard and the owner account displays the Admin role
 
 - [x] Database schema: gameSessions and scoutingReports tables
 - [x] Dark theme setup (#0D1117 bg, #00FF87 accent, Space Grotesk + Inter fonts)

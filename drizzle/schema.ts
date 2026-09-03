@@ -1,4 +1,4 @@
-import { int, json, mysqlEnum, mysqlTable, text, timestamp, varchar } from "drizzle-orm/mysql-core";
+import { int, json, mysqlEnum, mysqlTable, text, timestamp, uniqueIndex, varchar } from "drizzle-orm/mysql-core";
 
 /**
  * Core user table backing auth flow.
@@ -288,3 +288,70 @@ export const playerComparisons = mysqlTable("player_comparisons", {
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 export type PlayerComparison = typeof playerComparisons.$inferSelect;
+
+// ============ LIVE GAME INTELLIGENCE ============
+
+// One durable Live View run. Uploaded replay footage and browser camera sessions
+// share the same lifecycle; the active browser supplies sampled frames.
+export const liveGameSessions = mysqlTable("live_game_sessions", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  name: varchar("name", { length: 160 }).notNull(),
+  opponentName: varchar("opponentName", { length: 255 }).notNull(),
+  sourceType: mysqlEnum("sourceType", ["upload", "camera"]).notNull(),
+  videoFileKey: text("videoFileKey"),
+  videoUrl: text("videoUrl"),
+  status: mysqlEnum("status", ["setup", "ready", "live", "paused", "complete", "failed"])
+    .default("setup")
+    .notNull(),
+  analysisIntervalSeconds: int("analysisIntervalSeconds").default(15).notNull(),
+  currentVideoSecond: int("currentVideoSecond").default(0).notNull(),
+  situation: json("situation"),
+  latestSummary: text("latestSummary"),
+  errorMessage: text("errorMessage"),
+  startedAt: timestamp("startedAt"),
+  endedAt: timestamp("endedAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type LiveGameSession = typeof liveGameSessions.$inferSelect;
+export type InsertLiveGameSession = typeof liveGameSessions.$inferInsert;
+
+// One AI result per 15-second footage window. The unique window index prevents
+// retries, slow networks, or double clicks from creating duplicate predictions.
+export const liveAnalysisEvents = mysqlTable(
+  "live_analysis_events",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    liveSessionId: int("liveSessionId").notNull(),
+    userId: int("userId").notNull(),
+    windowIndex: int("windowIndex").notNull(),
+    windowStartSeconds: int("windowStartSeconds").notNull(),
+    windowEndSeconds: int("windowEndSeconds").notNull(),
+    visibleAction: text("visibleAction"),
+    formation: varchar("formation", { length: 96 }),
+    personnel: varchar("personnel", { length: 96 }),
+    defensiveLook: varchar("defensiveLook", { length: 128 }),
+    playCall: varchar("playCall", { length: 160 }),
+    predictionSummary: text("predictionSummary"),
+    nextPlayProbabilities: json("nextPlayProbabilities"),
+    tendencyShift: text("tendencyShift"),
+    counterCall: text("counterCall"),
+    riskLevel: mysqlEnum("riskLevel", ["low", "moderate", "high", "critical"]).default("low").notNull(),
+    alerts: json("alerts"),
+    evidence: json("evidence"),
+    confidence: int("confidence").default(0).notNull(),
+    inputFrameCount: int("inputFrameCount").default(0).notNull(),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+  },
+  (table) => ({
+    liveWindowUnique: uniqueIndex("live_event_session_window_unique").on(
+      table.liveSessionId,
+      table.windowIndex,
+    ),
+  }),
+);
+
+export type LiveAnalysisEvent = typeof liveAnalysisEvents.$inferSelect;
+export type InsertLiveAnalysisEvent = typeof liveAnalysisEvents.$inferInsert;

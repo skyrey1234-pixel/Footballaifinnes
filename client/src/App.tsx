@@ -13,6 +13,7 @@ import ScoutingChallenge from "./pages/ScoutingChallenge";
 import Landing from "./pages/Landing";
 import WarRoomPage from "./pages/WarRoomPage";
 import Sim3DTest from "./pages/Sim3DTest";
+import LiveViewPage from "./pages/LiveViewPage";
 
 function Router() {
   return (
@@ -26,6 +27,7 @@ function Router() {
             <Route path="/new" component={NewSession} />
             <Route path="/season" component={SeasonDashboard} />
             <Route path="/challenge" component={ScoutingChallenge} />
+            <Route path="/live" component={LiveViewPage} />
             <Route path="/session/:id" component={SessionPage} />
             <Route path="/warroom/:id" component={WarRoomPage} />
             <Route path="/404" component={NotFound} />
