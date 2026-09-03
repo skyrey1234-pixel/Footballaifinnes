@@ -210,8 +210,8 @@ export default function LiveViewPage() {
   const selectedSession = sessionQuery.data;
   const events = eventsQuery.data ?? [];
   const latestEvent = events[0];
-  const videoSource = selectedSession?.sourceType === "upload"
-    ? selectedSession.videoUrl || (selectedSession.videoFileKey ? `/manus-storage/${selectedSession.videoFileKey}` : "")
+  const videoSource = selectedSession?.sourceType === "upload" && selectedId
+    ? `/api/live/video/${selectedId}`
     : "";
 
   useEffect(() => {
@@ -653,6 +653,7 @@ export default function LiveViewPage() {
         <div className="space-y-5">
           <section className="relative overflow-hidden border border-white/10 bg-black">
             <video
+              key={`live-video-${selectedId}`}
               ref={videoRef}
               src={selectedSession.sourceType === "upload" ? videoSource : undefined}
               className="aspect-video w-full bg-black object-contain"

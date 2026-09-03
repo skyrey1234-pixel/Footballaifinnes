@@ -1,6 +1,8 @@
 # TacticalEdge AI — Project TODO
 
-- [ ] BUG: Live Mode starts but does not complete or display five-second AI scans; reproduce both camera and replay paths, trace frame capture and analyzeWindow requests, fix the failure, add regression coverage, and verify a real production scan
+- [ ] BUG: Live Mode scan failure — model truncation recovery and direct production API analysis are fixed, but the browser replay path can still remain on “Waiting for frames” without submitting analyzeWindow; fix the end-to-end browser capture path
+- [ ] BUG: Verify a new uploaded-replay session in production advances from playback to a persisted five-second event visible in the timeline without direct API assistance
+- [ ] BUG: Verify a real camera-mode production session captures frames and displays a new five-second event; preserve clear permission/error guidance when no camera is available
 
 - [x] LIVE 5S: Change the rolling analysis cadence from 15 seconds to 5 seconds across schema defaults, backend validation, UI timing, labels, and tests
 - [x] LIVE 5S: Prevent overlapping AI requests and safely queue or skip windows when a model response takes longer than five seconds
