@@ -131,6 +131,32 @@ describe("Live Game Intelligence", () => {
     expect(otherUserSession).toBeUndefined();
   });
 
+  it("allows an admin to create a Screen Share session without an uploaded file", async () => {
+    const caller = appRouter.createCaller(adminContext);
+    const result = await caller.live.create({
+      name: "Screen Share integration test",
+      opponentName: "Display Opponent",
+      sourceType: "screen",
+      analysisIntervalSeconds: 5,
+    });
+    const session = await db.getLiveGameSession(result.id, 1);
+    expect(session?.sourceType).toBe("screen");
+    await db.deleteLiveGameSession(result.id, 1);
+  });
+
+  it("shares a session through an expiring token without exposing owner or storage fields", async () => {
+    const ownerCaller = appRouter.createCaller(adminContext);
+    const link = await ownerCaller.live.tvLink({ id: liveSessionId });
+    const access = decodeURIComponent(link.path.split("#access=")[1] ?? "");
+    const publicCaller = appRouter.createCaller({ ...adminContext, user: null } as TrpcContext);
+    const snapshot = await publicCaller.live.tvSnapshot({ id: liveSessionId, access });
+    expect(snapshot.session.id).toBe(liveSessionId);
+    expect(snapshot.session).not.toHaveProperty("userId");
+    expect(snapshot.session).not.toHaveProperty("videoFileKey");
+    expect(snapshot.playbackUrl).toBeNull();
+    await expect(publicCaller.live.tvSnapshot({ id: liveSessionId, access: `${access}tampered` })).rejects.toMatchObject({ code: "UNAUTHORIZED" });
+  });
+
   it("upserts duplicate five-second windows instead of duplicating events", async () => {
     const result = liveResult();
     const base = {

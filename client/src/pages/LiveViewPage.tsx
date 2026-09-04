@@ -4,10 +4,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { trpc } from "@/lib/trpc";
 import { uploadVideoInChunks, type VideoUploadProgress } from "@/lib/chunkedVideoUpload";
+import { QRCodeSVG } from "qrcode.react";
 import {
   getCompletedWindowIndex,
   getLiveLaunchIssue,
   getLiveVideoSource,
+  getScreenShareStartIssue,
+  getScreenShareStoppedMessage,
+  isLiveCaptureSource,
   enqueueLatestWindow,
   LIVE_FRAME_CAPTURE_SECONDS,
   LIVE_WINDOW_SECONDS,
@@ -29,10 +33,13 @@ import {
   ChevronRight,
   CircleStop,
   Clock3,
+  Copy,
   Crosshair,
   Eye,
+  ExternalLink,
   Gauge,
   Loader2,
+  MonitorUp,
   Pause,
   Play,
   Radio,
@@ -41,14 +48,16 @@ import {
   ShieldAlert,
   Sparkles,
   Trash2,
+  Tv,
   Upload,
   Video,
+  X,
   Zap,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
-type SourceType = "upload" | "camera";
+type SourceType = "upload" | "camera" | "screen";
 type Situation = {
   quarter: string;
   clock: string;
@@ -179,6 +188,7 @@ export default function LiveViewPage() {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [queuedWindows, setQueuedWindows] = useState(0);
   const [situation, setSituation] = useState<Situation>(DEFAULT_SITUATION);
+  const [showTvShare, setShowTvShare] = useState(false);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -210,6 +220,10 @@ export default function LiveViewPage() {
     { id: selectedId ?? 0 },
     { enabled: selectedId !== null && sessionQuery.data?.sourceType === "upload", staleTime: 5 * 60 * 60 * 1_000 },
   );
+  const tvLinkQuery = trpc.live.tvLink.useQuery(
+    { id: selectedId ?? 0 },
+    { enabled: selectedId !== null && showTvShare, staleTime: 30 * 60 * 1_000 },
+  );
   const createMutation = trpc.live.create.useMutation();
   const updateMutation = trpc.live.update.useMutation();
   const deleteMutation = trpc.live.delete.useMutation();
@@ -220,6 +234,10 @@ export default function LiveViewPage() {
   const latestEvent = events[0];
   const videoSource = getLiveVideoSource(selectedSession?.sourceType, playbackUrlQuery.data?.url);
   const shouldRenderVideo = shouldRenderLiveVideo(selectedSession?.sourceType, playbackUrlQuery.data?.url);
+  const tvUrl = useMemo(
+    () => tvLinkQuery.data?.path ? new URL(tvLinkQuery.data.path, window.location.origin).toString() : "",
+    [tvLinkQuery.data?.path],
+  );
 
   useEffect(() => {
     selectedIdRef.current = selectedId;
@@ -413,15 +431,40 @@ export default function LiveViewPage() {
     if (!selectedId || !selectedSession) return;
     try {
       setFeedIssue("");
-      if (selectedSession.sourceType === "camera") {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: "environment" },
-          audio: false,
-        });
+      if (isLiveCaptureSource(selectedSession.sourceType)) {
+        if (!navigator.mediaDevices) throw new Error(selectedSession.sourceType === "screen" ? getScreenShareStartIssue(false) : "This browser does not support live media capture.");
+        const stream = selectedSession.sourceType === "screen"
+          ? await (() => {
+              if (!navigator.mediaDevices.getDisplayMedia) throw new Error(getScreenShareStartIssue(false));
+              return navigator.mediaDevices.getDisplayMedia({ video: { frameRate: { ideal: 30 } }, audio: false });
+            })()
+          : await navigator.mediaDevices.getUserMedia({
+              video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: "environment" },
+              audio: false,
+            });
         mediaStreamRef.current = stream;
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
           await videoRef.current.play();
+        }
+        if (selectedSession.sourceType === "screen") {
+          stream.getVideoTracks()[0]?.addEventListener("ended", () => {
+            if (runStateRef.current !== "running") return;
+            const currentSecond = getCurrentSecond();
+            cameraElapsedBeforeStartRef.current = currentSecond;
+            cameraStartedAtRef.current = 0;
+            runStateRef.current = "paused";
+            setRunState("paused");
+            if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
+            mediaStreamRef.current = null;
+            setFeedIssue(getScreenShareStoppedMessage("ended"));
+            void updateMutation.mutateAsync({
+              id: selectedId,
+              status: "paused",
+              currentVideoSecond: Math.floor(currentSecond),
+              situation: situationRef.current,
+            }).catch(() => undefined);
+          });
         }
         cameraStartedAtRef.current = performance.now();
       } else {
@@ -457,7 +500,10 @@ export default function LiveViewPage() {
       }
     } catch (error) {
       pendingReplayStartRef.current = false;
-      toast.error(error instanceof Error ? error.message : "Could not start the live feed");
+      const message = error instanceof Error ? error.message : "Could not start the live feed";
+      const publicMessage = selectedSession.sourceType === "screen" ? getScreenShareStartIssue(true, error) : message;
+      setFeedIssue(publicMessage);
+      toast.error(publicMessage);
     }
   };
 
@@ -476,7 +522,7 @@ export default function LiveViewPage() {
     setRunState(nextState);
     if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
     videoRef.current?.pause();
-    if (selectedSession?.sourceType === "camera") {
+    if (isLiveCaptureSource(selectedSession?.sourceType)) {
       cameraElapsedBeforeStartRef.current = currentSecond;
       cameraStartedAtRef.current = 0;
       mediaStreamRef.current?.getTracks().forEach((track) => track.stop());
@@ -535,10 +581,10 @@ export default function LiveViewPage() {
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.28em] text-emerald-400">Create a live intelligence run</p>
                 <h2 className="mt-2 text-2xl font-semibold text-white">Choose the feed entering the film room</h2>
-                <p className="mt-2 max-w-2xl text-sm leading-6 text-white/55">Use uploaded footage to simulate a live game now, or use this device&apos;s camera for a real sideline feed. TacticalEdge samples the action every five seconds and carries offense, defense, and player-impact intelligence forward all game.</p>
+                <p className="mt-2 max-w-2xl text-sm leading-6 text-white/55">Use uploaded footage, this device&apos;s camera, or an authorized shared tab, window, or display. TacticalEdge samples the action every five seconds and carries offense, defense, and player-impact intelligence forward all game.</p>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid gap-3 md:grid-cols-3">
                 <button onClick={() => { setSourceType("upload"); setLaunchMessage(""); }} className={`p-4 text-left transition-colors ${sourceType === "upload" ? "bg-emerald-400 text-black" : "border border-white/10 bg-white/[0.03] text-white hover:border-emerald-400/30"}`}>
                   <Upload className="h-5 w-5" />
                   <span className="mt-8 block font-semibold">Upload replay</span>
@@ -548,6 +594,11 @@ export default function LiveViewPage() {
                   <Camera className="h-5 w-5" />
                   <span className="mt-8 block font-semibold">Live camera</span>
                   <span className={`mt-1 block text-xs ${sourceType === "camera" ? "text-black/65" : "text-white/45"}`}>Film from this phone, tablet, or laptop</span>
+                </button>
+                <button onClick={() => { setSourceType("screen"); setLaunchMessage(""); }} className={`p-4 text-left transition-colors ${sourceType === "screen" ? "bg-emerald-400 text-black" : "border border-white/10 bg-white/[0.03] text-white hover:border-emerald-400/30"}`}>
+                  <MonitorUp className="h-5 w-5" />
+                  <span className="mt-8 block font-semibold">Share a screen</span>
+                  <span className={`mt-1 block text-xs ${sourceType === "screen" ? "text-black/65" : "text-white/45"}`}>Analyze a selected game tab, window, or display</span>
                 </button>
               </div>
 
@@ -589,10 +640,10 @@ export default function LiveViewPage() {
               ) : (
                 <div className="border border-white/10 bg-white/[0.025] p-5">
                   <div className="flex items-start gap-4">
-                    <Radio className="mt-1 h-5 w-5 text-red-400" />
+                    {sourceType === "screen" ? <MonitorUp className="mt-1 h-5 w-5 text-cyan-300" /> : <Radio className="mt-1 h-5 w-5 text-red-400" />}
                     <div>
-                      <p className="font-medium text-white">Camera permission starts only when you press Go Live</p>
-                      <p className="mt-1 text-xs leading-5 text-white/45">Keep the browser open and the field centered. TacticalEdge samples still frames; it does not store the camera video in this first live mode.</p>
+                      <p className="font-medium text-white">{sourceType === "screen" ? "Choose a tab, window, or display after pressing Go Live" : "Camera permission starts only when you press Go Live"}</p>
+                      <p className="mt-1 text-xs leading-5 text-white/45">{sourceType === "screen" ? "Share only footage you are authorized to view. TacticalEdge samples frames every five seconds and does not rebroadcast protected streaming content." : "Keep the browser open and the field centered. TacticalEdge samples still frames; it does not store the camera video in this first live mode."}</p>
                     </div>
                   </div>
                 </div>
@@ -603,7 +654,7 @@ export default function LiveViewPage() {
                 {sourceType === "upload" && !uploadedFileKey ? "Choose Footage to Open Command Center" : "Open Live Command Center"}
               </Button>
               <div aria-live="polite" className={`border px-4 py-3 text-xs leading-5 ${launchMessage ? "border-amber-400/30 bg-amber-400/10 text-amber-100" : "border-white/8 bg-black/20 text-white/45"}`}>
-                {launchMessage || (sourceType === "upload" ? "Replay mode opens as soon as your selected footage finishes uploading." : "Camera mode is ready now. Camera permission is requested after you enter and press Go Live.")}
+                {launchMessage || (sourceType === "upload" ? "Replay mode opens as soon as your selected footage finishes uploading." : sourceType === "screen" ? "Screen Share is ready. Your browser will ask which authorized tab, window, or display to analyze when you press Go Live." : "Camera mode is ready now. Camera permission is requested after you enter and press Go Live.")}
               </div>
             </div>
           </section>
@@ -625,7 +676,7 @@ export default function LiveViewPage() {
                 <div key={session.id} className="group flex items-center gap-3 border border-white/8 bg-black/20 p-4 hover:border-emerald-400/30">
                   <button onClick={() => setSelectedId(session.id)} className="flex min-w-0 flex-1 items-center gap-3 text-left">
                     <span className={`grid h-10 w-10 place-items-center ${session.status === "live" ? "bg-red-400/15 text-red-400" : "bg-emerald-400/10 text-emerald-400"}`}>
-                      {session.sourceType === "camera" ? <Camera className="h-4 w-4" /> : <Video className="h-4 w-4" />}
+                      {session.sourceType === "camera" ? <Camera className="h-4 w-4" /> : session.sourceType === "screen" ? <MonitorUp className="h-4 w-4" /> : <Video className="h-4 w-4" />}
                     </span>
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-sm font-medium text-white">{session.name}</span>
@@ -664,11 +715,15 @@ export default function LiveViewPage() {
             <span className="text-xs uppercase tracking-[0.18em] text-emerald-400">5-second AI scan · whole-game memory</span>
           </div>
           <h1 className="mt-3 text-3xl font-semibold tracking-tight text-white md:text-4xl">{selectedSession.name}</h1>
-          <p className="mt-1 text-sm text-white/45">vs {selectedSession.opponentName} · {selectedSession.sourceType === "upload" ? "Uploaded footage simulation" : "Device camera feed"}</p>
+          <p className="mt-1 text-sm text-white/45">vs {selectedSession.opponentName} · {selectedSession.sourceType === "upload" ? "Uploaded footage simulation" : selectedSession.sourceType === "screen" ? "Shared screen analysis" : "Device camera feed"}</p>
         </div>
         <div className="flex flex-wrap gap-2">
+          <Button onClick={() => setShowTvShare(true)} variant="outline" className="border-cyan-300/30 bg-cyan-300/5 text-cyan-200"><Tv className="mr-2 h-4 w-4" />TV View</Button>
           {runState !== "running" && runState !== "complete" ? <Button onClick={() => void startSession()} className="bg-emerald-400 text-black hover:bg-emerald-300"><Play className="mr-2 h-4 w-4" />{runState === "paused" ? "Resume Analysis" : "Go Live"}</Button> : null}
-          {runState === "running" ? <Button onClick={() => void pauseSession()} variant="outline" className="border-amber-400/30 text-amber-300"><Pause className="mr-2 h-4 w-4" />Pause</Button> : null}
+          {runState === "running" ? selectedSession.sourceType === "screen"
+            ? <Button onClick={() => { setFeedIssue(getScreenShareStoppedMessage("stopped")); void pauseSession(); }} variant="outline" className="border-amber-400/30 text-amber-300"><CircleStop className="mr-2 h-4 w-4" />Stop Sharing</Button>
+            : <Button onClick={() => void pauseSession()} variant="outline" className="border-amber-400/30 text-amber-300"><Pause className="mr-2 h-4 w-4" />Pause</Button>
+          : null}
           {runState !== "complete" ? <Button onClick={() => void endSession()} variant="outline" className="border-red-400/30 text-red-300"><CircleStop className="mr-2 h-4 w-4" />End Session</Button> : null}
           <Button onClick={resetAnalysisPosition} variant="ghost" className="text-white/50"><RotateCcw className="mr-2 h-4 w-4" />Reset footage</Button>
         </div>
@@ -841,6 +896,31 @@ export default function LiveViewPage() {
           <p className="border-t border-white/10 pt-4 text-xs leading-5 text-white/30">Live insights are AI-generated estimates based on sampled visual frames and the situation you enter. Coaches should verify every recommendation against the field and their own call sheet.</p>
         </aside>
       </div>
+      {showTvShare ? (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-black/85 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label="Open TV View">
+          <section className="w-full max-w-3xl border border-cyan-300/25 bg-[#07100d] p-6 md:p-8">
+            <div className="flex items-start justify-between gap-4">
+              <div><p className="text-xs font-semibold uppercase tracking-[0.24em] text-cyan-300">Secure second screen</p><h2 className="mt-2 text-3xl font-semibold text-white">Put Live Intelligence on the TV</h2></div>
+              <button onClick={() => setShowTvShare(false)} className="grid h-10 w-10 place-items-center border border-white/10 text-white/55 hover:text-white" aria-label="Close TV View dialog"><X className="h-4 w-4" /></button>
+            </div>
+            <div className="mt-7 grid gap-6 md:grid-cols-[180px_1fr]">
+              <div className="grid min-h-[180px] place-items-center bg-white p-4">
+                {tvUrl ? <QRCodeSVG value={tvUrl} size={150} level="M" /> : <Loader2 className="h-8 w-8 animate-spin text-black" />}
+              </div>
+              <div>
+                <p className="text-sm leading-6 text-white/60">Open the secure link in a smart-TV browser, connected computer, or second display. Uploaded replays can play inside TV View. Camera and Screen Share video stays on the coach&apos;s source device; cast or mirror the command-center tab when you want the live picture and AI together.</p>
+                <div className="mt-5 border border-white/10 bg-black/25 p-3 font-mono text-xs leading-5 text-white/45">{tvUrl || "Generating an expiring TV link…"}</div>
+                <div className="mt-5 flex flex-wrap gap-2">
+                  <Button disabled={!tvUrl} onClick={() => tvUrl && window.open(tvUrl, "_blank", "noopener,noreferrer")} className="bg-cyan-300 text-black hover:bg-cyan-200"><ExternalLink className="mr-2 h-4 w-4" />Open TV View</Button>
+                  <Button disabled={!tvUrl} onClick={() => void navigator.clipboard.writeText(tvUrl).then(() => toast.success("Secure TV link copied."))} variant="outline" className="border-white/15 text-white"><Copy className="mr-2 h-4 w-4" />Copy link</Button>
+                  <Button onClick={() => void document.documentElement.requestFullscreen?.()} variant="ghost" className="text-white/60"><Tv className="mr-2 h-4 w-4" />Full-screen this display</Button>
+                </div>
+                <p className="mt-4 text-xs leading-5 text-amber-200/65">This link expires automatically. Anyone holding it can view this session until expiration, so share it only with your staff.</p>
+              </div>
+            </div>
+          </section>
+        </div>
+      ) : null}
     </div>
   );
 }

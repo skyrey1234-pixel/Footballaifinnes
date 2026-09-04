@@ -1,19 +1,22 @@
 # TacticalEdge AI — Project TODO
 
-- [ ] LIVE SCREEN SHARE: Add a third Live source that uses browser display capture for a selected tab, window, or screen
-- [ ] LIVE SCREEN SHARE: Run the existing five-second frame scheduler, two-prediction engine, unit memory, and impact-player tracking against the shared display stream
-- [ ] LIVE SCREEN SHARE: Add explicit start, pause, resume, stop-sharing, ended-stream, permission-denied, and unsupported-browser behavior
-- [ ] LIVE TV VIEW: Add a dedicated full-screen second-screen route with the live feed where technically available, two predictions, score/situation, unit intelligence, impact players, and timeline updates
-- [ ] LIVE TV VIEW: Secure second-screen access with an expiring session-scoped token rather than exposing private game intelligence publicly
-- [ ] LIVE TV VIEW: Add an Open TV View action plus copyable link and QR/pairing guidance for smart-TV browsers or connected displays
-- [ ] LIVE TV VIEW: Synchronize TV View from persisted session and event data without unsupported background timers
-- [ ] LIVE SHARE/TV: Add regression tests for source selection, display-capture lifecycle, token integrity/expiry, owner scope, and TV data projection
+- [x] LIVE SCREEN SHARE: Centralize and verify coach-visible unsupported-browser guidance when getDisplayMedia is unavailable
+- [x] LIVE SHARE/TV: Add automated regression tests for Screen Share permission denial, unsupported browser, explicit stop, and browser-ended stream recovery messages
+
+- [x] LIVE SCREEN SHARE: Add a third Live source that uses browser display capture for a selected tab, window, or screen
+- [x] LIVE SCREEN SHARE: Run the existing five-second frame scheduler, two-prediction engine, unit memory, and impact-player tracking against the shared display stream
+- [x] LIVE SCREEN SHARE: Add explicit start, pause, resume, stop-sharing, ended-stream, permission-denied, and unsupported-browser behavior
+- [x] LIVE TV VIEW: Add a dedicated full-screen second-screen route with the live feed where technically available, two predictions, score/situation, unit intelligence, impact players, and timeline updates
+- [x] LIVE TV VIEW: Secure second-screen access with an expiring session-scoped token rather than exposing private game intelligence publicly
+- [x] LIVE TV VIEW: Add an Open TV View action plus copyable link and QR/pairing guidance for smart-TV browsers or connected displays
+- [x] LIVE TV VIEW: Synchronize TV View from persisted session and event data without unsupported background timers
+- [x] LIVE SHARE/TV: Add regression tests for source selection, display-capture lifecycle, token integrity/expiry, owner scope, and TV data projection
 - [ ] LIVE SHARE/TV: Verify replay scanning, screen-share capture behavior, and TV View desktop/mobile/16:9 layouts before production release
 
-- [ ] BUG: Prevent Live View from rendering a video element with src="" while the protected replay URL is loading; preserve camera mode, add source-readiness regression coverage, and verify the console warning is gone
+- [x] BUG: Live View no longer renders src="" while the protected replay URL loads; post-fix production browser verification confirmed the original React empty-src warning is absent
 
-- [ ] BUG: Live Mode scan failure — model truncation recovery and direct production API analysis are fixed, but the browser replay path can still remain on “Waiting for frames” without submitting analyzeWindow; fix the end-to-end browser capture path
-- [ ] BUG: Verify a new uploaded-replay session in production advances from playback to a persisted five-second event visible in the timeline without direct API assistance
+- [x] BUG: Live Mode replay scan failure repaired through compact model recovery, signed playback tokens, bounded 4MB video ranges, and automatic replay startup
+- [x] BUG: Production browser replay verification completed without direct API assistance: video played to 40.7 seconds, submitted three analyzeWindow requests, and displayed two persisted five-second windows with predictions
 - [ ] BUG: Verify a real camera-mode production session captures frames and displays a new five-second event; preserve clear permission/error guidance when no camera is available
 
 - [x] LIVE 5S: Change the rolling analysis cadence from 15 seconds to 5 seconds across schema defaults, backend validation, UI timing, labels, and tests

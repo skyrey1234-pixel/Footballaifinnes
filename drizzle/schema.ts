@@ -298,7 +298,7 @@ export const liveGameSessions = mysqlTable("live_game_sessions", {
   userId: int("userId").notNull(),
   name: varchar("name", { length: 160 }).notNull(),
   opponentName: varchar("opponentName", { length: 255 }).notNull(),
-  sourceType: mysqlEnum("sourceType", ["upload", "camera"]).notNull(),
+  sourceType: mysqlEnum("sourceType", ["upload", "camera", "screen"]).notNull(),
   videoFileKey: text("videoFileKey"),
   videoUrl: text("videoUrl"),
   status: mysqlEnum("status", ["setup", "ready", "live", "paused", "complete", "failed"])

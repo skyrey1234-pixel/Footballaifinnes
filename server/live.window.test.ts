@@ -3,6 +3,9 @@ import {
   getCompletedWindowIndex,
   getLiveLaunchIssue,
   getLiveVideoSource,
+  getScreenShareStartIssue,
+  getScreenShareStoppedMessage,
+  isLiveCaptureSource,
   LIVE_WINDOW_SECONDS,
   selectFramesForWindow,
   shouldContinueAfterWindowFailure,
@@ -73,6 +76,23 @@ describe("Live View browser window scheduler", () => {
   it("keeps the video element available for a camera srcObject without a URL", () => {
     expect(getLiveVideoSource("camera", "")).toBeUndefined();
     expect(shouldRenderLiveVideo("camera", "")).toBe(true);
+  });
+
+  it("treats camera and Screen Share as URL-free live capture sources", () => {
+    expect(isLiveCaptureSource("camera")).toBe(true);
+    expect(isLiveCaptureSource("screen")).toBe(true);
+    expect(isLiveCaptureSource("upload")).toBe(false);
+    expect(shouldRenderLiveVideo("screen", undefined)).toBe(true);
+    expect(shouldDeferLiveStart("screen", undefined, true)).toBe(false);
+    expect(getLiveLaunchIssue("screen", "")).toBeNull();
+  });
+
+  it("returns coach-visible Screen Share guidance for unsupported, denied, stopped, and ended states", () => {
+    expect(getScreenShareStartIssue(false)).toMatch(/not supported/i);
+    expect(getScreenShareStartIssue(true, { name: "NotAllowedError" })).toMatch(/permission was not granted/i);
+    expect(getScreenShareStartIssue(true, new Error("Display capture failed"))).toBe("Display capture failed");
+    expect(getScreenShareStoppedMessage("stopped")).toMatch(/stopped.*Resume Analysis/i);
+    expect(getScreenShareStoppedMessage("ended")).toMatch(/ended.*Resume Analysis/i);
   });
 
   it("defers one replay start until both the signed URL and mounted video are ready", () => {

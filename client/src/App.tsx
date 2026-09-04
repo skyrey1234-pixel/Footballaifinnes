@@ -15,11 +15,13 @@ import WarRoomPage from "./pages/WarRoomPage";
 import Sim3DTest from "./pages/Sim3DTest";
 import LiveViewPage from "./pages/LiveViewPage";
 import AnalyticsPage from "./pages/AnalyticsPage";
+import LiveTvPage from "./pages/LiveTvPage";
 
 function Router() {
   return (
     <Switch>
       <Route path="/landing" component={Landing} />
+      <Route path="/live/tv/:id" component={LiveTvPage} />
       {import.meta.env.DEV && <Route path="/sim3d-test" component={Sim3DTest} />}
       <Route>
         <DashboardLayout>

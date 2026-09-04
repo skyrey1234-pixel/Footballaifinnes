@@ -1,10 +1,11 @@
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
-import { protectedProcedure, router } from "./_core/trpc";
+import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
 import * as db from "./db";
 import { analyzeLiveWindow, LIVE_WINDOW_SECONDS, type LiveSituation } from "./liveAnalysis";
 import { mergeLiveGameMemory, normalizeLiveGameMemory } from "./liveMemory";
 import { createLivePlaybackToken } from "./livePlaybackToken";
+import { createLiveTvToken, verifyLiveTvToken } from "./liveTvToken";
 
 const adminProcedure = protectedProcedure.use(({ ctx, next }) => {
   if (ctx.user.role !== "admin") {
@@ -51,6 +52,47 @@ export const liveRouter = router({
       return { url: `/api/live/video/${session.id}?access=${encodeURIComponent(token)}`, expiresAt };
     }),
 
+  tvLink: protectedProcedure
+    .input(z.object({ id: z.number().int().positive() }))
+    .query(async ({ ctx, input }) => {
+      const session = await requireOwnedSession(input.id, ctx.user.id);
+      const { token, expiresAt } = createLiveTvToken(session.id, ctx.user.id);
+      return { path: `/live/tv/${session.id}#access=${encodeURIComponent(token)}`, expiresAt };
+    }),
+
+  tvSnapshot: publicProcedure
+    .input(z.object({ id: z.number().int().positive(), access: z.string().min(20).max(4_000) }))
+    .query(async ({ input }) => {
+      const access = verifyLiveTvToken(input.access);
+      if (!access || access.sessionId !== input.id) {
+        throw new TRPCError({ code: "UNAUTHORIZED", message: "This TV View link is invalid or expired" });
+      }
+      const session = await db.getLiveGameSession(access.sessionId, access.userId);
+      if (!session) throw new TRPCError({ code: "NOT_FOUND", message: "Live session not found" });
+      const events = await db.listLiveAnalysisEvents(session.id, access.userId, 40);
+      const playback = session.sourceType === "upload" && session.videoFileKey
+        ? createLivePlaybackToken(session.id, access.userId)
+        : null;
+      return {
+        session: {
+          id: session.id,
+          name: session.name,
+          opponentName: session.opponentName,
+          sourceType: session.sourceType,
+          status: session.status,
+          analysisIntervalSeconds: session.analysisIntervalSeconds,
+          currentVideoSecond: session.currentVideoSecond,
+          situation: session.situation,
+          gameMemory: session.gameMemory,
+          latestSummary: session.latestSummary,
+          updatedAt: session.updatedAt,
+        },
+        events: events.map(({ userId: _userId, liveSessionId: _sessionId, ...event }) => event),
+        playbackUrl: playback ? `/api/live/video/${session.id}?access=${encodeURIComponent(playback.token)}` : null,
+        expiresAt: access.expiresAt,
+      };
+    }),
+
   events: protectedProcedure
     .input(z.object({ id: z.number().int().positive(), limit: z.number().int().min(1).max(300).optional() }))
     .query(async ({ ctx, input }) => {
@@ -62,7 +104,7 @@ export const liveRouter = router({
     .input(z.object({
       name: z.string().trim().min(1).max(160),
       opponentName: z.string().trim().min(1).max(255),
-      sourceType: z.enum(["upload", "camera"]),
+      sourceType: z.enum(["upload", "camera", "screen"]),
       videoFileKey: z.string().max(2_000).optional(),
       videoUrl: z.string().max(4_000).optional(),
       analysisIntervalSeconds: z.literal(5).default(5),

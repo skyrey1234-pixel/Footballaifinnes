@@ -4,21 +4,39 @@ export type BufferedLiveFrame = { second: number; dataUrl: string };
 export const LIVE_WINDOW_SECONDS = 5;
 export const LIVE_FRAME_CAPTURE_SECONDS = 1.2;
 
-export function getLiveVideoSource(sourceType: "upload" | "camera" | undefined, playbackUrl: string | undefined) {
+export type LiveSourceType = "upload" | "camera" | "screen";
+
+export function getScreenShareStartIssue(supported: boolean, error?: unknown) {
+  if (!supported) return "Screen sharing is not supported in this browser. Try current Chrome or Edge on a computer.";
+  if ((error as { name?: string } | undefined)?.name === "NotAllowedError") {
+    return "Screen sharing permission was not granted. Press Go Live and choose an authorized game tab, window, or display.";
+  }
+  return error instanceof Error ? error.message : "Could not start screen sharing.";
+}
+
+export function getScreenShareStoppedMessage(reason: "stopped" | "ended") {
+  return `Screen sharing ${reason}. Press Resume Analysis to choose a screen again.`;
+}
+
+export function isLiveCaptureSource(sourceType: LiveSourceType | undefined) {
+  return sourceType === "camera" || sourceType === "screen";
+}
+
+export function getLiveVideoSource(sourceType: LiveSourceType | undefined, playbackUrl: string | undefined) {
   if (sourceType !== "upload") return undefined;
   const source = playbackUrl?.trim();
   return source || undefined;
 }
 
-export function shouldRenderLiveVideo(sourceType: "upload" | "camera" | undefined, playbackUrl: string | undefined) {
-  return sourceType === "camera" || Boolean(getLiveVideoSource(sourceType, playbackUrl));
+export function shouldRenderLiveVideo(sourceType: LiveSourceType | undefined, playbackUrl: string | undefined) {
+  return isLiveCaptureSource(sourceType) || Boolean(getLiveVideoSource(sourceType, playbackUrl));
 }
 
-export function shouldDeferLiveStart(sourceType: "upload" | "camera" | undefined, playbackUrl: string | undefined, hasVideoElement: boolean) {
+export function shouldDeferLiveStart(sourceType: LiveSourceType | undefined, playbackUrl: string | undefined, hasVideoElement: boolean) {
   return sourceType === "upload" && (!getLiveVideoSource(sourceType, playbackUrl) || !hasVideoElement);
 }
 
-export function getLiveLaunchIssue(sourceType: "upload" | "camera", uploadedFileKey: string) {
+export function getLiveLaunchIssue(sourceType: LiveSourceType, uploadedFileKey: string) {
   if (sourceType === "upload" && !uploadedFileKey.trim()) return "Choose game footage before opening replay mode.";
   return null;
 }

@@ -1,0 +1,1 @@
+ALTER TABLE `live_game_sessions` MODIFY COLUMN `sourceType` enum('upload','camera','screen') NOT NULL;
