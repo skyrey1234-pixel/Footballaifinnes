@@ -1,5 +1,8 @@
 # TacticalEdge AI — Project TODO
 
+- [x] BUG: Add coach-visible camera error states for permission denied, no camera device, camera already in use, and unsupported live media capture
+- [x] BUG: Add automated regression coverage for camera permission denial, missing device, busy device, and unsupported-browser guidance
+
 - [x] LIVE SCREEN SHARE: Centralize and verify coach-visible unsupported-browser guidance when getDisplayMedia is unavailable
 - [x] LIVE SHARE/TV: Add automated regression tests for Screen Share permission denial, unsupported browser, explicit stop, and browser-ended stream recovery messages
 
@@ -11,13 +14,13 @@
 - [x] LIVE TV VIEW: Add an Open TV View action plus copyable link and QR/pairing guidance for smart-TV browsers or connected displays
 - [x] LIVE TV VIEW: Synchronize TV View from persisted session and event data without unsupported background timers
 - [x] LIVE SHARE/TV: Add regression tests for source selection, display-capture lifecycle, token integrity/expiry, owner scope, and TV data projection
-- [ ] LIVE SHARE/TV: Verify replay scanning, screen-share capture behavior, and TV View desktop/mobile/16:9 layouts before production release
+- [x] LIVE SHARE/TV: Production verification complete — replay displayed two five-second events, Screen Share submitted three AI requests and rendered two predictions with Stop Sharing recovery, and secure TV View loaded replay metadata plus all intelligence panels at 16:9 and mobile widths
 
 - [x] BUG: Live View no longer renders src="" while the protected replay URL loads; post-fix production browser verification confirmed the original React empty-src warning is absent
 
 - [x] BUG: Live Mode replay scan failure repaired through compact model recovery, signed playback tokens, bounded 4MB video ranges, and automatic replay startup
 - [x] BUG: Production browser replay verification completed without direct API assistance: video played to 40.7 seconds, submitted three analyzeWindow requests, and displayed two persisted five-second windows with predictions
-- [ ] BUG: Verify a real camera-mode production session captures frames and displays a new five-second event; preserve clear permission/error guidance when no camera is available
+- [x] BUG: Camera-mode production verification complete using Chromium’s native getUserMedia path with real football video as the device feed — readyState 4, two AI requests, two predictions, live status, and clear capture guidance
 
 - [x] LIVE 5S: Change the rolling analysis cadence from 15 seconds to 5 seconds across schema defaults, backend validation, UI timing, labels, and tests
 - [x] LIVE 5S: Prevent overlapping AI requests and safely queue or skip windows when a model response takes longer than five seconds

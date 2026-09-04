@@ -7,6 +7,7 @@ import { uploadVideoInChunks, type VideoUploadProgress } from "@/lib/chunkedVide
 import { QRCodeSVG } from "qrcode.react";
 import {
   getCompletedWindowIndex,
+  getCameraStartIssue,
   getLiveLaunchIssue,
   getLiveVideoSource,
   getScreenShareStartIssue,
@@ -432,7 +433,7 @@ export default function LiveViewPage() {
     try {
       setFeedIssue("");
       if (isLiveCaptureSource(selectedSession.sourceType)) {
-        if (!navigator.mediaDevices) throw new Error(selectedSession.sourceType === "screen" ? getScreenShareStartIssue(false) : "This browser does not support live media capture.");
+        if (!navigator.mediaDevices) throw new Error(selectedSession.sourceType === "screen" ? getScreenShareStartIssue(false) : getCameraStartIssue(false));
         const stream = selectedSession.sourceType === "screen"
           ? await (() => {
               if (!navigator.mediaDevices.getDisplayMedia) throw new Error(getScreenShareStartIssue(false));
@@ -501,7 +502,11 @@ export default function LiveViewPage() {
     } catch (error) {
       pendingReplayStartRef.current = false;
       const message = error instanceof Error ? error.message : "Could not start the live feed";
-      const publicMessage = selectedSession.sourceType === "screen" ? getScreenShareStartIssue(true, error) : message;
+      const publicMessage = selectedSession.sourceType === "screen"
+        ? getScreenShareStartIssue(true, error)
+        : selectedSession.sourceType === "camera"
+          ? getCameraStartIssue(true, error)
+          : message;
       setFeedIssue(publicMessage);
       toast.error(publicMessage);
     }

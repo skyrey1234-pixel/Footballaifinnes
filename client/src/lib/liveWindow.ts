@@ -18,6 +18,15 @@ export function getScreenShareStoppedMessage(reason: "stopped" | "ended") {
   return `Screen sharing ${reason}. Press Resume Analysis to choose a screen again.`;
 }
 
+export function getCameraStartIssue(supported: boolean, error?: unknown) {
+  if (!supported) return "Live camera capture is not supported in this browser. Try current Chrome, Edge, or Safari on a phone, tablet, or laptop.";
+  const name = (error as { name?: string } | undefined)?.name;
+  if (name === "NotAllowedError") return "Camera permission was not granted. Allow camera access in your browser settings, then press Go Live again.";
+  if (name === "NotFoundError" || name === "DevicesNotFoundError") return "No camera was detected. Connect a camera or capture card, then press Go Live again.";
+  if (name === "NotReadableError" || name === "TrackStartError") return "The camera is already in use or unavailable. Close other camera apps, reconnect the device, then try again.";
+  return error instanceof Error ? error.message : "Could not start the live camera.";
+}
+
 export function isLiveCaptureSource(sourceType: LiveSourceType | undefined) {
   return sourceType === "camera" || sourceType === "screen";
 }

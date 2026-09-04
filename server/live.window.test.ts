@@ -1,5 +1,6 @@
 import {
   enqueueLatestWindow,
+  getCameraStartIssue,
   getCompletedWindowIndex,
   getLiveLaunchIssue,
   getLiveVideoSource,
@@ -93,6 +94,14 @@ describe("Live View browser window scheduler", () => {
     expect(getScreenShareStartIssue(true, new Error("Display capture failed"))).toBe("Display capture failed");
     expect(getScreenShareStoppedMessage("stopped")).toMatch(/stopped.*Resume Analysis/i);
     expect(getScreenShareStoppedMessage("ended")).toMatch(/ended.*Resume Analysis/i);
+  });
+
+  it("returns coach-visible camera guidance for unsupported, denied, missing, and busy devices", () => {
+    expect(getCameraStartIssue(false)).toMatch(/not supported/i);
+    expect(getCameraStartIssue(true, { name: "NotAllowedError" })).toMatch(/permission was not granted/i);
+    expect(getCameraStartIssue(true, { name: "NotFoundError" })).toMatch(/No camera was detected/i);
+    expect(getCameraStartIssue(true, { name: "NotReadableError" })).toMatch(/already in use or unavailable/i);
+    expect(getCameraStartIssue(true, new Error("Camera failed"))).toBe("Camera failed");
   });
 
   it("defers one replay start until both the signed URL and mounted video are ready", () => {
