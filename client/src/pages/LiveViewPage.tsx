@@ -13,6 +13,7 @@ import {
   LIVE_WINDOW_SECONDS,
   selectFramesForWindow,
   shouldContinueAfterWindowFailure,
+  shouldDeferLiveStart,
   shouldRenderLiveVideo,
   transitionLiveRunState,
   type BufferedLiveFrame,
@@ -194,6 +195,7 @@ export default function LiveViewPage() {
   const situationRef = useRef<Situation>(DEFAULT_SITUATION);
   const cameraStartedAtRef = useRef(0);
   const cameraElapsedBeforeStartRef = useRef(0);
+  const pendingReplayStartRef = useRef(false);
 
   const sessionsQuery = trpc.live.list.useQuery();
   const sessionQuery = trpc.live.get.useQuery(
@@ -423,15 +425,18 @@ export default function LiveViewPage() {
         }
         cameraStartedAtRef.current = performance.now();
       } else {
-        if (!videoSource || !videoRef.current) {
+        if (shouldDeferLiveStart(selectedSession.sourceType, videoSource, Boolean(videoRef.current))) {
+          pendingReplayStartRef.current = true;
           const message = playbackUrlQuery.error
             ? "The secure replay link could not be prepared. Refresh Live View and try again."
-            : "Securing the replay stream. Wait a moment, then press Go Live again.";
+            : "Securing the replay stream. Analysis will start automatically when the player is ready.";
           setFeedIssue(message);
           toast.info(message);
           return;
         }
       }
+
+      pendingReplayStartRef.current = false;
 
       const nextState = transitionLiveRunState(runStateRef.current, "start");
       runStateRef.current = nextState;
@@ -451,9 +456,17 @@ export default function LiveViewPage() {
         });
       }
     } catch (error) {
+      pendingReplayStartRef.current = false;
       toast.error(error instanceof Error ? error.message : "Could not start the live feed");
     }
   };
+
+  useEffect(() => {
+    if (!pendingReplayStartRef.current || selectedSession?.sourceType !== "upload" || !videoSource || !videoRef.current) return;
+    pendingReplayStartRef.current = false;
+    const frame = requestAnimationFrame(() => void startSession());
+    return () => cancelAnimationFrame(frame);
+  }, [selectedSession?.sourceType, videoSource]);
 
   const pauseSession = async () => {
     if (!selectedId) return;

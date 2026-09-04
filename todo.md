@@ -1,5 +1,15 @@
 # TacticalEdge AI — Project TODO
 
+- [ ] LIVE SCREEN SHARE: Add a third Live source that uses browser display capture for a selected tab, window, or screen
+- [ ] LIVE SCREEN SHARE: Run the existing five-second frame scheduler, two-prediction engine, unit memory, and impact-player tracking against the shared display stream
+- [ ] LIVE SCREEN SHARE: Add explicit start, pause, resume, stop-sharing, ended-stream, permission-denied, and unsupported-browser behavior
+- [ ] LIVE TV VIEW: Add a dedicated full-screen second-screen route with the live feed where technically available, two predictions, score/situation, unit intelligence, impact players, and timeline updates
+- [ ] LIVE TV VIEW: Secure second-screen access with an expiring session-scoped token rather than exposing private game intelligence publicly
+- [ ] LIVE TV VIEW: Add an Open TV View action plus copyable link and QR/pairing guidance for smart-TV browsers or connected displays
+- [ ] LIVE TV VIEW: Synchronize TV View from persisted session and event data without unsupported background timers
+- [ ] LIVE SHARE/TV: Add regression tests for source selection, display-capture lifecycle, token integrity/expiry, owner scope, and TV data projection
+- [ ] LIVE SHARE/TV: Verify replay scanning, screen-share capture behavior, and TV View desktop/mobile/16:9 layouts before production release
+
 - [ ] BUG: Prevent Live View from rendering a video element with src="" while the protected replay URL is loading; preserve camera mode, add source-readiness regression coverage, and verify the console warning is gone
 
 - [ ] BUG: Live Mode scan failure — model truncation recovery and direct production API analysis are fixed, but the browser replay path can still remain on “Waiting for frames” without submitting analyzeWindow; fix the end-to-end browser capture path

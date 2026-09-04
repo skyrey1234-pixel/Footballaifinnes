@@ -14,6 +14,10 @@ export function shouldRenderLiveVideo(sourceType: "upload" | "camera" | undefine
   return sourceType === "camera" || Boolean(getLiveVideoSource(sourceType, playbackUrl));
 }
 
+export function shouldDeferLiveStart(sourceType: "upload" | "camera" | undefined, playbackUrl: string | undefined, hasVideoElement: boolean) {
+  return sourceType === "upload" && (!getLiveVideoSource(sourceType, playbackUrl) || !hasVideoElement);
+}
+
 export function getLiveLaunchIssue(sourceType: "upload" | "camera", uploadedFileKey: string) {
   if (sourceType === "upload" && !uploadedFileKey.trim()) return "Choose game footage before opening replay mode.";
   return null;

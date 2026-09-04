@@ -6,6 +6,7 @@ import {
   LIVE_WINDOW_SECONDS,
   selectFramesForWindow,
   shouldContinueAfterWindowFailure,
+  shouldDeferLiveStart,
   shouldRenderLiveVideo,
   transitionLiveRunState,
 } from "../client/src/lib/liveWindow";
@@ -72,5 +73,12 @@ describe("Live View browser window scheduler", () => {
   it("keeps the video element available for a camera srcObject without a URL", () => {
     expect(getLiveVideoSource("camera", "")).toBeUndefined();
     expect(shouldRenderLiveVideo("camera", "")).toBe(true);
+  });
+
+  it("defers one replay start until both the signed URL and mounted video are ready", () => {
+    expect(shouldDeferLiveStart("upload", undefined, false)).toBe(true);
+    expect(shouldDeferLiveStart("upload", "/api/live/video/55?access=signed", false)).toBe(true);
+    expect(shouldDeferLiveStart("upload", "/api/live/video/55?access=signed", true)).toBe(false);
+    expect(shouldDeferLiveStart("camera", undefined, true)).toBe(false);
   });
 });
