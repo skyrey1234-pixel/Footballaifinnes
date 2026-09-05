@@ -1,8 +1,8 @@
 # TacticalEdge AI — Project TODO
 
-- [ ] BUG: Fix production Live View error “The play() request was interrupted by a new load request” by tracing video source/remount races, making media startup race-safe for camera, Screen Share, and replay, adding regression coverage, and verifying five-second scanning still works in production
-- [ ] BUG: Resume camera and Screen Share sessions from persisted currentVideoSecond and the next unused five-second window so page reloads cannot restart at window 0 or collide with an existing event
-- [ ] BUG: When browser video-frame callbacks skip across five-second boundaries, submit the newest eligible completed window from buffered frames instead of silently missing every scan
+- [x] BUG: Fixed production Live View “The play() request was interrupted by a new load request” race with a synchronous startup lock, stale-request cancellation, disabled Starting Camera/Replay/Screen Picker state, safe AbortError handling, and clean pause/end lifecycle; verified real production camera and upload replay start without interruption
+- [x] BUG: Camera and Screen Share now resume after both persisted currentVideoSecond and the latest analyzed five-second window; production camera session reopened at 4:50 instead of window 0 and persisted a new non-colliding window 59 event
+- [x] BUG: Sparse browser video-frame callbacks now retain 60 seconds of evidence and submit the newest completed window that actually has frames; production window 59 persisted with inputFrameCount=1, 28.2-second latency, and exactly two predictions after callbacks skipped a boundary
 
 - [x] BUG: Production Live Camera repaired and verified on the real owner camera path — permission and preview succeeded, decoded-frame capture registered visibly, one five-second window persisted with inputFrameCount=1 in 13.6s, exactly two predictions were stored, the event rendered in the production timeline, and pause released the camera cleanly
 
