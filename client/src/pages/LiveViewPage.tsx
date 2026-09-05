@@ -7,6 +7,7 @@ import { uploadVideoInChunks, type VideoUploadProgress } from "@/lib/chunkedVide
 import { QRCodeSVG } from "qrcode.react";
 import {
   getCompletedWindowIndex,
+  getCaptureTimestampAfterAttempt,
   getCameraStartIssue,
   getLiveLaunchIssue,
   getLiveVideoSource,
@@ -20,6 +21,7 @@ import {
   shouldContinueAfterWindowFailure,
   shouldDeferLiveStart,
   shouldRenderLiveVideo,
+  shouldUseVideoFrameScheduler,
   transitionLiveRunState,
   type BufferedLiveFrame,
   type LiveRunState,
@@ -76,6 +78,11 @@ type PendingWindow = {
   windowStartSeconds: number;
   windowEndSeconds: number;
   frames: string[];
+};
+
+type VideoFrameElement = HTMLVideoElement & {
+  requestVideoFrameCallback?: (callback: (now: number, metadata: unknown) => void) => number;
+  cancelVideoFrameCallback?: (handle: number) => void;
 };
 
 type UnitMemoryView = {
@@ -188,6 +195,7 @@ export default function LiveViewPage() {
   const [secondsToNextRead, setSecondsToNextRead] = useState(LIVE_WINDOW_SECONDS);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [queuedWindows, setQueuedWindows] = useState(0);
+  const [capturedFrameCount, setCapturedFrameCount] = useState(0);
   const [situation, setSituation] = useState<Situation>(DEFAULT_SITUATION);
   const [showTvShare, setShowTvShare] = useState(false);
 
@@ -196,6 +204,7 @@ export default function LiveViewPage() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const animationFrameRef = useRef<number | null>(null);
+  const videoFrameCallbackRef = useRef<number | null>(null);
   const captureBufferRef = useRef<BufferedLiveFrame[]>([]);
   const lastCaptureAtRef = useRef(-LIVE_FRAME_CAPTURE_SECONDS);
   const lastWindowIndexRef = useRef(-1);
@@ -207,6 +216,18 @@ export default function LiveViewPage() {
   const cameraStartedAtRef = useRef(0);
   const cameraElapsedBeforeStartRef = useRef(0);
   const pendingReplayStartRef = useRef(false);
+
+  const cancelCaptureLoop = () => {
+    if (animationFrameRef.current !== null) {
+      cancelAnimationFrame(animationFrameRef.current);
+      animationFrameRef.current = null;
+    }
+    const video = videoRef.current as VideoFrameElement | null;
+    if (videoFrameCallbackRef.current !== null && video?.cancelVideoFrameCallback) {
+      video.cancelVideoFrameCallback(videoFrameCallbackRef.current);
+      videoFrameCallbackRef.current = null;
+    }
+  };
 
   const sessionsQuery = trpc.live.list.useQuery();
   const sessionQuery = trpc.live.get.useQuery(
@@ -266,7 +287,7 @@ export default function LiveViewPage() {
   }, [selectedSession?.id]);
 
   useEffect(() => () => {
-    if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
+    cancelCaptureLoop();
     mediaStreamRef.current?.getTracks().forEach((track) => track.stop());
     if (localPreviewUrl) URL.revokeObjectURL(localPreviewUrl);
   }, [localPreviewUrl]);
@@ -298,17 +319,25 @@ export default function LiveViewPage() {
   const captureFrame = (second: number) => {
     const video = videoRef.current;
     const canvas = canvasRef.current;
-    if (!video || !canvas || video.readyState < 2 || video.videoWidth < 2) return;
-    const targetWidth = 640;
-    const targetHeight = Math.max(240, Math.round((video.videoHeight / video.videoWidth) * targetWidth));
-    canvas.width = targetWidth;
-    canvas.height = targetHeight;
-    const context = canvas.getContext("2d");
-    if (!context) return;
-    context.drawImage(video, 0, 0, targetWidth, targetHeight);
-    const dataUrl = canvas.toDataURL("image/jpeg", 0.68);
-    captureBufferRef.current.push({ second, dataUrl });
-    captureBufferRef.current = captureBufferRef.current.filter((frame) => frame.second >= second - 12).slice(-12);
+    if (!video || !canvas || video.readyState < 2 || video.videoWidth < 2 || video.videoHeight < 2) return false;
+    try {
+      const targetWidth = 640;
+      const targetHeight = Math.max(240, Math.round((video.videoHeight / video.videoWidth) * targetWidth));
+      canvas.width = targetWidth;
+      canvas.height = targetHeight;
+      const context = canvas.getContext("2d");
+      if (!context) return false;
+      context.drawImage(video, 0, 0, targetWidth, targetHeight);
+      const dataUrl = canvas.toDataURL("image/jpeg", 0.68);
+      captureBufferRef.current.push({ second, dataUrl });
+      captureBufferRef.current = captureBufferRef.current.filter((frame) => frame.second >= second - 12).slice(-12);
+      setCapturedFrameCount((count) => count + 1);
+      return true;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Camera frame capture failed.";
+      setFeedIssue(`The preview is live, but TacticalEdge could not capture a frame: ${message}`);
+      return false;
+    }
   };
 
   const processWindow = async (window: PendingWindow): Promise<void> => {
@@ -360,8 +389,11 @@ export default function LiveViewPage() {
     setSecondsToNextRead(Math.max(0, Math.ceil(LIVE_WINDOW_SECONDS - positionInWindow)));
 
     if (currentSecond - lastCaptureAtRef.current >= LIVE_FRAME_CAPTURE_SECONDS) {
-      captureFrame(currentSecond);
-      lastCaptureAtRef.current = currentSecond;
+      lastCaptureAtRef.current = getCaptureTimestampAfterAttempt(
+        lastCaptureAtRef.current,
+        currentSecond,
+        captureFrame(currentSecond),
+      );
     }
 
     const completedWindowIndex = getCompletedWindowIndex(currentSecond);
@@ -379,7 +411,12 @@ export default function LiveViewPage() {
         });
       }
     }
-    animationFrameRef.current = requestAnimationFrame(runCaptureLoop);
+    const video = videoRef.current as VideoFrameElement | null;
+    if (shouldUseVideoFrameScheduler(selectedSession?.sourceType, Boolean(video?.requestVideoFrameCallback))) {
+      videoFrameCallbackRef.current = video!.requestVideoFrameCallback!(() => runCaptureLoop());
+    } else {
+      animationFrameRef.current = requestAnimationFrame(runCaptureLoop);
+    }
   };
 
   const handleUpload = async (file: File) => {
@@ -456,7 +493,7 @@ export default function LiveViewPage() {
             cameraStartedAtRef.current = 0;
             runStateRef.current = "paused";
             setRunState("paused");
-            if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
+            cancelCaptureLoop();
             mediaStreamRef.current = null;
             setFeedIssue(getScreenShareStoppedMessage("ended"));
             void updateMutation.mutateAsync({
@@ -486,15 +523,20 @@ export default function LiveViewPage() {
       runStateRef.current = nextState;
       setRunState(nextState);
       await updateMutation.mutateAsync({ id: selectedId, status: "live", situation });
-      if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
-      animationFrameRef.current = requestAnimationFrame(runCaptureLoop);
+      cancelCaptureLoop();
+      const activeVideo = videoRef.current as VideoFrameElement | null;
+      if (shouldUseVideoFrameScheduler(selectedSession.sourceType, Boolean(activeVideo?.requestVideoFrameCallback))) {
+        videoFrameCallbackRef.current = activeVideo!.requestVideoFrameCallback!(() => runCaptureLoop());
+      } else {
+        animationFrameRef.current = requestAnimationFrame(runCaptureLoop);
+      }
       if (selectedSession.sourceType === "upload" && videoRef.current) {
         void videoRef.current.play().catch(async () => {
           const message = "The replay could not start in this browser. Press play on the video, then Resume Analysis again.";
           setFeedIssue(message);
           runStateRef.current = "paused";
           setRunState("paused");
-          if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
+          cancelCaptureLoop();
           await updateMutation.mutateAsync({ id: selectedId, status: "paused", situation }).catch(() => undefined);
           toast.error(message);
         });
@@ -525,7 +567,7 @@ export default function LiveViewPage() {
     const nextState = transitionLiveRunState(runStateRef.current, "pause");
     runStateRef.current = nextState;
     setRunState(nextState);
-    if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
+    cancelCaptureLoop();
     videoRef.current?.pause();
     if (isLiveCaptureSource(selectedSession?.sourceType)) {
       cameraElapsedBeforeStartRef.current = currentSecond;
@@ -548,7 +590,7 @@ export default function LiveViewPage() {
     const nextState = transitionLiveRunState(runStateRef.current, "end");
     runStateRef.current = nextState;
     setRunState(nextState);
-    if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
+    cancelCaptureLoop();
     videoRef.current?.pause();
     mediaStreamRef.current?.getTracks().forEach((track) => track.stop());
     mediaStreamRef.current = null;
@@ -566,6 +608,7 @@ export default function LiveViewPage() {
     captureBufferRef.current = [];
     queuedWindowsRef.current = [];
     setQueuedWindows(0);
+    setCapturedFrameCount(0);
     lastCaptureAtRef.current = -LIVE_FRAME_CAPTURE_SECONDS;
     lastWindowIndexRef.current = -1;
     cameraElapsedBeforeStartRef.current = 0;
@@ -786,8 +829,9 @@ export default function LiveViewPage() {
             {runState === "running" ? <div className="pointer-events-none absolute inset-0 border border-emerald-400/25"><div className="absolute inset-x-0 h-px bg-gradient-to-r from-transparent via-emerald-400 to-transparent opacity-80 anim-scan" /></div> : null}
           </section>
 
-          <section className="grid gap-px bg-white/10 md:grid-cols-4">
-            <Metric icon={ScanLine} label="Next AI read" value={runState === "running" ? (feedIssue ? "Waiting for frames" : `${secondsToNextRead}s`) : "Paused"} accent />
+          <section className="grid gap-px bg-white/10 sm:grid-cols-2 xl:grid-cols-5">
+            <Metric icon={ScanLine} label="Next AI read" value={runState === "running" ? (isLiveCaptureSource(selectedSession.sourceType) && capturedFrameCount === 0 ? "Waiting for frame" : `${secondsToNextRead}s`) : "Paused"} accent />
+            <Metric icon={Camera} label="Frames captured" value={isLiveCaptureSource(selectedSession.sourceType) ? String(capturedFrameCount) : "Replay"} accent={capturedFrameCount > 0} />
             <Metric icon={Activity} label="Windows analyzed" value={String(events.length)} />
             <Metric icon={Gauge} label="Latest confidence" value={latestEvent ? `${latestEvent.confidence}%` : "—"} />
             <Metric icon={BrainCircuit} label="AI queue" value={isAnalyzing ? (queuedWindows ? `${queuedWindows} queued` : "Analyzing") : "Ready"} />

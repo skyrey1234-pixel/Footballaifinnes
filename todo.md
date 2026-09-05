@@ -1,5 +1,7 @@
 # TacticalEdge AI — Project TODO
 
+- [ ] BUG: Production Live Camera cannot be turned on; reproduce Camera → Open Live Command Center → Go Live, trace permission/device/stream/run-state failure, add device selection and resilient constraints if needed, test recovery states, and verify a real production camera scan
+
 - [x] BUG: Add coach-visible camera error states for permission denied, no camera device, camera already in use, and unsupported live media capture
 - [x] BUG: Add automated regression coverage for camera permission denial, missing device, busy device, and unsupported-browser guidance
 

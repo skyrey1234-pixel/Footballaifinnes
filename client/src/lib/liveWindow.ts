@@ -31,6 +31,14 @@ export function isLiveCaptureSource(sourceType: LiveSourceType | undefined) {
   return sourceType === "camera" || sourceType === "screen";
 }
 
+export function shouldUseVideoFrameScheduler(sourceType: LiveSourceType | undefined, callbackAvailable: boolean) {
+  return isLiveCaptureSource(sourceType) && callbackAvailable;
+}
+
+export function getCaptureTimestampAfterAttempt(previousSecond: number, attemptedSecond: number, captured: boolean) {
+  return captured ? attemptedSecond : previousSecond;
+}
+
 export function getLiveVideoSource(sourceType: LiveSourceType | undefined, playbackUrl: string | undefined) {
   if (sourceType !== "upload") return undefined;
   const source = playbackUrl?.trim();

@@ -1,6 +1,7 @@
 import {
   enqueueLatestWindow,
   getCameraStartIssue,
+  getCaptureTimestampAfterAttempt,
   getCompletedWindowIndex,
   getLiveLaunchIssue,
   getLiveVideoSource,
@@ -12,6 +13,7 @@ import {
   shouldContinueAfterWindowFailure,
   shouldDeferLiveStart,
   shouldRenderLiveVideo,
+  shouldUseVideoFrameScheduler,
   transitionLiveRunState,
 } from "../client/src/lib/liveWindow";
 import { describe, expect, it } from "vitest";
@@ -86,6 +88,19 @@ describe("Live View browser window scheduler", () => {
     expect(shouldRenderLiveVideo("screen", undefined)).toBe(true);
     expect(shouldDeferLiveStart("screen", undefined, true)).toBe(false);
     expect(getLiveLaunchIssue("screen", "")).toBeNull();
+  });
+
+  it("uses decoded-frame scheduling for camera and Screen Share, while replay keeps animation timing", () => {
+    expect(shouldUseVideoFrameScheduler("camera", true)).toBe(true);
+    expect(shouldUseVideoFrameScheduler("screen", true)).toBe(true);
+    expect(shouldUseVideoFrameScheduler("upload", true)).toBe(false);
+    expect(shouldUseVideoFrameScheduler("camera", false)).toBe(false);
+  });
+
+  it("does not advance the capture clock until a real canvas frame succeeds", () => {
+    expect(getCaptureTimestampAfterAttempt(-1.2, 0, false)).toBe(-1.2);
+    expect(getCaptureTimestampAfterAttempt(-1.2, 0.25, false)).toBe(-1.2);
+    expect(getCaptureTimestampAfterAttempt(-1.2, 0.5, true)).toBe(0.5);
   });
 
   it("returns coach-visible Screen Share guidance for unsupported, denied, stopped, and ended states", () => {
