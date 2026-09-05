@@ -4,6 +4,7 @@ import {
   getCaptureTimestampAfterAttempt,
   getCompletedWindowIndex,
   getLiveLaunchIssue,
+  getLiveCaptureResumePosition,
   getLiveVideoSource,
   getScreenShareStartIssue,
   getScreenShareStoppedMessage,
@@ -119,6 +120,13 @@ describe("Live View browser window scheduler", () => {
     expect(isMediaPlayInterruption({ name: "AbortError", message: "The play() request was interrupted by a call to pause()." })).toBe(true);
     expect(isMediaPlayInterruption({ name: "NotAllowedError", message: "Autoplay was blocked" })).toBe(false);
     expect(isMediaPlayInterruption(new Error("Decoder failed"))).toBe(false);
+  });
+
+  it("resumes live capture after both the persisted clock and the latest analyzed window", () => {
+    expect(getLiveCaptureResumePosition(19, [0])).toEqual({ second: 19, lastWindowIndex: 2 });
+    expect(getLiveCaptureResumePosition(0, [55, 56, 57])).toEqual({ second: 290, lastWindowIndex: 57 });
+    expect(getLiveCaptureResumePosition(310, [55, 56, 57])).toEqual({ second: 310, lastWindowIndex: 61 });
+    expect(getLiveCaptureResumePosition(Number.NaN, [])).toEqual({ second: 0, lastWindowIndex: -1 });
   });
 
   it("returns coach-visible Screen Share guidance for unsupported, denied, stopped, and ended states", () => {

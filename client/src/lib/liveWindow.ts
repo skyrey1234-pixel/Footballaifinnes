@@ -78,6 +78,23 @@ export function getCompletedWindowIndex(currentSecond: number, windowSeconds = L
   return Math.floor(currentSecond / windowSeconds) - 1;
 }
 
+export function getLiveCaptureResumePosition(
+  persistedSecond: number,
+  analyzedWindowIndexes: number[],
+  windowSeconds = LIVE_WINDOW_SECONDS,
+) {
+  const maxAnalyzedWindow = analyzedWindowIndexes.reduce(
+    (maximum, value) => Number.isInteger(value) && value >= 0 ? Math.max(maximum, value) : maximum,
+    -1,
+  );
+  const afterLatestEvent = maxAnalyzedWindow >= 0 ? (maxAnalyzedWindow + 1) * windowSeconds : 0;
+  const second = Math.max(0, Number.isFinite(persistedSecond) ? persistedSecond : 0, afterLatestEvent);
+  return {
+    second,
+    lastWindowIndex: Math.max(maxAnalyzedWindow, getCompletedWindowIndex(second, windowSeconds)),
+  };
+}
+
 export function selectFramesForWindow(
   frames: BufferedLiveFrame[],
   windowIndex: number,

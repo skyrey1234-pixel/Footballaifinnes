@@ -10,6 +10,7 @@ import {
   getCaptureTimestampAfterAttempt,
   getCameraStartIssue,
   getLiveLaunchIssue,
+  getLiveCaptureResumePosition,
   getLiveVideoSource,
   getScreenShareStartIssue,
   getScreenShareStoppedMessage,
@@ -289,13 +290,24 @@ export default function LiveViewPage() {
   }, [runState]);
 
   useEffect(() => {
-    if (!selectedSession) return;
+    if (!selectedSession || eventsQuery.isLoading || runStateRef.current === "running") return;
+    const resumePosition = isLiveCaptureSource(selectedSession.sourceType)
+      ? getLiveCaptureResumePosition(
+          selectedSession.currentVideoSecond || 0,
+          events.map((event) => event.windowIndex),
+        )
+      : null;
     setSituation(parseSituation(selectedSession.situation));
-    setElapsedSeconds(selectedSession.currentVideoSecond || 0);
+    setElapsedSeconds(resumePosition?.second ?? selectedSession.currentVideoSecond ?? 0);
+    if (resumePosition) {
+      cameraElapsedBeforeStartRef.current = resumePosition.second;
+      cameraStartedAtRef.current = 0;
+      lastWindowIndexRef.current = resumePosition.lastWindowIndex;
+    }
     if (selectedSession.status === "paused") setRunState("paused");
     else if (selectedSession.status === "complete") setRunState("complete");
     else if (selectedSession.status === "live") setRunState("paused");
-  }, [selectedSession?.id]);
+  }, [selectedSession?.id, eventsQuery.isLoading]);
 
   useEffect(() => () => {
     cancelPendingMediaStart(false);
