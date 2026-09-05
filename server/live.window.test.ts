@@ -5,6 +5,7 @@ import {
   getCompletedWindowIndex,
   getLiveLaunchIssue,
   getLiveCaptureResumePosition,
+  getLatestProcessableWindowIndex,
   getLiveVideoSource,
   getScreenShareStartIssue,
   getScreenShareStoppedMessage,
@@ -127,6 +128,16 @@ describe("Live View browser window scheduler", () => {
     expect(getLiveCaptureResumePosition(0, [55, 56, 57])).toEqual({ second: 290, lastWindowIndex: 57 });
     expect(getLiveCaptureResumePosition(310, [55, 56, 57])).toEqual({ second: 310, lastWindowIndex: 61 });
     expect(getLiveCaptureResumePosition(Number.NaN, [])).toEqual({ second: 0, lastWindowIndex: -1 });
+  });
+
+  it("recovers the newest evidence-backed window when decoded-frame callbacks skip boundaries", () => {
+    const sparseFrames = [
+      { second: 290, dataUrl: "frame-58" },
+      { second: 308, dataUrl: "frame-61" },
+    ];
+    expect(getLatestProcessableWindowIndex(sparseFrames, 60, 57)).toBe(58);
+    expect(getLatestProcessableWindowIndex(sparseFrames, 62, 58)).toBe(61);
+    expect(getLatestProcessableWindowIndex([], 62, 58)).toBe(-1);
   });
 
   it("returns coach-visible Screen Share guidance for unsupported, denied, stopped, and ended states", () => {

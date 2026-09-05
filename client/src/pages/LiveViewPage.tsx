@@ -11,6 +11,7 @@ import {
   getCameraStartIssue,
   getLiveLaunchIssue,
   getLiveCaptureResumePosition,
+  getLatestProcessableWindowIndex,
   getLiveVideoSource,
   getScreenShareStartIssue,
   getScreenShareStoppedMessage,
@@ -18,6 +19,8 @@ import {
   isMediaPlayInterruption,
   enqueueLatestWindow,
   LIVE_FRAME_CAPTURE_SECONDS,
+  LIVE_FRAME_BUFFER_MAX,
+  LIVE_FRAME_BUFFER_SECONDS,
   LIVE_WINDOW_SECONDS,
   selectFramesForWindow,
   shouldContinueAfterWindowFailure,
@@ -354,7 +357,9 @@ export default function LiveViewPage() {
       context.drawImage(video, 0, 0, targetWidth, targetHeight);
       const dataUrl = canvas.toDataURL("image/jpeg", 0.68);
       captureBufferRef.current.push({ second, dataUrl });
-      captureBufferRef.current = captureBufferRef.current.filter((frame) => frame.second >= second - 12).slice(-12);
+      captureBufferRef.current = captureBufferRef.current
+        .filter((frame) => frame.second >= second - LIVE_FRAME_BUFFER_SECONDS)
+        .slice(-LIVE_FRAME_BUFFER_MAX);
       setCapturedFrameCount((count) => count + 1);
       return true;
     } catch (error) {
@@ -421,14 +426,19 @@ export default function LiveViewPage() {
     }
 
     const completedWindowIndex = getCompletedWindowIndex(currentSecond);
-    if (completedWindowIndex >= 0 && completedWindowIndex > lastWindowIndexRef.current) {
-      const windowStartSeconds = completedWindowIndex * LIVE_WINDOW_SECONDS;
+    const processableWindowIndex = getLatestProcessableWindowIndex(
+      captureBufferRef.current,
+      completedWindowIndex,
+      lastWindowIndexRef.current,
+    );
+    if (processableWindowIndex >= 0) {
+      const windowStartSeconds = processableWindowIndex * LIVE_WINDOW_SECONDS;
       const windowEndSeconds = windowStartSeconds + LIVE_WINDOW_SECONDS;
-      const frames = selectFramesForWindow(captureBufferRef.current, completedWindowIndex);
+      const frames = selectFramesForWindow(captureBufferRef.current, processableWindowIndex);
       if (frames.length > 0) {
-        lastWindowIndexRef.current = completedWindowIndex;
+        lastWindowIndexRef.current = processableWindowIndex;
         void processWindow({
-          windowIndex: completedWindowIndex,
+          windowIndex: processableWindowIndex,
           windowStartSeconds,
           windowEndSeconds,
           frames,

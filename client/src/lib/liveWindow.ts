@@ -3,6 +3,8 @@ export type LiveRunAction = "start" | "pause" | "end";
 export type BufferedLiveFrame = { second: number; dataUrl: string };
 export const LIVE_WINDOW_SECONDS = 5;
 export const LIVE_FRAME_CAPTURE_SECONDS = 1.2;
+export const LIVE_FRAME_BUFFER_SECONDS = 60;
+export const LIVE_FRAME_BUFFER_MAX = 24;
 
 export type LiveSourceType = "upload" | "camera" | "screen";
 
@@ -107,6 +109,18 @@ export function selectFramesForWindow(
     .filter((frame) => frame.second >= start && frame.second <= end + 1)
     .map((frame) => frame.dataUrl)
     .slice(-maxFrames);
+}
+
+export function getLatestProcessableWindowIndex(
+  frames: BufferedLiveFrame[],
+  completedWindowIndex: number,
+  lastProcessedWindowIndex: number,
+  windowSeconds = LIVE_WINDOW_SECONDS,
+) {
+  for (let windowIndex = completedWindowIndex; windowIndex > lastProcessedWindowIndex; windowIndex -= 1) {
+    if (selectFramesForWindow(frames, windowIndex, windowSeconds).length > 0) return windowIndex;
+  }
+  return -1;
 }
 
 export function shouldContinueAfterWindowFailure(state: LiveRunState) {
