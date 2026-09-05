@@ -14,6 +14,7 @@ import {
   getScreenShareStartIssue,
   getScreenShareStoppedMessage,
   isLiveCaptureSource,
+  isMediaPlayInterruption,
   enqueueLatestWindow,
   LIVE_FRAME_CAPTURE_SECONDS,
   LIVE_WINDOW_SECONDS,
@@ -21,6 +22,7 @@ import {
   shouldContinueAfterWindowFailure,
   shouldDeferLiveStart,
   shouldRenderLiveVideo,
+  shouldStartLiveMedia,
   shouldUseVideoFrameScheduler,
   transitionLiveRunState,
   type BufferedLiveFrame,
@@ -194,6 +196,7 @@ export default function LiveViewPage() {
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [secondsToNextRead, setSecondsToNextRead] = useState(LIVE_WINDOW_SECONDS);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [isStarting, setIsStarting] = useState(false);
   const [queuedWindows, setQueuedWindows] = useState(0);
   const [capturedFrameCount, setCapturedFrameCount] = useState(0);
   const [situation, setSituation] = useState<Situation>(DEFAULT_SITUATION);
@@ -216,6 +219,8 @@ export default function LiveViewPage() {
   const cameraStartedAtRef = useRef(0);
   const cameraElapsedBeforeStartRef = useRef(0);
   const pendingReplayStartRef = useRef(false);
+  const mediaStartRequestRef = useRef(0);
+  const mediaStartingRef = useRef(false);
 
   const cancelCaptureLoop = () => {
     if (animationFrameRef.current !== null) {
@@ -227,6 +232,12 @@ export default function LiveViewPage() {
       video.cancelVideoFrameCallback(videoFrameCallbackRef.current);
       videoFrameCallbackRef.current = null;
     }
+  };
+
+  const cancelPendingMediaStart = (updateUi = true) => {
+    mediaStartRequestRef.current += 1;
+    mediaStartingRef.current = false;
+    if (updateUi) setIsStarting(false);
   };
 
   const sessionsQuery = trpc.live.list.useQuery();
@@ -287,6 +298,7 @@ export default function LiveViewPage() {
   }, [selectedSession?.id]);
 
   useEffect(() => () => {
+    cancelPendingMediaStart(false);
     cancelCaptureLoop();
     mediaStreamRef.current?.getTracks().forEach((track) => track.stop());
     if (localPreviewUrl) URL.revokeObjectURL(localPreviewUrl);
@@ -466,7 +478,12 @@ export default function LiveViewPage() {
   };
 
   const startSession = async () => {
-    if (!selectedId || !selectedSession) return;
+    if (!selectedId || !selectedSession || !shouldStartLiveMedia(mediaStartingRef.current, runStateRef.current)) return;
+    const startRequestId = mediaStartRequestRef.current + 1;
+    mediaStartRequestRef.current = startRequestId;
+    mediaStartingRef.current = true;
+    setIsStarting(true);
+    let acquiredStream: MediaStream | null = null;
     try {
       setFeedIssue("");
       if (isLiveCaptureSource(selectedSession.sourceType)) {
@@ -480,10 +497,22 @@ export default function LiveViewPage() {
               video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: "environment" },
               audio: false,
             });
+        acquiredStream = stream;
+        if (startRequestId !== mediaStartRequestRef.current) {
+          stream.getTracks().forEach((track) => track.stop());
+          return;
+        }
+        mediaStreamRef.current?.getTracks().forEach((track) => track.stop());
         mediaStreamRef.current = stream;
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-          await videoRef.current.play();
+        const video = videoRef.current;
+        if (!video) throw new Error("The live video surface is not ready. Press Go Live again.");
+        if (video.srcObject !== stream) video.srcObject = stream;
+        await video.play();
+        if (startRequestId !== mediaStartRequestRef.current) {
+          stream.getTracks().forEach((track) => track.stop());
+          if (mediaStreamRef.current === stream) mediaStreamRef.current = null;
+          if (video.srcObject === stream) video.srcObject = null;
+          return;
         }
         if (selectedSession.sourceType === "screen") {
           stream.getVideoTracks()[0]?.addEventListener("ended", () => {
@@ -505,20 +534,18 @@ export default function LiveViewPage() {
           });
         }
         cameraStartedAtRef.current = performance.now();
-      } else {
-        if (shouldDeferLiveStart(selectedSession.sourceType, videoSource, Boolean(videoRef.current))) {
-          pendingReplayStartRef.current = true;
-          const message = playbackUrlQuery.error
-            ? "The secure replay link could not be prepared. Refresh Live View and try again."
-            : "Securing the replay stream. Analysis will start automatically when the player is ready.";
-          setFeedIssue(message);
-          toast.info(message);
-          return;
-        }
+      } else if (shouldDeferLiveStart(selectedSession.sourceType, videoSource, Boolean(videoRef.current))) {
+        pendingReplayStartRef.current = true;
+        const message = playbackUrlQuery.error
+          ? "The secure replay link could not be prepared. Refresh Live View and try again."
+          : "Securing the replay stream. Analysis will start automatically when the player is ready.";
+        setFeedIssue(message);
+        toast.info(message);
+        return;
       }
 
+      if (startRequestId !== mediaStartRequestRef.current) return;
       pendingReplayStartRef.current = false;
-
       const nextState = transitionLiveRunState(runStateRef.current, "start");
       runStateRef.current = nextState;
       setRunState(nextState);
@@ -531,7 +558,8 @@ export default function LiveViewPage() {
         animationFrameRef.current = requestAnimationFrame(runCaptureLoop);
       }
       if (selectedSession.sourceType === "upload" && videoRef.current) {
-        void videoRef.current.play().catch(async () => {
+        void videoRef.current.play().catch(async (error) => {
+          if (startRequestId !== mediaStartRequestRef.current || isMediaPlayInterruption(error)) return;
           const message = "The replay could not start in this browser. Press play on the video, then Resume Analysis again.";
           setFeedIssue(message);
           runStateRef.current = "paused";
@@ -542,15 +570,31 @@ export default function LiveViewPage() {
         });
       }
     } catch (error) {
+      if (startRequestId !== mediaStartRequestRef.current) {
+        acquiredStream?.getTracks().forEach((track) => track.stop());
+        return;
+      }
+      if (acquiredStream && mediaStreamRef.current === acquiredStream) {
+        acquiredStream.getTracks().forEach((track) => track.stop());
+        mediaStreamRef.current = null;
+        if (videoRef.current?.srcObject === acquiredStream) videoRef.current.srcObject = null;
+      }
       pendingReplayStartRef.current = false;
       const message = error instanceof Error ? error.message : "Could not start the live feed";
-      const publicMessage = selectedSession.sourceType === "screen"
-        ? getScreenShareStartIssue(true, error)
-        : selectedSession.sourceType === "camera"
-          ? getCameraStartIssue(true, error)
-          : message;
+      const publicMessage = isMediaPlayInterruption(error)
+        ? "Live video startup was interrupted before playback began. Press Go Live once to reconnect."
+        : selectedSession.sourceType === "screen"
+          ? getScreenShareStartIssue(true, error)
+          : selectedSession.sourceType === "camera"
+            ? getCameraStartIssue(true, error)
+            : message;
       setFeedIssue(publicMessage);
       toast.error(publicMessage);
+    } finally {
+      if (startRequestId === mediaStartRequestRef.current) {
+        mediaStartingRef.current = false;
+        setIsStarting(false);
+      }
     }
   };
 
@@ -563,6 +607,7 @@ export default function LiveViewPage() {
 
   const pauseSession = async () => {
     if (!selectedId) return;
+    cancelPendingMediaStart();
     const currentSecond = getCurrentSecond();
     const nextState = transitionLiveRunState(runStateRef.current, "pause");
     runStateRef.current = nextState;
@@ -574,6 +619,7 @@ export default function LiveViewPage() {
       cameraStartedAtRef.current = 0;
       mediaStreamRef.current?.getTracks().forEach((track) => track.stop());
       mediaStreamRef.current = null;
+      if (videoRef.current) videoRef.current.srcObject = null;
     }
     await updateMutation.mutateAsync({
       id: selectedId,
@@ -586,6 +632,7 @@ export default function LiveViewPage() {
 
   const endSession = async () => {
     if (!selectedId) return;
+    cancelPendingMediaStart();
     const currentSecond = getCurrentSecond();
     const nextState = transitionLiveRunState(runStateRef.current, "end");
     runStateRef.current = nextState;
@@ -594,6 +641,7 @@ export default function LiveViewPage() {
     videoRef.current?.pause();
     mediaStreamRef.current?.getTracks().forEach((track) => track.stop());
     mediaStreamRef.current = null;
+    if (videoRef.current && isLiveCaptureSource(selectedSession?.sourceType)) videoRef.current.srcObject = null;
     await updateMutation.mutateAsync({
       id: selectedId,
       status: "complete",
@@ -756,6 +804,12 @@ export default function LiveViewPage() {
         <div>
           <button onClick={() => {
             if (runState === "running") void pauseSession();
+            else if (isStarting) {
+              cancelPendingMediaStart();
+              mediaStreamRef.current?.getTracks().forEach((track) => track.stop());
+              mediaStreamRef.current = null;
+              if (videoRef.current) videoRef.current.srcObject = null;
+            }
             setSelectedId(null);
           }} className="mb-4 flex items-center gap-2 text-xs uppercase tracking-[0.18em] text-white/40 hover:text-emerald-400"><ArrowLeft className="h-3.5 w-3.5" /> Live session list</button>
           <div className="flex flex-wrap items-center gap-3">
@@ -767,13 +821,16 @@ export default function LiveViewPage() {
         </div>
         <div className="flex flex-wrap gap-2">
           <Button onClick={() => setShowTvShare(true)} variant="outline" className="border-cyan-300/30 bg-cyan-300/5 text-cyan-200"><Tv className="mr-2 h-4 w-4" />TV View</Button>
-          {runState !== "running" && runState !== "complete" ? <Button onClick={() => void startSession()} className="bg-emerald-400 text-black hover:bg-emerald-300"><Play className="mr-2 h-4 w-4" />{runState === "paused" ? "Resume Analysis" : "Go Live"}</Button> : null}
+          {runState !== "running" && runState !== "complete" ? <Button onClick={() => void startSession()} disabled={isStarting} className="bg-emerald-400 text-black hover:bg-emerald-300 disabled:bg-emerald-400/45">
+            {isStarting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Play className="mr-2 h-4 w-4" />}
+            {isStarting ? (selectedSession.sourceType === "screen" ? "Opening Screen Picker…" : selectedSession.sourceType === "camera" ? "Starting Camera…" : "Starting Replay…") : runState === "paused" ? "Resume Analysis" : "Go Live"}
+          </Button> : null}
           {runState === "running" ? selectedSession.sourceType === "screen"
             ? <Button onClick={() => { setFeedIssue(getScreenShareStoppedMessage("stopped")); void pauseSession(); }} variant="outline" className="border-amber-400/30 text-amber-300"><CircleStop className="mr-2 h-4 w-4" />Stop Sharing</Button>
             : <Button onClick={() => void pauseSession()} variant="outline" className="border-amber-400/30 text-amber-300"><Pause className="mr-2 h-4 w-4" />Pause</Button>
           : null}
           {runState !== "complete" ? <Button onClick={() => void endSession()} variant="outline" className="border-red-400/30 text-red-300"><CircleStop className="mr-2 h-4 w-4" />End Session</Button> : null}
-          <Button onClick={resetAnalysisPosition} variant="ghost" className="text-white/50"><RotateCcw className="mr-2 h-4 w-4" />Reset footage</Button>
+          <Button onClick={resetAnalysisPosition} disabled={isStarting} variant="ghost" className="text-white/50"><RotateCcw className="mr-2 h-4 w-4" />Reset footage</Button>
         </div>
       </div>
 

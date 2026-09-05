@@ -8,11 +8,13 @@ import {
   getScreenShareStartIssue,
   getScreenShareStoppedMessage,
   isLiveCaptureSource,
+  isMediaPlayInterruption,
   LIVE_WINDOW_SECONDS,
   selectFramesForWindow,
   shouldContinueAfterWindowFailure,
   shouldDeferLiveStart,
   shouldRenderLiveVideo,
+  shouldStartLiveMedia,
   shouldUseVideoFrameScheduler,
   transitionLiveRunState,
 } from "../client/src/lib/liveWindow";
@@ -101,6 +103,22 @@ describe("Live View browser window scheduler", () => {
     expect(getCaptureTimestampAfterAttempt(-1.2, 0, false)).toBe(-1.2);
     expect(getCaptureTimestampAfterAttempt(-1.2, 0.25, false)).toBe(-1.2);
     expect(getCaptureTimestampAfterAttempt(-1.2, 0.5, true)).toBe(0.5);
+  });
+
+  it("blocks duplicate media starts synchronously while permission or play() is unresolved", () => {
+    expect(shouldStartLiveMedia(false, "idle")).toBe(true);
+    expect(shouldStartLiveMedia(false, "paused")).toBe(true);
+    expect(shouldStartLiveMedia(true, "idle")).toBe(false);
+    expect(shouldStartLiveMedia(true, "paused")).toBe(false);
+    expect(shouldStartLiveMedia(false, "running")).toBe(false);
+    expect(shouldStartLiveMedia(false, "complete")).toBe(false);
+  });
+
+  it("recognizes browser play/load interruptions without hiding real playback failures", () => {
+    expect(isMediaPlayInterruption({ name: "AbortError", message: "The play() request was interrupted by a new load request." })).toBe(true);
+    expect(isMediaPlayInterruption({ name: "AbortError", message: "The play() request was interrupted by a call to pause()." })).toBe(true);
+    expect(isMediaPlayInterruption({ name: "NotAllowedError", message: "Autoplay was blocked" })).toBe(false);
+    expect(isMediaPlayInterruption(new Error("Decoder failed"))).toBe(false);
   });
 
   it("returns coach-visible Screen Share guidance for unsupported, denied, stopped, and ended states", () => {

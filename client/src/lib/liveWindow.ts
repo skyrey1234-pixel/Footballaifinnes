@@ -39,6 +39,15 @@ export function getCaptureTimestampAfterAttempt(previousSecond: number, attempte
   return captured ? attemptedSecond : previousSecond;
 }
 
+export function shouldStartLiveMedia(isStarting: boolean, runState: LiveRunState) {
+  return !isStarting && runState !== "running" && runState !== "complete";
+}
+
+export function isMediaPlayInterruption(error: unknown) {
+  const value = error as { name?: string; message?: string } | undefined;
+  return value?.name === "AbortError" && /play\(\).*interrupted|new load request|call to pause/i.test(value.message ?? "");
+}
+
 export function getLiveVideoSource(sourceType: LiveSourceType | undefined, playbackUrl: string | undefined) {
   if (sourceType !== "upload") return undefined;
   const source = playbackUrl?.trim();

@@ -1,5 +1,7 @@
 # TacticalEdge AI — Project TODO
 
+- [ ] BUG: Fix production Live View error “The play() request was interrupted by a new load request” by tracing video source/remount races, making media startup race-safe for camera, Screen Share, and replay, adding regression coverage, and verifying five-second scanning still works in production
+
 - [x] BUG: Production Live Camera repaired and verified on the real owner camera path — permission and preview succeeded, decoded-frame capture registered visibly, one five-second window persisted with inputFrameCount=1 in 13.6s, exactly two predictions were stored, the event rendered in the production timeline, and pause released the camera cleanly
 
 - [x] BUG: Add coach-visible camera error states for permission denied, no camera device, camera already in use, and unsupported live media capture
