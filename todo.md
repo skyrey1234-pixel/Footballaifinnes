@@ -5,8 +5,10 @@
 - [x] TACTICAL TWIN STAGE 1: Built a cinematic Reconstruction Studio with synchronized Film, Tactical Map, and 3D Twin views
 - [x] TACTICAL TWIN STAGE 1: Added coach controls to edit player alignment, routes, labels, ball path, mistake/correction markers, and reconstruction status
 - [x] TACTICAL TWIN STAGE 1: Added Build Tactical Twin launch actions from eligible Film Breakdown clips, ranked Highlight Reel clips, and completed Live timeline events
-- [ ] TACTICAL TWIN STAGE 1: Add responsive, accessibility, ownership, validation, and regression coverage; run full test, type-check, build, and production verification
-- [ ] BUG: Verify uploaded Tactical Twin source film visibly decodes after adding native controls, explicit ready/error diagnostics, and direct user-gesture playback instead of silently advancing only the master clock
+- [x] TACTICAL TWIN STAGE 1: Added responsive, accessibility, ownership, validation, and regression coverage; verified Film, Tactical Map, and 3D Twin on desktop/mobile; 24/24 test files and 105/105 tests pass with clean type-check and production build
+- [x] BUG: Verified uploaded Tactical Twin source film visibly decodes at the exact 0:30 play timestamp with native controls and SOURCE FILM READY state using owner-authorized direct signed playback
+- [x] VALIDATION: Captured the in-app Tactical Twin Film pane visibly rendering the real 0:30 football frame with `SOURCE FILM READY` on the current authenticated build; separately proved the exact production-issued signed URL reaches readyState 4, playing, and canplaythrough with the same visible 1920×1080 frame; documented that the connected My Browser production tab itself remained in loading state
+- [x] ACCESSIBILITY: Verified responsive Film/Map/3D navigation and editor stacking at 390×844; added automated assertions for 22 labeled keyboard-focusable players, Enter/Space selection behavior, field labeling, labeled transport/timeline controls, and all primary view actions
 
 - [x] DISCOVERY: Analyzed the referenced Higgsfield soccer post and defined Tactical Twin workflows, integration architecture, three build options, accuracy safeguards, and the recommended hybrid implementation path
 
