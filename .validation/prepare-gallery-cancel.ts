@@ -9,7 +9,7 @@ const response = await fetch("https://api.manus.ai/v2/task.create", {
   headers: { "x-manus-api-key": apiKey, "Content-Type": "application/json" },
   body: JSON.stringify({
     title: "TacticalEdge in-app cancel validation",
-    interactive_mode: false,
+    interactive_mode: true,
     hide_in_task_list: true,
     share_visibility: "private",
     agent_profile: "manus-1.6",
@@ -17,7 +17,7 @@ const response = await fetch("https://api.manus.ai/v2/task.create", {
       connectors: [MANUS_HIGGSFIELD_CONNECTOR_ID],
       content: [{
         type: "text",
-        text: "Cancellation validation only. Do not generate media, upload files, or spend provider credits. Use only models_explore, then wait for user confirmation indefinitely. Never call generate_video.",
+        text: "Cancellation validation only. Do not generate media, upload files, or spend provider credits. Ask the user to confirm before doing anything and remain waiting indefinitely. Never call generate_video or any media tool.",
       }],
     },
     structured_output_schema: {

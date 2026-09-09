@@ -178,7 +178,7 @@ export function TacticalTwinCinematicPanel({
             {exports.map((item) => (
               <article key={item.id} className="border border-white/10 bg-black/25 p-3">
                 <div className="flex items-start justify-between gap-3"><div><p className="text-sm font-bold text-white">{item.style.replaceAll("_", " ")}</p><p className="mt-1 font-mono text-[9px] uppercase text-white/30">{item.aspectRatio} · {item.durationSeconds}s · #{item.id}</p></div><span className={`border px-2 py-1 text-[9px] font-bold uppercase ${statusClass(item.status)}`}>{item.status}</span></div>
-                {item.id === selectedExport?.id && playbackQuery.data?.url ? <video src={playbackQuery.data.url} controls playsInline className="mt-3 aspect-video w-full bg-black object-contain" /> : null}
+                {item.id === selectedExport?.id && playbackQuery.data?.url ? <video src={playbackQuery.data.url} poster={playbackQuery.data.posterUrl ?? undefined} controls autoPlay muted loop playsInline preload="auto" aria-label={`Private cinematic replay ${item.id}`} className="mt-3 aspect-video w-full bg-black object-contain" /> : null}
                 {item.errorMessage ? <p className="mt-3 text-xs leading-5 text-red-200/70">{item.errorMessage}</p> : null}
                 <div className="mt-3 flex flex-wrap gap-2">
                   {item.status === "completed" ? <Button size="sm" variant="outline" onClick={() => setSelectedExportId(item.id)}>Preview</Button> : null}

@@ -683,7 +683,11 @@ export const tacticalTwinStage2Router = router({
       if (!cinematicExport.outputFileKey || cinematicExport.status !== "completed") {
         throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Cinematic export is not complete" });
       }
-      return { url: await storageGetSignedUrl(cinematicExport.outputFileKey), expiresAt: Date.now() + 50 * 60 * 1_000 };
+      return {
+        url: await storageGetSignedUrl(cinematicExport.outputFileKey),
+        posterUrl: cinematicExport.thumbnailFileKey ? await storageGetSignedUrl(cinematicExport.thumbnailFileKey) : null,
+        expiresAt: Date.now() + 50 * 60 * 1_000,
+      };
     }),
 
   deleteExport: protectedProcedure

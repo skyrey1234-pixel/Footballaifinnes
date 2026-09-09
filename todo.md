@@ -23,7 +23,7 @@
 - [x] BUG: Replaced cinematic browser-frame capture with owner-authorized server-assisted FFmpeg keyframe extraction; the actual production Generate button reliably created connector-backed export 810001 from uploaded Twin 30001 film
 - [x] BUG: Recovered the completed export 810001 provider job through one non-generative status task, retained the already-paid MP4 automatically, and preserved provenance proving no duplicate generation or charge occurred
 - [x] VALIDATION: Started and stopped a live non-generative Higgsfield-connected Manus task through the same app bridge; task-stop was accepted, terminal status was `stopped`, and no provider media generation was invoked
-- [ ] VALIDATION: Exercise the actual production cinematic gallery Cancel action on a non-chargeable connector-backed export, then verify both its export record and Manus task stop cleanly without provider generation
+- [x] VALIDATION: Exercised the actual production cinematic gallery Cancel action on no-credit export 960001; the UI rendered CANCELED, the database stored no output, the Manus task reached stopped, and the event history contained no tool invocation or provider generation
 - [ ] VALIDATION: Reopen export 810001 in the authenticated production gallery and capture explicit in-app private preview evidence that its retained five-second replay visibly renders and plays
 - [x] TACTICAL TWIN STAGE 2: Production-verified corrected 24/24 tracking, 0.25× and 33 ms frame-step controls, automatic connector export, private retained media, public safe projection, download, immediate revocation, ownership/privacy boundaries, desktop/mobile responsiveness, accessibility, retry/recovery, cleanup, 31/31 test files, 138/138 tests, strict type-check, and production build
 

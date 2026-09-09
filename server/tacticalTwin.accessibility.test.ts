@@ -54,6 +54,8 @@ describe("Tactical Twin accessibility contract", () => {
     expect(trackingSource).toContain('aria-label={`Track ${player.trackId} field x`}');
     expect(cinematicSource).toContain('aria-label="Share link expiration"');
     expect(cinematicSource).toContain('aria-label={`Create secure share link for cinematic export ${item.id}`}');
+    expect(cinematicSource).toContain('aria-label={`Private cinematic replay ${item.id}`}');
+    expect(cinematicSource).toContain("controls autoPlay muted loop playsInline preload=\"auto\"");
     expect(cinematicSource).toContain("Revoke all links");
     expect(shareSource).toContain("Cinematic interpretation—not verified game-film evidence");
     expect(shareSource).toContain("Download MP4");
