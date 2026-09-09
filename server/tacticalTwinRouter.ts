@@ -7,6 +7,7 @@ import {
 } from "../shared/tacticalTwin";
 import { protectedProcedure, router } from "./_core/trpc";
 import * as db from "./db";
+import { createTacticalTwinPlaybackToken } from "./tacticalTwinPlaybackToken";
 
 const sourceKindSchema = z.enum(["film_highlight", "highlight_reel"]);
 const playTypeSchema = z.enum(["pass", "run", "screen", "rpo", "special_teams", "unknown"]);
@@ -74,6 +75,18 @@ export const tacticalTwinRouter = router({
       const reconstruction = await db.getPlayReconstruction(input.id, ctx.user.id);
       if (!reconstruction) throw new TRPCError({ code: "NOT_FOUND", message: "Tactical Twin not found" });
       return reconstruction;
+    }),
+
+  playbackUrl: protectedProcedure
+    .input(z.object({ id: z.number().int().positive() }))
+    .query(async ({ ctx, input }) => {
+      const reconstruction = await db.getPlayReconstruction(input.id, ctx.user.id);
+      if (!reconstruction) throw new TRPCError({ code: "NOT_FOUND", message: "Tactical Twin not found" });
+      if (reconstruction.sourceType !== "upload") {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "This Tactical Twin does not have stored source film" });
+      }
+      const { token, expiresAt } = createTacticalTwinPlaybackToken(reconstruction.id, ctx.user.id);
+      return { url: `/api/tactical-twin/video/${reconstruction.id}?access=${encodeURIComponent(token)}`, expiresAt };
     }),
 
   createFromFilm: protectedProcedure

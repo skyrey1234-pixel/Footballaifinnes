@@ -4,6 +4,7 @@ import { sdk } from "./_core/sdk";
 import { getGameSession, getLiveGameSession, getPlayReconstruction } from "./db";
 import { normalizeLiveReplayRange } from "./liveVideoRoute";
 import { storageGetSignedUrl } from "./storage";
+import { verifyTacticalTwinPlaybackToken } from "./tacticalTwinPlaybackToken";
 
 export const tacticalTwinVideoRouter = Router();
 
@@ -48,7 +49,13 @@ async function streamTacticalTwinVideo(req: Request, res: Response) {
       return;
     }
 
-    const userId = (await sdk.authenticateRequest(req)).id;
+    const accessToken = typeof req.query.access === "string" ? req.query.access : "";
+    const playbackAccess = accessToken ? verifyTacticalTwinPlaybackToken(accessToken) : null;
+    if (accessToken && (!playbackAccess || playbackAccess.reconstructionId !== id)) {
+      res.status(401).json({ error: "Source-film access expired. Refresh Tactical Twin to continue." });
+      return;
+    }
+    const userId = playbackAccess?.userId ?? (await sdk.authenticateRequest(req)).id;
     const videoFileKey = await resolveOwnedVideoKey(id, userId);
     if (!videoFileKey) {
       res.status(404).json({ error: "Tactical Twin source film not found" });
