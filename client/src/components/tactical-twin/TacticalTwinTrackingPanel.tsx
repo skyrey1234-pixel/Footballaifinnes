@@ -8,68 +8,9 @@ import { BadgeCheck, CircleDot, Crosshair, Loader2, Play, RefreshCw, ScanLine, S
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
-type CapturedFrame = {
-  frameIndex: number;
-  timestampMs: number;
-  imageWidth: number;
-  imageHeight: number;
-  dataUrl: string;
-};
-
 function formatTimestamp(milliseconds: number) {
   const seconds = Math.max(0, milliseconds / 1000);
   return `${Math.floor(seconds / 60)}:${(seconds % 60).toFixed(2).padStart(5, "0")}`;
-}
-
-function waitForEvent(target: HTMLMediaElement, eventName: "loadedmetadata" | "seeked", timeoutMs = 20_000) {
-  if (eventName === "loadedmetadata" && target.readyState >= HTMLMediaElement.HAVE_METADATA) return Promise.resolve();
-  return new Promise<void>((resolve, reject) => {
-    let timer = 0;
-    const cleanup = () => {
-      window.clearTimeout(timer);
-      target.removeEventListener(eventName, onEvent);
-      target.removeEventListener("error", onError);
-    };
-    const onEvent = () => { cleanup(); resolve(); };
-    const onError = () => { cleanup(); reject(new Error("Source film could not be decoded for automatic tracking.")); };
-    timer = window.setTimeout(() => { cleanup(); reject(new Error(`Timed out waiting for source film ${eventName}.`)); }, timeoutMs);
-    target.addEventListener(eventName, onEvent, { once: true });
-    target.addEventListener("error", onError, { once: true });
-    if (eventName === "loadedmetadata" && target.readyState >= HTMLMediaElement.HAVE_METADATA) queueMicrotask(onEvent);
-  });
-}
-
-async function seekForCapture(video: HTMLVideoElement, time: number) {
-  if (video.readyState < HTMLMediaElement.HAVE_METADATA) await waitForEvent(video, "loadedmetadata");
-  if (Math.abs(video.currentTime - time) < 0.03 && video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) return;
-  const waiting = waitForEvent(video, "seeked");
-  video.currentTime = Math.max(0, time);
-  await waiting;
-}
-
-function captureVideoFrame(video: HTMLVideoElement, frameIndex: number, timestampMs: number): CapturedFrame {
-  const sourceWidth = video.videoWidth;
-  const sourceHeight = video.videoHeight;
-  if (!sourceWidth || !sourceHeight) throw new Error("The source film has no decoded frame dimensions yet.");
-  const outputWidth = Math.min(960, sourceWidth);
-  const outputHeight = Math.max(180, Math.round((sourceHeight / sourceWidth) * outputWidth));
-  const canvas = document.createElement("canvas");
-  canvas.width = outputWidth;
-  canvas.height = outputHeight;
-  const context = canvas.getContext("2d", { alpha: false });
-  if (!context) throw new Error("This browser cannot capture source-film frames.");
-  context.drawImage(video, 0, 0, outputWidth, outputHeight);
-  return {
-    frameIndex,
-    timestampMs,
-    imageWidth: outputWidth,
-    imageHeight: outputHeight,
-    dataUrl: canvas.toDataURL("image/jpeg", 0.72),
-  };
-}
-
-function captureSourceUrl(url: string, startSeconds: number) {
-  return `${url}#t=${Math.max(0, startSeconds).toFixed(3)}`;
 }
 
 function TrackingOverlay({ players, ball }: { players: TwinTrackedPlayer[]; ball: TwinTrackedBall }) {
@@ -134,7 +75,7 @@ export function TacticalTwinTrackingPanel({
   useEffect(() => () => { stoppedRef.current = true; }, []);
 
   const startMutation = trpc.tacticalTwinStage2.startTracking.useMutation();
-  const analyzeMutation = trpc.tacticalTwinStage2.analyzeFrameBatch.useMutation();
+  const analyzeServerMutation = trpc.tacticalTwinStage2.analyzeServerBatch.useMutation();
   const retryMutation = trpc.tacticalTwinStage2.retryTracking.useMutation();
   const approveMutation = trpc.tacticalTwinStage2.approveTracking.useMutation({
     onSuccess: async () => {
@@ -152,7 +93,7 @@ export function TacticalTwinTrackingPanel({
     onError: (error) => toast.error(error.message),
   });
 
-  const canTrack = sourceType === "upload" && Boolean(captureUrl);
+  const canTrack = sourceType === "upload";
   const calibration = currentJob?.calibration && typeof currentJob.calibration === "object"
     ? currentJob.calibration as { quality?: string; confidence?: number; limitations?: string[] }
     : null;
@@ -162,46 +103,23 @@ export function TacticalTwinTrackingPanel({
     : 0;
 
   const runTracking = async () => {
-    if (!canTrack || !captureVideoRef.current) {
+    if (!canTrack) {
       toast.error("Automatic tracking currently requires stored uploaded football film.");
       return;
     }
     stoppedRef.current = false;
     setRunning(true);
-    setStatusMessage("Preparing source film for frame capture…");
+    setStatusMessage("Preparing secure server-assisted frame extraction…");
     try {
       const job = await startMutation.mutateAsync({ reconstructionId, samplingFps: 2, sourceFps: 30 });
-      const detail = await utils.tacticalTwinStage2.tracking.fetch({ jobId: job.id });
-      const done = new Set(detail.frames.map((frame) => frame.frameIndex));
-      const video = captureVideoRef.current;
-      video.pause();
-      if (video.readyState < HTMLMediaElement.HAVE_METADATA) {
-        const metadataReady = waitForEvent(video, "loadedmetadata", 45_000);
-        const playAttempt = video.play().catch(() => undefined);
-        video.load();
-        await metadataReady;
-        video.pause();
-        void playAttempt;
-      }
-
-      const uncaptured: CapturedFrame[] = [];
-      for (let index = 0; index < job.totalFrames; index += 1) {
-        if (done.has(index)) continue;
+      let processedFrames = (await utils.tacticalTwinStage2.tracking.fetch({ jobId: job.id })).frames.length;
+      while (processedFrames < job.totalFrames) {
         if (stoppedRef.current) throw new Error("Tracking paused by coach.");
-        const timestampMs = Math.round((index / job.samplingFps) * 1000);
-        setStatusMessage(`Capturing evidence frame ${index + 1} of ${job.totalFrames}…`);
-        await seekForCapture(video, sourceStartSeconds + timestampMs / 1000);
-        uncaptured.push(captureVideoFrame(video, index, timestampMs));
-        setLocalProgress(Math.round(((index + 1) / Math.max(1, job.totalFrames)) * 35));
-      }
-
-      for (let offset = 0; offset < uncaptured.length; offset += 3) {
-        if (stoppedRef.current) throw new Error("Tracking paused by coach.");
-        const batch = uncaptured.slice(offset, offset + 3);
-        setStatusMessage(`AI tracking frames ${batch[0].frameIndex + 1}–${batch.at(-1)!.frameIndex + 1}…`);
-        await analyzeMutation.mutateAsync({ jobId: job.id, frames: batch });
-        const analyzed = done.size + offset + batch.length;
-        setLocalProgress(35 + Math.round((analyzed / Math.max(1, job.totalFrames)) * 65));
+        const endFrame = Math.min(job.totalFrames, processedFrames + 1);
+        setStatusMessage(`Extracting + AI tracking frames ${processedFrames + 1}–${endFrame}…`);
+        const result = await analyzeServerMutation.mutateAsync({ jobId: job.id });
+        processedFrames = result.job.processedFrames;
+        setLocalProgress(Math.round((processedFrames / Math.max(1, job.totalFrames)) * 100));
         await trackingQuery.refetch();
       }
 
@@ -259,20 +177,6 @@ export function TacticalTwinTrackingPanel({
       </div>
       <Progress value={completion} className="mt-3 h-1.5" />
       <p className="mt-2 font-mono text-[10px] uppercase tracking-[0.1em] text-cyan-200/70">{statusMessage}</p>
-
-      {canTrack && captureUrl && frames.length === 0 ? (
-        <video
-          ref={captureVideoRef}
-          src={captureSourceUrl(captureUrl, sourceStartSeconds)}
-          crossOrigin="anonymous"
-          muted
-          playsInline
-          preload="auto"
-          tabIndex={-1}
-          aria-hidden="true"
-          className="pointer-events-none fixed left-[-9999px] top-0 h-px w-px opacity-0"
-        />
-      ) : null}
 
       {selectedFrame && editingPlayers && editingBall ? (
         <div className="mt-5 grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">

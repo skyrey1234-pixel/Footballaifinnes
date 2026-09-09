@@ -8,6 +8,7 @@ const retainMock = vi.hoisted(() => vi.fn());
 const cancelMock = vi.hoisted(() => vi.fn());
 const signedUrlMock = vi.hoisted(() => vi.fn(async (key: string) => `https://storage.example/${key}?signed=1`));
 const storagePutMock = vi.hoisted(() => vi.fn(async (key: string) => ({ key, url: `/manus-storage/${key}` })));
+const extractFramesMock = vi.hoisted(() => vi.fn());
 
 vi.mock("./tacticalTwinTracking", () => ({
   MAX_TWIN_TRACKING_BATCH: 3,
@@ -29,6 +30,11 @@ vi.mock("./storage", () => ({
   storagePut: storagePutMock,
   storageGet: vi.fn(async (key: string) => ({ key, url: `/manus-storage/${key}` })),
   storageGetSignedUrl: signedUrlMock,
+}));
+
+vi.mock("./tacticalTwinFrameExtraction", () => ({
+  extractTwinTrackingFrameBatch: extractFramesMock,
+  resolveOwnedTwinVideoKey: vi.fn(),
 }));
 
 import { appRouter } from "./routers";
@@ -97,6 +103,9 @@ describe("Tactical Twin Stage 2", () => {
   });
 
   beforeEach(() => {
+    extractFramesMock.mockImplementation(async ({ startFrameIndex, frameCount }: { startFrameIndex: number; frameCount: number }) =>
+      Array.from({ length: frameCount }, (_, offset) => capturedFrame(startFrameIndex + offset))
+    );
     analyzeMock.mockImplementation(async ({ frames }: { frames: ReturnType<typeof capturedFrame>[] }) => ({
       calibration: { quality: "moderate", method: "ai_estimate", confidence: 73, imagePoints: [], fieldPoints: [], limitations: ["Broadcast angle"] },
       frames: frames.map((frame) => ({
@@ -159,6 +168,22 @@ describe("Tactical Twin Stage 2", () => {
     expect(detail.job.calibration).toMatchObject({ quality: "moderate", confidence: 73 });
     const approved = await owner.tacticalTwinStage2.approveTracking({ jobId: trackingJobId });
     expect(approved.status).toBe("approved");
+  });
+
+  it("extracts and analyzes resumable server batches without browser video metadata", async () => {
+    const owner = appRouter.createCaller(context(41));
+    const serverJob = await owner.tacticalTwinStage2.startTracking({ reconstructionId, samplingFps: 1, sourceFps: 30 });
+    expect(serverJob.stage).toBe("waiting_for_server_frames");
+    const first = await owner.tacticalTwinStage2.analyzeServerBatch({ jobId: serverJob.id });
+    expect(first.job.processedFrames).toBe(1);
+    expect(first.job.status).toBe("capturing");
+    let result = first;
+    for (let index = 1; index < 5; index += 1) result = await owner.tacticalTwinStage2.analyzeServerBatch({ jobId: serverJob.id });
+    expect(result.job.processedFrames).toBe(5);
+    expect(result.job.status).toBe("review");
+    expect(extractFramesMock).toHaveBeenNthCalledWith(1, expect.objectContaining({ reconstructionId, sourceStartSeconds: 10, startFrameIndex: 0, frameCount: 1 }));
+    expect(extractFramesMock).toHaveBeenNthCalledWith(5, expect.objectContaining({ reconstructionId, sourceStartSeconds: 10, startFrameIndex: 4, frameCount: 1 }));
+    await db.deleteTwinTrackingJob(serverJob.id, 41);
   });
 
   it("rejects an unapproved tracking job before sending any cinematic provider request", async () => {

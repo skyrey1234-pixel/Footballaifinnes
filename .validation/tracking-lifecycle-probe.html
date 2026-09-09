@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+  <head><meta charset="utf-8"><title>tracking lifecycle probe</title></head>
+  <body>
+    <pre id="status">starting</pre>
+    <video id="video" muted playsinline preload="auto" crossorigin="anonymous" style="position:fixed;left:-9999px;top:0;width:1px;height:1px;opacity:0"></video>
+    <script>
+      const video = document.getElementById("video");
+      const status = document.getElementById("status");
+      const events = [];
+      const render = (extra = {}) => status.textContent = JSON.stringify({ events, readyState: video.readyState, networkState: video.networkState, videoWidth: video.videoWidth, videoHeight: video.videoHeight, currentTime: video.currentTime, error: video.error ? { code: video.error.code, message: video.error.message } : null, ...extra });
+      const waitForEvent = (eventName, timeoutMs = 45000) => new Promise((resolve, reject) => {
+        if (eventName === "loadedmetadata" && video.readyState >= HTMLMediaElement.HAVE_METADATA) return resolve();
+        let timer;
+        const cleanup = () => { clearTimeout(timer); video.removeEventListener(eventName, onEvent); video.removeEventListener("error", onError); };
+        const onEvent = () => { cleanup(); resolve(); };
+        const onError = () => { cleanup(); reject(new Error("media error")); };
+        timer = setTimeout(() => { cleanup(); reject(new Error(`timeout ${eventName}`)); }, timeoutMs);
+        video.addEventListener(eventName, onEvent, { once: true });
+        video.addEventListener("error", onError, { once: true });
+      });
+      ["loadstart", "durationchange", "loadedmetadata", "loadeddata", "canplay", "seeking", "seeked", "play", "playing", "waiting", "stalled", "suspend", "error"].forEach((name) => video.addEventListener(name, () => { events.push(name); render(); }));
+      video.src = atob("VIDEO_SOURCE_BASE64");
+      setTimeout(async () => {
+        try {
+          video.pause();
+          if (video.readyState < HTMLMediaElement.HAVE_METADATA) {
+            const metadataReady = waitForEvent("loadedmetadata", 45000);
+            const playAttempt = video.play().catch(() => undefined);
+            video.load();
+            await metadataReady;
+            video.pause();
+            void playAttempt;
+          }
+          render({ result: "metadata-ready" });
+        } catch (error) {
+          render({ result: error.message });
+        }
+      }, 1000);
+    </script>
+  </body>
+</html>

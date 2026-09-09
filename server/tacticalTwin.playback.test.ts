@@ -30,20 +30,12 @@ describe("Tactical Twin synchronized playback regression", () => {
     expect(twinPageSource).not.toContain("externalProgress={progress} onProgressChange={setProgress}");
   });
 
-  it("registers automatic-tracking metadata readiness before reloading the capture source", () => {
+  it("runs automatic tracking through resumable server batches instead of browser media metadata", () => {
     const source = readFileSync(new URL("../client/src/components/tactical-twin/TacticalTwinTrackingPanel.tsx", import.meta.url), "utf8");
-    const waitIndex = source.indexOf('const metadataReady = waitForEvent(video, "loadedmetadata", 45_000)');
-    const loadIndex = source.indexOf("video.load();", waitIndex);
-    const awaitIndex = source.indexOf("await metadataReady;", loadIndex);
-    expect(waitIndex).toBeGreaterThan(-1);
-    expect(loadIndex).toBeGreaterThan(waitIndex);
-    expect(awaitIndex).toBeGreaterThan(loadIndex);
-    expect(source).toContain('eventName === "loadedmetadata" && target.readyState >= HTMLMediaElement.HAVE_METADATA');
-    expect(source).toContain('preload="auto"');
-    expect(source).toContain('captureSourceUrl(captureUrl, sourceStartSeconds)');
-    expect(source).toContain('video.play().catch(() => undefined)');
-    expect(source).toContain('crossOrigin="anonymous"');
-    expect(source).not.toContain('preload="metadata" className="hidden"');
+    expect(source).toContain("trpc.tacticalTwinStage2.analyzeServerBatch.useMutation()");
+    expect(source).toContain("analyzeServerMutation.mutateAsync({ jobId: job.id })");
+    expect(source).not.toContain("waitForEvent(video");
+    expect(source).not.toContain("captureVideoFrame(video");
   });
 
   it("uses the direct signed playback source for Stage 2 canvas capture with proxy fallback", () => {

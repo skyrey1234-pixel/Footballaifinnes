@@ -5,6 +5,7 @@ import { getGameSession, getLiveGameSession, getPlayReconstruction } from "./db"
 import { normalizeLiveReplayRange } from "./liveVideoRoute";
 import { storageGetSignedUrl } from "./storage";
 import { verifyTacticalTwinPlaybackToken } from "./tacticalTwinPlaybackToken";
+import { resolveOwnedTwinVideoKey } from "./tacticalTwinFrameExtraction";
 
 export const tacticalTwinVideoRouter = Router();
 
@@ -17,30 +18,6 @@ const FORWARDED_RESPONSE_HEADERS = [
   "last-modified",
 ] as const;
 const DEFAULT_BROWSER_RANGE = "bytes=0-4194303";
-
-function keyFromStorageUrl(value: string | null | undefined) {
-  if (!value?.startsWith("/manus-storage/")) return null;
-  return decodeURIComponent(value.slice("/manus-storage/".length));
-}
-
-async function resolveOwnedVideoKey(reconstructionId: number, userId: number) {
-  const reconstruction = await getPlayReconstruction(reconstructionId, userId);
-  if (!reconstruction || reconstruction.sourceType !== "upload") return null;
-
-  if (reconstruction.gameSessionId) {
-    const session = await getGameSession(reconstruction.gameSessionId);
-    if (!session || session.userId !== userId) return null;
-    return session.videoFileKey || keyFromStorageUrl(session.videoUrl) || keyFromStorageUrl(reconstruction.videoUrl);
-  }
-
-  if (reconstruction.liveSessionId) {
-    const session = await getLiveGameSession(reconstruction.liveSessionId, userId);
-    if (!session || session.sourceType !== "upload") return null;
-    return session.videoFileKey || keyFromStorageUrl(session.videoUrl) || keyFromStorageUrl(reconstruction.videoUrl);
-  }
-
-  return keyFromStorageUrl(reconstruction.videoUrl);
-}
 
 async function streamTacticalTwinVideo(req: Request, res: Response) {
   try {
@@ -57,7 +34,7 @@ async function streamTacticalTwinVideo(req: Request, res: Response) {
       return;
     }
     const userId = playbackAccess?.userId ?? (await sdk.authenticateRequest(req)).id;
-    const videoFileKey = await resolveOwnedVideoKey(id, userId);
+    const videoFileKey = await resolveOwnedTwinVideoKey(id, userId);
     if (!videoFileKey) {
       res.status(404).json({ error: "Tactical Twin source film not found" });
       return;

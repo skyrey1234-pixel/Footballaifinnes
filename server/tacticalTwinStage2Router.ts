@@ -22,6 +22,7 @@ import {
   type TwinTrackedBall,
   type TwinTrackedPlayer,
 } from "../shared/tacticalTwinStage2";
+import { extractTwinTrackingFrameBatch } from "./tacticalTwinFrameExtraction";
 
 const unitPointSchema = z.object({
   x: z.number().min(0).max(1),
@@ -47,6 +48,7 @@ const playerSchema = z.object({
   occluded: z.boolean(),
   manuallyCorrected: z.boolean(),
 });
+const SERVER_TRACKING_BATCH_SIZE = 1;
 
 const ballSchema = z.object({
   visible: z.boolean(),
@@ -130,7 +132,7 @@ export const tacticalTwinStage2Router = router({
         reconstructionId: input.reconstructionId,
         userId: ctx.user.id,
         status: "capturing",
-        stage: "waiting_for_browser_frames",
+        stage: "waiting_for_server_frames",
         samplingFps: input.samplingFps,
         sourceFps: input.sourceFps,
         totalFrames,
@@ -254,6 +256,96 @@ export const tacticalTwinStage2Router = router({
       }
     }),
 
+  analyzeServerBatch: protectedProcedure
+    .input(z.object({ jobId: z.number().int().positive() }))
+    .mutation(async ({ input, ctx }) => {
+      const job = await requireJob(input.jobId, ctx.user.id);
+      const reconstruction = await requireReconstruction(job.reconstructionId, ctx.user.id);
+      if (reconstruction.sourceType !== "upload") {
+        throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Automatic tracking needs stored uploaded film." });
+      }
+      if (["approved", "canceled"].includes(job.status)) {
+        throw new TRPCError({ code: "PRECONDITION_FAILED", message: `Tracking job is ${job.status}` });
+      }
+
+      const existingFrames = await db.listTwinTrackingFrames(job.id, ctx.user.id);
+      const completedIndexes = new Set(existingFrames.map((frame) => frame.frameIndex));
+      let startFrameIndex = 0;
+      while (startFrameIndex < job.totalFrames && completedIndexes.has(startFrameIndex)) startFrameIndex += 1;
+      if (startFrameIndex >= job.totalFrames) {
+        const now = Date.now();
+        await db.updateTwinTrackingJob(job.id, ctx.user.id, {
+          status: "review",
+          stage: "coach_review",
+          processedFrames: existingFrames.length,
+          completedAt: now,
+          updatedAt: now,
+        });
+        return { job: await requireJob(job.id, ctx.user.id), frames: [] };
+      }
+
+      const frameCount = Math.min(SERVER_TRACKING_BATCH_SIZE, job.totalFrames - startFrameIndex);
+      await db.updateTwinTrackingJob(job.id, ctx.user.id, {
+        status: "analyzing",
+        stage: `extracting_frames_${startFrameIndex}_${startFrameIndex + frameCount - 1}`,
+        errorMessage: null,
+        updatedAt: Date.now(),
+      });
+
+      try {
+        const capturedFrames = await extractTwinTrackingFrameBatch({
+          reconstructionId: reconstruction.id,
+          userId: ctx.user.id,
+          sourceStartSeconds: reconstruction.sourceStartSeconds,
+          samplingFps: job.samplingFps,
+          startFrameIndex,
+          frameCount,
+        });
+        const priorPlayers = existingFrames.at(-1)?.players;
+        const priorTracks = Array.isArray(priorPlayers)
+          ? (priorPlayers as TwinTrackedPlayer[]).map(({ trackId, unit, label, imagePoint }) => ({ trackId, unit, label, imagePoint }))
+          : [];
+        const result = await analyzeTwinFrameBatch({ frames: capturedFrames, priorTracks });
+        const now = Date.now();
+        for (const frame of result.frames) {
+          await db.upsertTwinTrackingFrame({
+            trackingJobId: job.id,
+            reconstructionId: job.reconstructionId,
+            userId: ctx.user.id,
+            frameIndex: frame.frameIndex,
+            timestampMs: frame.timestampMs,
+            imageWidth: frame.imageWidth,
+            imageHeight: frame.imageHeight,
+            players: frame.players,
+            ball: frame.ball,
+            frameConfidence: frame.frameConfidence,
+            createdAt: now,
+            updatedAt: now,
+          });
+        }
+        const persistedFrames = await db.listTwinTrackingFrames(job.id, ctx.user.id);
+        const complete = persistedFrames.length >= job.totalFrames;
+        await db.updateTwinTrackingJob(job.id, ctx.user.id, {
+          status: complete ? "review" : "capturing",
+          stage: complete ? "coach_review" : "waiting_for_server_frames",
+          processedFrames: persistedFrames.length,
+          calibration: bestCalibration(job.calibration, result.calibration),
+          completedAt: complete ? now : null,
+          updatedAt: now,
+        });
+        return { job: await requireJob(job.id, ctx.user.id), frames: result.frames };
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Automatic tracking failed";
+        await db.updateTwinTrackingJob(job.id, ctx.user.id, {
+          status: "failed",
+          stage: "server_frame_analysis_failed",
+          errorMessage: message.slice(0, 500),
+          updatedAt: Date.now(),
+        });
+        throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: `This tracking batch failed: ${message.slice(0, 220)}` });
+      }
+    }),
+
   updateTrackedFrame: protectedProcedure
     .input(z.object({
       jobId: z.number().int().positive(),
@@ -308,7 +400,7 @@ export const tacticalTwinStage2Router = router({
       const job = await requireJob(input.jobId, ctx.user.id);
       await db.updateTwinTrackingJob(job.id, ctx.user.id, {
         status: "capturing",
-        stage: "waiting_for_browser_frames",
+        stage: "waiting_for_server_frames",
         errorMessage: null,
         retryCount: job.retryCount + 1,
         updatedAt: Date.now(),
