@@ -1,5 +1,22 @@
 # TacticalEdge AI — Project TODO
 
+- [x] TACTICAL TWIN STAGE 2: Verified the enabled Higgsfield integration is a non-editable OAuth MCP connector for Manus-agent operations; the published TacticalEdge server cannot safely invoke or extract it, and two tool-catalog attempts reached the remote endpoint but timed out
+- [x] TACTICAL TWIN STAGE 2: Removed the duplicate-account assumption and documented the secure production boundary: use the enabled connector for Manus operations, while one-click in-app generation requires either app-scoped Higgsfield Cloud credentials or a separate Manus API/Open App bridge
+- [x] TACTICAL TWIN STAGE 2: Defined additive owner-scoped tracking jobs, per-frame player/ball tracks, calibration metadata, coach corrections, cinematic export jobs, retained media records, and hashed expiring share tokens
+- [x] TACTICAL TWIN STAGE 2: Built protected resumable APIs for starting, polling, retrying, reviewing, approving, and deleting automatic tracking jobs without relying on server timers
+- [x] TACTICAL TWIN STAGE 2: Implemented automatic football-player and ball tracking from browser-captured source frames with confidence, anonymous stable IDs, occlusion state, bounded three-frame model batches, and exact timestamps
+- [x] TACTICAL TWIN STAGE 2: Added evidence-limited image-to-field coordinate estimates with calibration quality, confidence, limitations, coordinate clamping, and rejection of model-invented player names
+- [x] TACTICAL TWIN STAGE 2: Added a coach review workspace for correcting labels, unit, jersey, occlusion, field coordinates, ball visibility/possession, and approving tracked evidence
+- [x] TACTICAL TWIN STAGE 2: Added 0.25x, 0.5x, 0.75x, and 1x playback plus bounded previous/next frame, exact frame/time readouts, and synchronized Film/Map/3D control
+- [x] TACTICAL TWIN STAGE 2: Built the server-side Higgsfield Cloud adapter with configuration detection, image-to-video submission, asynchronous status recovery, webhook completion, cancellation, failure states, and durable MP4 retention; documented why the enabled agent MCP connector cannot expose its OAuth token to the published app
+- [x] TACTICAL TWIN STAGE 2: Built cinematic replay generation from a source frame and optional approved tracking job with explicit interpretation-not-evidence prompts and upload-only source safeguards
+- [x] TACTICAL TWIN STAGE 2: Added a cinematic export gallery with status refresh, preview, download, cancellation, deletion, regeneration controls, and retained private playback URLs
+- [x] TACTICAL TWIN STAGE 2: Added hashed, expiring, revocable cinematic share links with QR/copy handoff and a public projection that excludes private film, tracks, source URLs, and coach data
+- [x] TACTICAL TWIN STAGE 2: Added Stage 2 launch and status surfaces to Tactical Twin, Film Breakdown, Highlight Reel, and eligible uploaded Live evidence
+- [x] TACTICAL TWIN STAGE 2: Cinematic exports now reject unapproved tracking jobs and inject coach-approved anonymous frame/confidence/unit/ball/calibration summaries plus saved 22-player Twin geometry into the provider prompt and provenance
+- [x] TACTICAL TWIN STAGE 2: Added explicit Stage 2 eligibility badges to Film Breakdown, Highlight Reel, and Live evidence plus owner-scoped live tracking/export status badges in the Twin library; rendering and ownership regressions pass
+- [ ] TACTICAL TWIN STAGE 2: Add ownership, token, validation, timeout, retry, cleanup, and regression coverage; run full tests, type-check, production build, desktop/mobile verification, and real authorized Higgsfield export validation
+
 - [x] BUG: Fixed Tactical Twin `/twin/30001` maximum-update-depth crash by removing per-frame child state feedback, deriving 3D scrub display from the parent timeline, memoizing scene inputs, and keeping one timeline owner; 25/25 test files and 107/107 tests pass, and production 3D playback completed to 0:42/100% before stable Map and Film transitions
 - [x] VALIDATION: Captured explicit deployed 3D-view evidence showing the parent at 0:42/100% and the 3D timeline at RESULT/100%; Tactical Map rendered the same completed geometry and Original Film mounted afterward without a maximum-update-depth warning
 

@@ -54,7 +54,7 @@ export default function HighlightReelTab({ sessionId, session }: { sessionId: nu
   });
   const twinMutation = trpc.tacticalTwin.createFromFilm.useMutation({
     onSuccess: (twin) => {
-      toast.success("Tactical Twin draft created");
+      toast.success("Tactical Twin created — automatic tracking is ready");
       setLocation(`/twin/${twin.id}`);
     },
     onError: (error) => toast.error(error.message),
@@ -159,6 +159,7 @@ export default function HighlightReelTab({ sessionId, session }: { sessionId: nu
                   <Badge variant="outline" className="border-gray-700 text-gray-400">
                     {fmtTime(active.timestamp)} · {active.duration}s
                   </Badge>
+                  <Badge variant="outline" className="border-cyan-400/25 bg-cyan-400/5 text-cyan-200">Stage 2 ready</Badge>
                   <span className="ml-auto text-xs text-gray-500">Impact: <span className="text-[#00FF87] font-bold">{active.impactScore}</span>/100</span>
                 </div>
                 <h4 className="font-bold text-white">{active.title}</h4>
@@ -179,7 +180,7 @@ export default function HighlightReelTab({ sessionId, session }: { sessionId: nu
                   })}
                 >
                   {twinMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Boxes className="h-4 w-4" />}
-                  Build Tactical Twin
+                  Build + Auto Track
                 </Button>
               </CardContent>
             </Card>

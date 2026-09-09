@@ -408,6 +408,117 @@ export const playReconstructions = mysqlTable(
 export type PlayReconstruction = typeof playReconstructions.$inferSelect;
 export type InsertPlayReconstruction = typeof playReconstructions.$inferInsert;
 
+// ============ TACTICAL TWIN STAGE 2 ============
+
+// One browser-driven, asynchronous tracking run for a selected reconstruction.
+// The original frames remain evidence; this table stores lifecycle and calibration metadata.
+export const twinTrackingJobs = mysqlTable("twin_tracking_jobs", {
+  id: int("id").autoincrement().primaryKey(),
+  reconstructionId: int("reconstructionId").notNull(),
+  userId: int("userId").notNull(),
+  status: mysqlEnum("status", ["queued", "capturing", "analyzing", "review", "approved", "failed", "canceled"]).default("queued").notNull(),
+  stage: varchar("stage", { length: 64 }).default("waiting_for_frames").notNull(),
+  samplingFps: int("samplingFps").default(2).notNull(),
+  sourceFps: int("sourceFps").default(30).notNull(),
+  totalFrames: int("totalFrames").default(0).notNull(),
+  processedFrames: int("processedFrames").default(0).notNull(),
+  provider: varchar("provider", { length: 64 }).default("gemini-vision").notNull(),
+  calibration: json("calibration"),
+  summary: json("summary"),
+  errorMessage: text("errorMessage"),
+  retryCount: int("retryCount").default(0).notNull(),
+  createdAt: bigint("createdAt", { mode: "number" }).notNull(),
+  startedAt: bigint("startedAt", { mode: "number" }),
+  completedAt: bigint("completedAt", { mode: "number" }),
+  updatedAt: bigint("updatedAt", { mode: "number" }).notNull(),
+});
+
+export type TwinTrackingJob = typeof twinTrackingJobs.$inferSelect;
+export type InsertTwinTrackingJob = typeof twinTrackingJobs.$inferInsert;
+
+// Per-frame computer-vision output. Track IDs are anonymous and coach-editable;
+// the system never invents player names from pixels.
+export const twinTrackingFrames = mysqlTable(
+  "twin_tracking_frames",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    trackingJobId: int("trackingJobId").notNull(),
+    reconstructionId: int("reconstructionId").notNull(),
+    userId: int("userId").notNull(),
+    frameIndex: int("frameIndex").notNull(),
+    timestampMs: int("timestampMs").notNull(),
+    imageWidth: int("imageWidth").notNull(),
+    imageHeight: int("imageHeight").notNull(),
+    players: json("players").notNull(),
+    ball: json("ball").notNull(),
+    frameConfidence: int("frameConfidence").default(0).notNull(),
+    createdAt: bigint("createdAt", { mode: "number" }).notNull(),
+    updatedAt: bigint("updatedAt", { mode: "number" }).notNull(),
+  },
+  (table) => ({
+    jobFrameUnique: uniqueIndex("twin_tracking_job_frame_unique").on(table.trackingJobId, table.frameIndex),
+  }),
+);
+
+export type TwinTrackingFrame = typeof twinTrackingFrames.$inferSelect;
+export type InsertTwinTrackingFrame = typeof twinTrackingFrames.$inferInsert;
+
+// One provider request and durable output record per cinematic replay attempt.
+export const twinCinematicExports = mysqlTable("twin_cinematic_exports", {
+  id: int("id").autoincrement().primaryKey(),
+  reconstructionId: int("reconstructionId").notNull(),
+  trackingJobId: int("trackingJobId"),
+  userId: int("userId").notNull(),
+  provider: varchar("provider", { length: 64 }).default("higgsfield").notNull(),
+  providerRequestId: varchar("providerRequestId", { length: 191 }),
+  statusUrl: text("statusUrl"),
+  cancelUrl: text("cancelUrl"),
+  status: mysqlEnum("status", ["draft", "queued", "in_progress", "completed", "failed", "nsfw", "canceled"]).default("draft").notNull(),
+  model: varchar("model", { length: 191 }).notNull(),
+  prompt: text("prompt").notNull(),
+  style: varchar("style", { length: 96 }).default("broadcast_cinematic").notNull(),
+  aspectRatio: varchar("aspectRatio", { length: 16 }).default("16:9").notNull(),
+  durationSeconds: int("durationSeconds").default(5).notNull(),
+  sourceImageKey: text("sourceImageKey"),
+  outputFileKey: text("outputFileKey"),
+  outputUrl: text("outputUrl"),
+  thumbnailFileKey: text("thumbnailFileKey"),
+  provenance: json("provenance"),
+  errorMessage: text("errorMessage"),
+  retryCount: int("retryCount").default(0).notNull(),
+  createdAt: bigint("createdAt", { mode: "number" }).notNull(),
+  submittedAt: bigint("submittedAt", { mode: "number" }),
+  completedAt: bigint("completedAt", { mode: "number" }),
+  updatedAt: bigint("updatedAt", { mode: "number" }).notNull(),
+});
+
+export type TwinCinematicExport = typeof twinCinematicExports.$inferSelect;
+export type InsertTwinCinematicExport = typeof twinCinematicExports.$inferInsert;
+
+// Public links store only a hash of the bearer token. Revocation and expiration
+// are enforced before returning the export projection or media URL.
+export const twinExportShares = mysqlTable(
+  "twin_export_shares",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    exportId: int("exportId").notNull(),
+    reconstructionId: int("reconstructionId").notNull(),
+    userId: int("userId").notNull(),
+    tokenHash: varchar("tokenHash", { length: 128 }).notNull(),
+    expiresAt: bigint("expiresAt", { mode: "number" }).notNull(),
+    revokedAt: bigint("revokedAt", { mode: "number" }),
+    viewCount: int("viewCount").default(0).notNull(),
+    lastViewedAt: bigint("lastViewedAt", { mode: "number" }),
+    createdAt: bigint("createdAt", { mode: "number" }).notNull(),
+  },
+  (table) => ({
+    tokenHashUnique: uniqueIndex("twin_export_share_token_unique").on(table.tokenHash),
+  }),
+);
+
+export type TwinExportShare = typeof twinExportShares.$inferSelect;
+export type InsertTwinExportShare = typeof twinExportShares.$inferInsert;
+
 // Shared trust layer for the 15 advanced analytics modules. Module-specific
 // tables store the analysis payload; this table records what evidence supports
 // it, how confident the model is, and what inputs are still missing.

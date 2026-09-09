@@ -270,7 +270,7 @@ export default function LiveViewPage() {
   const analyzeMutation = trpc.live.analyzeWindow.useMutation();
   const twinMutation = trpc.tacticalTwin.createFromLive.useMutation({
     onSuccess: (twin) => {
-      toast.success("Tactical Twin draft created from live evidence");
+      toast.success("Tactical Twin opened — Stage 2 tools are ready where stored film exists");
       setLocation(`/twin/${twin.id}`);
     },
     onError: (error) => toast.error(error.message),
@@ -969,9 +969,9 @@ export default function LiveViewPage() {
                 };
                 return (
                   <div key={event.id} role="button" tabIndex={0} onClick={seekToEvent} onKeyDown={(keyboardEvent) => { if (keyboardEvent.key === "Enter" || keyboardEvent.key === " ") seekToEvent(); }} className="grid w-full gap-3 border border-white/8 bg-black/20 p-4 text-left hover:border-emerald-400/25 md:grid-cols-[90px_1fr_auto]">
-                    <div><p className="font-mono text-xs text-emerald-400">{formatClock(event.windowStartSeconds)}–{formatClock(event.windowEndSeconds)}</p><p className="mt-2 text-[9px] uppercase tracking-[0.12em] text-white/25">AI estimate · {event.teamPhase || "unclear"}</p></div>
+                    <div><p className="font-mono text-xs text-emerald-400">{formatClock(event.windowStartSeconds)}–{formatClock(event.windowEndSeconds)}</p><p className="mt-2 text-[9px] uppercase tracking-[0.12em] text-white/25">AI estimate · {event.teamPhase || "unclear"}</p><span className={`mt-2 inline-flex border px-2 py-1 text-[8px] font-semibold uppercase tracking-[0.1em] ${selectedSession.sourceType === "upload" ? "border-cyan-400/25 text-cyan-200" : "border-amber-300/20 text-amber-100/60"}`}>{selectedSession.sourceType === "upload" ? "Stage 2 tracking ready" : "Twin only · local video"}</span></div>
                     <div className="min-w-0"><p className="truncate text-sm font-medium text-white">{event.playCall || event.visibleAction || "AI read"}</p><p className="mt-1 line-clamp-2 text-xs leading-5 text-white/45">{event.predictionSummary}</p>{evidence[0] ? <p className="mt-2 text-[11px] text-white/30">Evidence: {evidence[0].observation}</p> : null}</div>
-                    <div className="flex flex-wrap items-center gap-2 md:justify-end"><span className="font-mono text-xs text-white/45">{event.confidence}%</span><Badge variant="outline" className={riskStyles[event.riskLevel] ?? riskStyles.low}>{event.riskLevel}</Badge><Button size="sm" className="gap-1.5 bg-emerald-400 text-xs text-black hover:bg-emerald-300" disabled={twinMutation.isPending} onClick={(clickEvent) => { clickEvent.stopPropagation(); twinMutation.mutate({ liveSessionId: selectedSession.id, liveEventId: event.id }); }}>{twinMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Boxes className="h-3.5 w-3.5" />}Build Twin</Button></div>
+                    <div className="flex flex-wrap items-center gap-2 md:justify-end"><span className="font-mono text-xs text-white/45">{event.confidence}%</span><Badge variant="outline" className={riskStyles[event.riskLevel] ?? riskStyles.low}>{event.riskLevel}</Badge><Button size="sm" className="gap-1.5 bg-emerald-400 text-xs text-black hover:bg-emerald-300" disabled={twinMutation.isPending} onClick={(clickEvent) => { clickEvent.stopPropagation(); twinMutation.mutate({ liveSessionId: selectedSession.id, liveEventId: event.id }); }}>{twinMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Boxes className="h-3.5 w-3.5" />}{selectedSession.sourceType === "upload" ? "Build + Track" : "Build Twin"}</Button></div>
                   </div>
                 );
               })}

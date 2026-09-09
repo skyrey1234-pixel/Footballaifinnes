@@ -1,7 +1,7 @@
 import { eq, desc } from "drizzle-orm";
 import { sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, users, gameSessions, scoutingReports, playerProfiles, mistakeAnalyses, highlightReels, formationAnalytics, presnapsReads, turnoverPredictors, heatMapAnalytics, routeTreeAnalytics, blockingAnalytics, momentumAnalytics, gapAnalytics, injuryImpactAnalytics, penaltyAnalytics, redZoneAnalytics, thirdDownAnalytics, twoMinuteAnalytics, situationalAnalytics, playerComparisons, liveGameSessions, liveAnalysisEvents, playReconstructions, advancedAnalyticsRuns, type InsertGameSession, type InsertScoutingReport, type InsertPlayerProfile, type InsertLiveGameSession, type InsertLiveAnalysisEvent, type InsertPlayReconstruction, type InsertAdvancedAnalyticsRun } from "../drizzle/schema";
+import { InsertUser, users, gameSessions, scoutingReports, playerProfiles, mistakeAnalyses, highlightReels, formationAnalytics, presnapsReads, turnoverPredictors, heatMapAnalytics, routeTreeAnalytics, blockingAnalytics, momentumAnalytics, gapAnalytics, injuryImpactAnalytics, penaltyAnalytics, redZoneAnalytics, thirdDownAnalytics, twoMinuteAnalytics, situationalAnalytics, playerComparisons, liveGameSessions, liveAnalysisEvents, playReconstructions, twinTrackingJobs, twinTrackingFrames, twinCinematicExports, twinExportShares, advancedAnalyticsRuns, type InsertGameSession, type InsertScoutingReport, type InsertPlayerProfile, type InsertLiveGameSession, type InsertLiveAnalysisEvent, type InsertPlayReconstruction, type InsertTwinTrackingJob, type InsertTwinTrackingFrame, type InsertTwinCinematicExport, type InsertTwinExportShare, type InsertAdvancedAnalyticsRun } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -736,9 +736,172 @@ export async function updatePlayReconstruction(
 export async function deletePlayReconstruction(id: number, userId: number) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
+  await db.delete(twinExportShares).where(sql`${twinExportShares.reconstructionId} = ${id} AND ${twinExportShares.userId} = ${userId}`);
+  await db.delete(twinCinematicExports).where(sql`${twinCinematicExports.reconstructionId} = ${id} AND ${twinCinematicExports.userId} = ${userId}`);
+  await db.delete(twinTrackingFrames).where(sql`${twinTrackingFrames.reconstructionId} = ${id} AND ${twinTrackingFrames.userId} = ${userId}`);
+  await db.delete(twinTrackingJobs).where(sql`${twinTrackingJobs.reconstructionId} = ${id} AND ${twinTrackingJobs.userId} = ${userId}`);
   await db
     .delete(playReconstructions)
     .where(sql`${playReconstructions.id} = ${id} AND ${playReconstructions.userId} = ${userId}`);
+}
+
+// ===== Tactical Twin Stage 2 =====
+
+export async function createTwinTrackingJob(data: InsertTwinTrackingJob) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const result = await db.insert(twinTrackingJobs).values(data);
+  return result[0].insertId;
+}
+
+export async function listTwinTrackingJobs(reconstructionId: number, userId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(twinTrackingJobs)
+    .where(sql`${twinTrackingJobs.reconstructionId} = ${reconstructionId} AND ${twinTrackingJobs.userId} = ${userId}`)
+    .orderBy(desc(twinTrackingJobs.updatedAt));
+}
+
+export async function getTwinTrackingJob(id: number, userId: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const rows = await db.select().from(twinTrackingJobs)
+    .where(sql`${twinTrackingJobs.id} = ${id} AND ${twinTrackingJobs.userId} = ${userId}`)
+    .limit(1);
+  return rows[0];
+}
+
+export async function updateTwinTrackingJob(id: number, userId: number, data: Partial<InsertTwinTrackingJob>) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.update(twinTrackingJobs).set(data)
+    .where(sql`${twinTrackingJobs.id} = ${id} AND ${twinTrackingJobs.userId} = ${userId}`);
+}
+
+export async function upsertTwinTrackingFrame(data: InsertTwinTrackingFrame) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.insert(twinTrackingFrames).values(data).onDuplicateKeyUpdate({
+    set: {
+      timestampMs: data.timestampMs,
+      imageWidth: data.imageWidth,
+      imageHeight: data.imageHeight,
+      players: data.players,
+      ball: data.ball,
+      frameConfidence: data.frameConfidence,
+      updatedAt: data.updatedAt,
+    },
+  });
+}
+
+export async function listTwinTrackingFrames(trackingJobId: number, userId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(twinTrackingFrames)
+    .where(sql`${twinTrackingFrames.trackingJobId} = ${trackingJobId} AND ${twinTrackingFrames.userId} = ${userId}`)
+    .orderBy(twinTrackingFrames.frameIndex);
+}
+
+export async function updateTwinTrackingFrame(id: number, trackingJobId: number, userId: number, data: Partial<InsertTwinTrackingFrame>) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.update(twinTrackingFrames).set(data)
+    .where(sql`${twinTrackingFrames.id} = ${id} AND ${twinTrackingFrames.trackingJobId} = ${trackingJobId} AND ${twinTrackingFrames.userId} = ${userId}`);
+}
+
+export async function deleteTwinTrackingJob(id: number, userId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.delete(twinTrackingFrames)
+    .where(sql`${twinTrackingFrames.trackingJobId} = ${id} AND ${twinTrackingFrames.userId} = ${userId}`);
+  await db.delete(twinTrackingJobs)
+    .where(sql`${twinTrackingJobs.id} = ${id} AND ${twinTrackingJobs.userId} = ${userId}`);
+}
+
+export async function createTwinCinematicExport(data: InsertTwinCinematicExport) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const result = await db.insert(twinCinematicExports).values(data);
+  return result[0].insertId;
+}
+
+export async function listTwinCinematicExports(reconstructionId: number, userId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(twinCinematicExports)
+    .where(sql`${twinCinematicExports.reconstructionId} = ${reconstructionId} AND ${twinCinematicExports.userId} = ${userId}`)
+    .orderBy(desc(twinCinematicExports.updatedAt));
+}
+
+export async function getTwinCinematicExport(id: number, userId: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const rows = await db.select().from(twinCinematicExports)
+    .where(sql`${twinCinematicExports.id} = ${id} AND ${twinCinematicExports.userId} = ${userId}`)
+    .limit(1);
+  return rows[0];
+}
+
+export async function getTwinCinematicExportByProviderRequest(providerRequestId: string) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const rows = await db.select().from(twinCinematicExports)
+    .where(eq(twinCinematicExports.providerRequestId, providerRequestId))
+    .limit(1);
+  return rows[0];
+}
+
+export async function updateTwinCinematicExport(id: number, userId: number, data: Partial<InsertTwinCinematicExport>) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.update(twinCinematicExports).set(data)
+    .where(sql`${twinCinematicExports.id} = ${id} AND ${twinCinematicExports.userId} = ${userId}`);
+}
+
+export async function deleteTwinCinematicExport(id: number, userId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.delete(twinExportShares)
+    .where(sql`${twinExportShares.exportId} = ${id} AND ${twinExportShares.userId} = ${userId}`);
+  await db.delete(twinCinematicExports)
+    .where(sql`${twinCinematicExports.id} = ${id} AND ${twinCinematicExports.userId} = ${userId}`);
+}
+
+export async function createTwinExportShare(data: InsertTwinExportShare) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const result = await db.insert(twinExportShares).values(data);
+  return result[0].insertId;
+}
+
+export async function listTwinExportShares(exportId: number, userId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(twinExportShares)
+    .where(sql`${twinExportShares.exportId} = ${exportId} AND ${twinExportShares.userId} = ${userId}`)
+    .orderBy(desc(twinExportShares.createdAt));
+}
+
+export async function getTwinExportShareByHash(tokenHash: string) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const rows = await db.select().from(twinExportShares)
+    .where(eq(twinExportShares.tokenHash, tokenHash))
+    .limit(1);
+  return rows[0];
+}
+
+export async function updateTwinExportShare(id: number, data: Partial<InsertTwinExportShare>) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.update(twinExportShares).set(data).where(eq(twinExportShares.id, id));
+}
+
+export async function revokeTwinExportShares(exportId: number, userId: number, revokedAt: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.update(twinExportShares).set({ revokedAt })
+    .where(sql`${twinExportShares.exportId} = ${exportId} AND ${twinExportShares.userId} = ${userId}`);
 }
 
 export async function saveAdvancedAnalyticsRun(data: InsertAdvancedAnalyticsRun) {

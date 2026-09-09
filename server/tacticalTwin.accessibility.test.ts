@@ -32,6 +32,9 @@ describe("Tactical Twin accessibility contract", () => {
   it("keeps every primary studio action labeled and keyboard-native", () => {
     const source = readFileSync(new URL("../client/src/pages/TacticalTwinPage.tsx", import.meta.url), "utf8");
     const mapSource = readFileSync(new URL("../client/src/components/tactical-twin/TacticalTwinMap.tsx", import.meta.url), "utf8");
+    const trackingSource = readFileSync(new URL("../client/src/components/tactical-twin/TacticalTwinTrackingPanel.tsx", import.meta.url), "utf8");
+    const cinematicSource = readFileSync(new URL("../client/src/components/tactical-twin/TacticalTwinCinematicPanel.tsx", import.meta.url), "utf8");
+    const shareSource = readFileSync(new URL("../client/src/pages/TacticalTwinCinematicSharePage.tsx", import.meta.url), "utf8");
     expect(source).toContain('aria-label="Back to Tactical Twin library"');
     expect(source).toContain('aria-label={playing ? "Pause synchronized playback" : "Play synchronized reconstruction"}');
     expect(source).toContain('aria-label="Restart synchronized reconstruction"');
@@ -41,5 +44,18 @@ describe("Tactical Twin accessibility contract", () => {
     expect(source).toContain('"3D Twin"');
     expect(mapSource).toContain('event.key === "Enter" || event.key === " "');
     expect(mapSource).toContain('focus-visible:[&_circle]:stroke-white');
+    expect(source).toContain('aria-label="Previous frame"');
+    expect(source).toContain('aria-label="Next frame"');
+    expect(source).toContain('aria-label="Playback speed controls"');
+    expect(source).toContain("TWIN_PLAYBACK_RATES.map");
+    expect(trackingSource).toContain('aria-label="Automatic player and ball tracking overlay"');
+    expect(trackingSource).toContain('aria-label="Tracked evidence frame"');
+    expect(trackingSource).toContain('aria-label={`Track ${player.trackId} label`}');
+    expect(trackingSource).toContain('aria-label={`Track ${player.trackId} field x`}');
+    expect(cinematicSource).toContain('aria-label="Share link expiration"');
+    expect(cinematicSource).toContain('aria-label={`Create secure share link for cinematic export ${item.id}`}');
+    expect(cinematicSource).toContain("Revoke all links");
+    expect(shareSource).toContain("Cinematic interpretation—not verified game-film evidence");
+    expect(shareSource).toContain("Download MP4");
   });
 });

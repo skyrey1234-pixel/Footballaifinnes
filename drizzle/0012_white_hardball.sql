@@ -1,0 +1,83 @@
+CREATE TABLE `twin_cinematic_exports` (
+	`id` int AUTO_INCREMENT NOT NULL,
+	`reconstructionId` int NOT NULL,
+	`trackingJobId` int,
+	`userId` int NOT NULL,
+	`provider` varchar(64) NOT NULL DEFAULT 'higgsfield',
+	`providerRequestId` varchar(191),
+	`statusUrl` text,
+	`cancelUrl` text,
+	`status` enum('draft','queued','in_progress','completed','failed','nsfw','canceled') NOT NULL DEFAULT 'draft',
+	`model` varchar(191) NOT NULL,
+	`prompt` text NOT NULL,
+	`style` varchar(96) NOT NULL DEFAULT 'broadcast_cinematic',
+	`aspectRatio` varchar(16) NOT NULL DEFAULT '16:9',
+	`durationSeconds` int NOT NULL DEFAULT 5,
+	`sourceImageKey` text,
+	`outputFileKey` text,
+	`outputUrl` text,
+	`thumbnailFileKey` text,
+	`provenance` json,
+	`errorMessage` text,
+	`retryCount` int NOT NULL DEFAULT 0,
+	`createdAt` bigint NOT NULL,
+	`submittedAt` bigint,
+	`completedAt` bigint,
+	`updatedAt` bigint NOT NULL,
+	CONSTRAINT `twin_cinematic_exports_id` PRIMARY KEY(`id`)
+);
+--> statement-breakpoint
+CREATE TABLE `twin_export_shares` (
+	`id` int AUTO_INCREMENT NOT NULL,
+	`exportId` int NOT NULL,
+	`reconstructionId` int NOT NULL,
+	`userId` int NOT NULL,
+	`tokenHash` varchar(128) NOT NULL,
+	`expiresAt` bigint NOT NULL,
+	`revokedAt` bigint,
+	`viewCount` int NOT NULL DEFAULT 0,
+	`lastViewedAt` bigint,
+	`createdAt` bigint NOT NULL,
+	CONSTRAINT `twin_export_shares_id` PRIMARY KEY(`id`),
+	CONSTRAINT `twin_export_share_token_unique` UNIQUE(`tokenHash`)
+);
+--> statement-breakpoint
+CREATE TABLE `twin_tracking_frames` (
+	`id` int AUTO_INCREMENT NOT NULL,
+	`trackingJobId` int NOT NULL,
+	`reconstructionId` int NOT NULL,
+	`userId` int NOT NULL,
+	`frameIndex` int NOT NULL,
+	`timestampMs` int NOT NULL,
+	`imageWidth` int NOT NULL,
+	`imageHeight` int NOT NULL,
+	`players` json NOT NULL,
+	`ball` json NOT NULL,
+	`frameConfidence` int NOT NULL DEFAULT 0,
+	`createdAt` bigint NOT NULL,
+	`updatedAt` bigint NOT NULL,
+	CONSTRAINT `twin_tracking_frames_id` PRIMARY KEY(`id`),
+	CONSTRAINT `twin_tracking_job_frame_unique` UNIQUE(`trackingJobId`,`frameIndex`)
+);
+--> statement-breakpoint
+CREATE TABLE `twin_tracking_jobs` (
+	`id` int AUTO_INCREMENT NOT NULL,
+	`reconstructionId` int NOT NULL,
+	`userId` int NOT NULL,
+	`status` enum('queued','capturing','analyzing','review','approved','failed','canceled') NOT NULL DEFAULT 'queued',
+	`stage` varchar(64) NOT NULL DEFAULT 'waiting_for_frames',
+	`samplingFps` int NOT NULL DEFAULT 2,
+	`sourceFps` int NOT NULL DEFAULT 30,
+	`totalFrames` int NOT NULL DEFAULT 0,
+	`processedFrames` int NOT NULL DEFAULT 0,
+	`provider` varchar(64) NOT NULL DEFAULT 'gemini-vision',
+	`calibration` json,
+	`summary` json,
+	`errorMessage` text,
+	`retryCount` int NOT NULL DEFAULT 0,
+	`createdAt` bigint NOT NULL,
+	`startedAt` bigint,
+	`completedAt` bigint,
+	`updatedAt` bigint NOT NULL,
+	CONSTRAINT `twin_tracking_jobs_id` PRIMARY KEY(`id`)
+);

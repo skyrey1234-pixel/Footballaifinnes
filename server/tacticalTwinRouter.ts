@@ -8,6 +8,7 @@ import {
 import { protectedProcedure, router } from "./_core/trpc";
 import * as db from "./db";
 import { storageGetSignedUrl } from "./storage";
+import { createTacticalTwinPlaybackToken } from "./tacticalTwinPlaybackToken";
 
 const sourceKindSchema = z.enum(["film_highlight", "highlight_reel"]);
 const playTypeSchema = z.enum(["pass", "run", "screen", "rpo", "special_teams", "unknown"]);
@@ -107,7 +108,12 @@ export const tacticalTwinRouter = router({
       const videoFileKey = await resolveOwnedSourceVideoKey(reconstruction, ctx.user.id);
       if (!videoFileKey) throw new TRPCError({ code: "NOT_FOUND", message: "Tactical Twin source film not found" });
       const url = await storageGetSignedUrl(videoFileKey);
-      return { url, expiresAt: Date.now() + 50 * 60 * 1_000 };
+      const captureAccess = createTacticalTwinPlaybackToken(reconstruction.id, ctx.user.id);
+      return {
+        url,
+        captureUrl: `/api/tactical-twin/video/${reconstruction.id}?access=${encodeURIComponent(captureAccess.token)}`,
+        expiresAt: Math.min(Date.now() + 50 * 60 * 1_000, captureAccess.expiresAt),
+      };
     }),
 
   createFromFilm: protectedProcedure

@@ -4,6 +4,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import Play3DVisualizer from "@/components/play3d/Play3DVisualizer";
 import { TacticalTwinMap, type TwinEditorTool } from "@/components/tactical-twin/TacticalTwinMap";
+import { TacticalTwinTrackingPanel } from "@/components/tactical-twin/TacticalTwinTrackingPanel";
+import { TacticalTwinCinematicPanel } from "@/components/tactical-twin/TacticalTwinCinematicPanel";
 import { trpc } from "@/lib/trpc";
 import {
   buildDefaultBallPath,
@@ -16,12 +18,24 @@ import {
   type TacticalTwinSourceType,
 } from "@shared/tacticalTwin";
 import {
+  DEFAULT_TWIN_FRAME_RATE,
+  TWIN_PLAYBACK_RATES,
+  frameToProgress,
+  millisecondsForFrame,
+  progressToFrame,
+  stepFrame,
+  type TwinPlaybackRate,
+} from "@shared/tacticalTwinStage2";
+import {
   ArrowLeft,
   BadgeCheck,
+  ChevronLeft,
+  ChevronRight,
   CircleDot,
   Crosshair,
   Film,
   Flag,
+  Gauge,
   Loader2,
   Move,
   Pause,
@@ -74,6 +88,7 @@ type TwinFilmHandle = {
   play: () => Promise<void> | null;
   pause: () => void;
   seek: (progress: number) => void;
+  setPlaybackRate: (rate: number) => void;
 };
 
 const TwinFilmPane = forwardRef<TwinFilmHandle, {
@@ -84,6 +99,7 @@ const TwinFilmPane = forwardRef<TwinFilmHandle, {
   endSeconds: number;
   progress: number;
   playing: boolean;
+  playbackRate: number;
   onProgress: (progress: number) => void;
 }>(function TwinFilmPane({
   sourceType,
@@ -93,6 +109,7 @@ const TwinFilmPane = forwardRef<TwinFilmHandle, {
   endSeconds,
   progress,
   playing,
+  playbackRate,
   onProgress,
 }, ref) {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -115,6 +132,7 @@ const TwinFilmPane = forwardRef<TwinFilmHandle, {
   useImperativeHandle(ref, () => ({
     play: () => {
       if (videoRef.current) {
+        videoRef.current.playbackRate = playbackRate;
         setMediaMessage("Starting source film…");
         return videoRef.current.play()
           .then(() => {
@@ -139,7 +157,20 @@ const TwinFilmPane = forwardRef<TwinFilmHandle, {
       }
     },
     seek: seekMedia,
-  }), [seekMedia, sourceType]);
+    setPlaybackRate: (rate: number) => {
+      if (videoRef.current) videoRef.current.playbackRate = rate;
+      if (iframeRef.current && sourceType === "youtube") {
+        iframeRef.current.contentWindow?.postMessage(JSON.stringify({ event: "command", func: "setPlaybackRate", args: [rate] }), "*");
+      }
+    },
+  }), [playbackRate, seekMedia, sourceType]);
+
+  useEffect(() => {
+    if (videoRef.current) videoRef.current.playbackRate = playbackRate;
+    if (iframeRef.current && sourceType === "youtube") {
+      iframeRef.current.contentWindow?.postMessage(JSON.stringify({ event: "command", func: "setPlaybackRate", args: [playbackRate] }), "*");
+    }
+  }, [playbackRate, sourceType]);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -248,6 +279,7 @@ export default function TacticalTwinPage() {
   });
   const [progress, setProgress] = useState(0);
   const [playing, setPlaying] = useState(false);
+  const [playbackRate, setPlaybackRate] = useState<TwinPlaybackRate>(1);
   const playbackFrameRef = useRef<number | null>(null);
   const playbackStartedAtRef = useRef(0);
   const playbackStartProgressRef = useRef(0);
@@ -284,7 +316,7 @@ export default function TacticalTwinPage() {
     playbackStartProgressRef.current = progress >= 1 ? 0 : progress;
     if (progress >= 1) setProgress(0);
     const tick = (now: number) => {
-      const next = playbackStartProgressRef.current + (now - playbackStartedAtRef.current) / (duration * 1000);
+      const next = playbackStartProgressRef.current + ((now - playbackStartedAtRef.current) * playbackRate) / (duration * 1000);
       if (next >= 1) {
         setProgress(1);
         setPlaying(false);
@@ -297,7 +329,7 @@ export default function TacticalTwinPage() {
     return () => {
       if (playbackFrameRef.current !== null) cancelAnimationFrame(playbackFrameRef.current);
     };
-  }, [duration, nativeFilmTimeline, playing]);
+  }, [duration, nativeFilmTimeline, playbackRate, playing]);
 
   const updateMutation = trpc.tacticalTwin.update.useMutation({
     onSuccess: async () => {
@@ -366,6 +398,22 @@ export default function TacticalTwinPage() {
       });
   };
 
+  const totalFrames = Math.max(2, Math.round(duration * DEFAULT_TWIN_FRAME_RATE) + 1);
+  const currentFrame = progressToFrame(progress, totalFrames);
+  const stepPlaybackFrame = (direction: -1 | 1) => {
+    const nextFrame = stepFrame(currentFrame, direction, totalFrames);
+    const nextProgress = frameToProgress(nextFrame, totalFrames);
+    filmHandleRef.current?.pause();
+    filmHandleRef.current?.seek(nextProgress);
+    setPlaying(false);
+    setProgress(nextProgress);
+  };
+
+  const changePlaybackRate = (rate: TwinPlaybackRate) => {
+    setPlaybackRate(rate);
+    filmHandleRef.current?.setPlaybackRate(rate);
+  };
+
   if (isLoading || !draft || !data) {
     return <div className="grid min-h-[70vh] place-items-center"><Loader2 className="h-8 w-8 animate-spin text-emerald-400" /></div>;
   }
@@ -379,9 +427,9 @@ export default function TacticalTwinPage() {
           <div className="flex items-start gap-3">
             <Button variant="ghost" size="icon" onClick={() => setLocation("/twins")} aria-label="Back to Tactical Twin library"><ArrowLeft className="h-5 w-5" /></Button>
             <div>
-              <p className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.24em] text-emerald-400"><Sparkles className="h-3.5 w-3.5" />Tactical Twin · Stage 1</p>
+              <p className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.24em] text-emerald-400"><Sparkles className="h-3.5 w-3.5" />Tactical Twin · Stage 2</p>
               <h1 className="mt-2 text-2xl font-black tracking-tight text-white md:text-3xl">{draft.title}</h1>
-              <p className="mt-2 text-sm text-white/40">{data.sourceTitle} · {formatClock(data.sourceStartSeconds)}–{formatClock(data.sourceEndSeconds)} · Coach-assisted reconstruction</p>
+              <p className="mt-2 text-sm text-white/40">{data.sourceTitle} · {formatClock(data.sourceStartSeconds)}–{formatClock(data.sourceEndSeconds)} · Automatic vision + coach verification</p>
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -398,16 +446,39 @@ export default function TacticalTwinPage() {
         <div className="bg-[#070b09] px-4 py-3">
           <p className="text-[9px] uppercase tracking-[0.18em] text-white/30">Source evidence</p><p className="mt-1 truncate text-sm font-medium text-white">{data.sourceTitle}</p>
         </div>
-        <div className="flex items-center justify-center gap-2 bg-[#070b09] px-5 py-3">
+        <div className="flex flex-wrap items-center justify-center gap-1.5 bg-[#070b09] px-3 py-3">
+          <Button size="icon" variant="ghost" onClick={() => stepPlaybackFrame(-1)} aria-label="Previous frame"><ChevronLeft className="h-4 w-4" /></Button>
           <Button size="icon" variant="ghost" onClick={togglePlayback} aria-label={playing ? "Pause synchronized playback" : "Play synchronized reconstruction"}>{playing ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}</Button>
+          <Button size="icon" variant="ghost" onClick={() => stepPlaybackFrame(1)} aria-label="Next frame"><ChevronRight className="h-4 w-4" /></Button>
           <Button size="icon" variant="ghost" onClick={() => { filmHandleRef.current?.pause(); filmHandleRef.current?.seek(0); setPlaying(false); setProgress(0); }} aria-label="Restart synchronized reconstruction"><RotateCcw className="h-4 w-4" /></Button>
-          <span className="font-mono text-xs text-emerald-300">{formatClock(data.sourceStartSeconds + progress * duration)}</span>
+          <span className="ml-1 font-mono text-xs text-emerald-300">{formatClock(data.sourceStartSeconds + progress * duration)}</span>
+          <span className="font-mono text-[9px] text-white/30">F{currentFrame}/{totalFrames - 1} · {millisecondsForFrame(currentFrame, DEFAULT_TWIN_FRAME_RATE)}ms</span>
+          <div className="ml-1 flex items-center gap-1 border-l border-white/10 pl-2" aria-label="Playback speed controls">
+            <Gauge className="h-3.5 w-3.5 text-white/30" />
+            {TWIN_PLAYBACK_RATES.map((rate) => <button key={rate} onClick={() => changePlaybackRate(rate)} className={`px-1.5 py-1 font-mono text-[9px] ${playbackRate === rate ? "bg-emerald-400 text-black" : "text-white/35 hover:text-white"}`} aria-label={`Set playback speed to ${rate} times`}>{rate}×</button>)}
+          </div>
         </div>
         <div className="flex items-center gap-3 bg-[#070b09] px-4 py-3">
           <input className="h-1.5 flex-1 cursor-pointer accent-emerald-400" aria-label="Synchronized play timeline" type="range" min="0" max="1000" value={Math.round(progress * 1000)} onChange={(event) => { const next = Number(event.target.value) / 1000; filmHandleRef.current?.pause(); filmHandleRef.current?.seek(next); setPlaying(false); setProgress(next); }} />
           <span className="font-mono text-xs text-white/40">{Math.round(progress * 100)}%</span>
         </div>
       </section>
+
+      <TacticalTwinTrackingPanel
+        reconstructionId={id}
+        sourceType={data.sourceType}
+        captureUrl={playback.data?.captureUrl ?? null}
+        sourceStartSeconds={data.sourceStartSeconds}
+      />
+
+      <TacticalTwinCinematicPanel
+        reconstructionId={id}
+        sourceType={data.sourceType}
+        captureUrl={playback.data?.captureUrl ?? null}
+        sourceStartSeconds={data.sourceStartSeconds}
+        durationSeconds={duration}
+        progress={progress}
+      />
 
       <div className="grid gap-5 2xl:grid-cols-[minmax(0,1fr)_340px]">
         <main className="min-w-0 space-y-4">
@@ -420,7 +491,7 @@ export default function TacticalTwinPage() {
           </div>
 
           {view === "film" ? (
-            <TwinFilmPane ref={filmHandleRef} sourceType={data.sourceType as TacticalTwinSourceType} youtubeVideoId={data.youtubeVideoId} videoUrl={videoUrl} startSeconds={data.sourceStartSeconds} endSeconds={data.sourceEndSeconds} progress={progress} playing={playing} onProgress={setProgress} />
+            <TwinFilmPane ref={filmHandleRef} sourceType={data.sourceType as TacticalTwinSourceType} youtubeVideoId={data.youtubeVideoId} videoUrl={videoUrl} startSeconds={data.sourceStartSeconds} endSeconds={data.sourceEndSeconds} progress={progress} playing={playing} playbackRate={playbackRate} onProgress={setProgress} />
           ) : null}
           {view === "map" ? (
             <TacticalTwinMap

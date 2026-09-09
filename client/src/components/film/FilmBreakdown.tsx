@@ -107,7 +107,7 @@ export default function FilmBreakdown({ session, report }: FilmBreakdownProps) {
   const annotateMutation = trpc.ai.annotateHighlight.useMutation();
   const twinMutation = trpc.tacticalTwin.createFromFilm.useMutation({
     onSuccess: (twin) => {
-      toast.success("Tactical Twin draft created");
+      toast.success("Tactical Twin created — automatic tracking is ready");
       setLocation(`/twin/${twin.id}`);
     },
     onError: (error) => toast.error(error.message),
@@ -257,6 +257,7 @@ export default function FilmBreakdown({ session, report }: FilmBreakdownProps) {
                     <div>
                       <p className="font-medium text-sm">{highlight.title}</p>
                       <p className="text-xs text-muted-foreground">{session.sourceType === "youtube" ? "~" : ""}{highlight.timestamp} &middot; {highlight.category}</p>
+                      <Badge variant="outline" className="mt-1 border-cyan-400/25 bg-cyan-400/5 text-[9px] uppercase text-cyan-200">Stage 2 · Auto Track + Cinema</Badge>
                     </div>
                   </div>
                   <div className="flex flex-wrap justify-end gap-2">
@@ -289,7 +290,7 @@ export default function FilmBreakdown({ session, report }: FilmBreakdownProps) {
                       })}
                     >
                       {twinMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Boxes className="h-3 w-3" />}
-                      Build Tactical Twin
+                      Build + Auto Track
                     </Button>
                   </div>
                 </div>

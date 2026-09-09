@@ -18,12 +18,14 @@ import AnalyticsPage from "./pages/AnalyticsPage";
 import LiveTvPage from "./pages/LiveTvPage";
 import TacticalTwinLibraryPage from "./pages/TacticalTwinLibraryPage";
 import TacticalTwinPage from "./pages/TacticalTwinPage";
+import TacticalTwinCinematicSharePage from "./pages/TacticalTwinCinematicSharePage";
 
 function Router() {
   return (
     <Switch>
       <Route path="/landing" component={Landing} />
       <Route path="/live/tv/:id" component={LiveTvPage} />
+      <Route path="/share/twin-cinematic/:token" component={TacticalTwinCinematicSharePage} />
       {import.meta.env.DEV && <Route path="/sim3d-test" component={Sim3DTest} />}
       <Route>
         <DashboardLayout>

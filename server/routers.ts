@@ -17,6 +17,8 @@ import { analyticsRouter } from "./analyticsRouter";
 import { analyticsRouter2 } from "./analyticsRouter2";
 import { liveRouter } from "./liveRouter";
 import { tacticalTwinRouter } from "./tacticalTwinRouter";
+import { tacticalTwinStage2Router } from "./tacticalTwinStage2Router";
+import { tacticalTwinShareRouter } from "./tacticalTwinShareRouter";
 
 // Admin-only procedure
 const adminProcedure = protectedProcedure.use(({ ctx, next }) => {
@@ -34,6 +36,8 @@ export const appRouter = router({
   analytics2: analyticsRouter2,
   live: liveRouter,
   tacticalTwin: tacticalTwinRouter,
+  tacticalTwinStage2: tacticalTwinStage2Router,
+  tacticalTwinShare: tacticalTwinShareRouter,
   auth: router({
     me: publicProcedure.query(opts => opts.ctx.user),
     logout: publicProcedure.mutation(({ ctx }) => {
