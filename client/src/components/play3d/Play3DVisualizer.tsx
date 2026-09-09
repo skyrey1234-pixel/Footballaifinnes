@@ -126,15 +126,20 @@ export default function Play3DVisualizer({
   const PLAY_DURATION = 3000;
 
   useEffect(() => {
-    externalProgressRef.current = externalProgress;
     onProgressChangeRef.current = onProgressChange;
+  }, [onProgressChange]);
+
+  useEffect(() => {
+    externalProgressRef.current = externalProgress;
     if (externalProgress === undefined) return;
     const normalized = Math.max(0, Math.min(1, externalProgress));
     progressRef.current = normalized;
-    setScrub(Math.round(normalized * 100));
   }, [externalProgress]);
 
-  const phaseLabel = scrub < 5 ? "PRE-SNAP" : scrub < 45 ? "DEVELOPMENT" : scrub < 90 ? "BALL IN FLIGHT" : "RESULT";
+  const displayedScrub = externalProgress === undefined
+    ? scrub
+    : Math.round(Math.max(0, Math.min(1, externalProgress)) * 100);
+  const phaseLabel = displayedScrub < 5 ? "PRE-SNAP" : displayedScrub < 45 ? "DEVELOPMENT" : displayedScrub < 90 ? "BALL IN FLIGHT" : "RESULT";
 
   const applyPreset = useCallback((p: CameraPreset) => {
     const s = sceneRef.current;
@@ -736,12 +741,12 @@ export default function Play3DVisualizer({
           type="range"
           min={0}
           max={100}
-          value={scrub}
+          value={displayedScrub}
           onChange={(e) => handleScrub(Number(e.target.value))}
           className="flex-1 h-1.5 accent-[#00FF87] cursor-pointer"
           aria-label="Play timeline scrubber"
         />
-        <span className="text-[10px] text-gray-500 w-9 text-right tabular-nums">{scrub}%</span>
+        <span className="text-[10px] text-gray-500 w-9 text-right tabular-nums">{displayedScrub}%</span>
         <Button
           size="sm"
           variant="outline"

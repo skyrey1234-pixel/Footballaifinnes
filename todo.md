@@ -1,5 +1,7 @@
 # TacticalEdge AI — Project TODO
 
+- [ ] BUG: Fix Tactical Twin `/twin/30001` maximum-update-depth crash caused by the synchronized playback tick/state lifecycle; add regression coverage and verify Film, Map, and 3D playback in production
+
 - [x] TACTICAL TWIN STAGE 1: Defined an owner-scoped reconstruction record that saves source clip timing, play metadata, editable player positions/routes, ball path, annotations, and confidence state
 - [x] TACTICAL TWIN STAGE 1: Added protected tRPC create, read, update, and source-event procedures with database helpers and cleanup behavior
 - [x] TACTICAL TWIN STAGE 1: Built a cinematic Reconstruction Studio with synchronized Film, Tactical Map, and 3D Twin views

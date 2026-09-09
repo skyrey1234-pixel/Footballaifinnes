@@ -318,6 +318,13 @@ export default function TacticalTwinPage() {
   });
 
   const selectedPlayer = draft?.players.find((item) => item.id === selectedPlayerId) ?? null;
+  const threePlayers = useMemo(() => draft?.players.map(toPlayerPos) ?? [], [draft?.players]);
+  const threeAnnotations = useMemo(() => draft?.markers.map((marker) => ({
+    kind: marker.kind === "mistake" ? "wrong" as const : "right" as const,
+    x: marker.x,
+    y: marker.y,
+    label: marker.label,
+  })) ?? [], [draft?.markers]);
   const updatePlayer = useCallback((playerId: string, patch: Partial<TacticalTwinPlayer>) => {
     setDraft((current) => current ? {
       ...current,
@@ -364,14 +371,6 @@ export default function TacticalTwinPage() {
   }
 
   const videoUrl = data.sourceType === "upload" ? playback.data?.url ?? null : data.videoUrl;
-  const threePlayers = draft.players.map(toPlayerPos);
-  const threeAnnotations = draft.markers.map((marker) => ({
-    kind: marker.kind === "mistake" ? "wrong" as const : "right" as const,
-    x: marker.x,
-    y: marker.y,
-    label: marker.label,
-  }));
-
   return (
     <div className="space-y-5">
       <header className="relative overflow-hidden border border-emerald-400/20 bg-[#050a08] px-5 py-5 md:px-7">
@@ -439,7 +438,7 @@ export default function TacticalTwinPage() {
             />
           ) : null}
           {view === "3d" ? (
-            <Play3DVisualizer formation={draft.formation} playName={draft.title} playType={draft.playType} target={draft.target || undefined} defenseScheme={draft.defenseScheme} customPlayers={threePlayers} height={560} showBall externalProgress={progress} onProgressChange={setProgress} hideTransport annotations={threeAnnotations} />
+            <Play3DVisualizer formation={draft.formation} playName={draft.title} playType={draft.playType} target={draft.target || undefined} defenseScheme={draft.defenseScheme} customPlayers={threePlayers} height={560} showBall externalProgress={progress} hideTransport annotations={threeAnnotations} />
           ) : null}
 
           <div className="grid gap-px bg-white/10 md:grid-cols-3">
