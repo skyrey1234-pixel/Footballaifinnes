@@ -36,7 +36,7 @@ import {
   Undo2,
   VideoOff,
 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useLocation, useParams } from "wouter";
 
@@ -70,16 +70,13 @@ function formatClock(seconds: number) {
   return `${Math.floor(value / 60)}:${String(value % 60).padStart(2, "0")}`;
 }
 
-function TwinFilmPane({
-  sourceType,
-  youtubeVideoId,
-  videoUrl,
-  startSeconds,
-  endSeconds,
-  progress,
-  playing,
-  onProgress,
-}: {
+type TwinFilmHandle = {
+  play: () => Promise<void> | null;
+  pause: () => void;
+  seek: (progress: number) => void;
+};
+
+const TwinFilmPane = forwardRef<TwinFilmHandle, {
   sourceType: TacticalTwinSourceType;
   youtubeVideoId?: string | null;
   videoUrl?: string | null;
@@ -88,25 +85,73 @@ function TwinFilmPane({
   progress: number;
   playing: boolean;
   onProgress: (progress: number) => void;
-}) {
+}>(function TwinFilmPane({
+  sourceType,
+  youtubeVideoId,
+  videoUrl,
+  startSeconds,
+  endSeconds,
+  progress,
+  playing,
+  onProgress,
+}, ref) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const [mediaState, setMediaState] = useState<"loading" | "ready" | "playing" | "error">("loading");
+  const [mediaMessage, setMediaMessage] = useState("Loading source film…");
   const duration = Math.max(1, endSeconds - startSeconds);
   const desiredTime = startSeconds + progress * duration;
+
+  const seekMedia = useCallback((nextProgress: number) => {
+    const normalized = Math.max(0, Math.min(1, nextProgress));
+    const nextTime = startSeconds + normalized * duration;
+    if (videoRef.current) videoRef.current.currentTime = nextTime;
+    if (iframeRef.current && sourceType === "youtube") {
+      iframeRef.current.contentWindow?.postMessage(JSON.stringify({ event: "command", func: "seekTo", args: [nextTime, true] }), "*");
+    }
+  }, [duration, sourceType, startSeconds]);
+
+  useImperativeHandle(ref, () => ({
+    play: () => {
+      if (videoRef.current) {
+        setMediaMessage("Starting source film…");
+        return videoRef.current.play()
+          .then(() => {
+            setMediaState("playing");
+            setMediaMessage("Source film playing");
+          })
+          .catch((error: unknown) => {
+            setMediaState("error");
+            setMediaMessage(error instanceof Error ? error.message : "The source film could not start.");
+            throw error;
+          });
+      }
+      if (iframeRef.current && sourceType === "youtube") {
+        iframeRef.current.contentWindow?.postMessage(JSON.stringify({ event: "command", func: "playVideo", args: [] }), "*");
+      }
+      return null;
+    },
+    pause: () => {
+      videoRef.current?.pause();
+      if (iframeRef.current && sourceType === "youtube") {
+        iframeRef.current.contentWindow?.postMessage(JSON.stringify({ event: "command", func: "pauseVideo", args: [] }), "*");
+      }
+    },
+    seek: seekMedia,
+  }), [seekMedia, sourceType]);
 
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
     if (Math.abs(video.currentTime - desiredTime) > (playing ? 0.9 : 0.15)) video.currentTime = desiredTime;
-    if (playing) video.play().catch(() => {});
-    else video.pause();
+    if (!playing) video.pause();
   }, [desiredTime, playing]);
 
   useEffect(() => {
     const frame = iframeRef.current;
     if (!frame || sourceType !== "youtube") return;
     frame.contentWindow?.postMessage(JSON.stringify({ event: "command", func: "seekTo", args: [desiredTime, true] }), "*");
-    frame.contentWindow?.postMessage(JSON.stringify({ event: "command", func: playing ? "playVideo" : "pauseVideo", args: [] }), "*");
+    if (!playing) frame.contentWindow?.postMessage(JSON.stringify({ event: "command", func: "pauseVideo", args: [] }), "*");
   }, [desiredTime, playing, sourceType]);
 
   if (sourceType === "youtube" && youtubeVideoId) {
@@ -124,20 +169,36 @@ function TwinFilmPane({
 
   if (sourceType === "upload" && videoUrl) {
     return (
-      <video
-        ref={videoRef}
-        src={videoUrl}
-        className="min-h-[520px] w-full bg-black object-contain"
-        playsInline
-        preload="metadata"
-        onLoadedMetadata={(event) => { event.currentTarget.currentTime = desiredTime; }}
-        onTimeUpdate={(event) => {
-          if (!playing) return;
-          const next = (event.currentTarget.currentTime - startSeconds) / duration;
-          if (next >= 1) onProgress(1);
-          else if (next >= 0) onProgress(next);
-        }}
-      />
+      <div className="relative min-h-[520px] bg-black">
+        <video
+          ref={videoRef}
+          src={videoUrl}
+          className="h-[520px] w-full bg-black object-contain"
+          playsInline
+          controls
+          preload="auto"
+          onLoadStart={() => { setMediaState("loading"); setMediaMessage("Loading source film…"); }}
+          onLoadedMetadata={(event) => { event.currentTarget.currentTime = desiredTime; }}
+          onLoadedData={() => { setMediaState("ready"); setMediaMessage("Source film ready"); }}
+          onCanPlay={() => { setMediaState((current) => current === "playing" ? current : "ready"); setMediaMessage((current) => current === "Source film playing" ? current : "Source film ready"); }}
+          onPlaying={() => { setMediaState("playing"); setMediaMessage("Source film playing"); }}
+          onWaiting={() => { setMediaState("loading"); setMediaMessage("Buffering source film…"); }}
+          onError={(event) => {
+            const code = event.currentTarget.error?.code;
+            setMediaState("error");
+            setMediaMessage(code ? `Source film error ${code}. Reopen the original session or retry.` : "Source film could not be loaded.");
+          }}
+          onTimeUpdate={(event) => {
+            if (!playing) return;
+            const next = (event.currentTarget.currentTime - startSeconds) / duration;
+            if (next >= 1) onProgress(1);
+            else if (next >= 0) onProgress(next);
+          }}
+        />
+        <div className={`pointer-events-none absolute left-3 top-3 border px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.14em] backdrop-blur ${mediaState === "error" ? "border-red-400/40 bg-red-950/85 text-red-200" : mediaState === "playing" ? "border-emerald-400/40 bg-emerald-950/85 text-emerald-200" : "border-white/15 bg-black/75 text-white/60"}`}>
+          {mediaMessage}
+        </div>
+      </div>
     );
   }
 
@@ -150,7 +211,7 @@ function TwinFilmPane({
       </div>
     </div>
   );
-}
+});
 
 export default function TacticalTwinPage() {
   const params = useParams<{ id: string }>();
@@ -171,6 +232,7 @@ export default function TacticalTwinPage() {
   const playbackFrameRef = useRef<number | null>(null);
   const playbackStartedAtRef = useRef(0);
   const playbackStartProgressRef = useRef(0);
+  const filmHandleRef = useRef<TwinFilmHandle>(null);
 
   useEffect(() => {
     if (!data) return;
@@ -254,6 +316,29 @@ export default function TacticalTwinPage() {
     });
   };
 
+  const togglePlayback = () => {
+    if (playing) {
+      filmHandleRef.current?.pause();
+      setPlaying(false);
+      return;
+    }
+    if (view !== "film") {
+      setPlaying(true);
+      return;
+    }
+    const playRequest = filmHandleRef.current?.play();
+    if (!playRequest) {
+      setPlaying(true);
+      return;
+    }
+    playRequest
+      .then(() => setPlaying(true))
+      .catch((error: unknown) => {
+        setPlaying(false);
+        toast.error(error instanceof Error ? error.message : "Source film could not start");
+      });
+  };
+
   if (isLoading || !draft || !data) {
     return <div className="grid min-h-[70vh] place-items-center"><Loader2 className="h-8 w-8 animate-spin text-emerald-400" /></div>;
   }
@@ -295,12 +380,12 @@ export default function TacticalTwinPage() {
           <p className="text-[9px] uppercase tracking-[0.18em] text-white/30">Source evidence</p><p className="mt-1 truncate text-sm font-medium text-white">{data.sourceTitle}</p>
         </div>
         <div className="flex items-center justify-center gap-2 bg-[#070b09] px-5 py-3">
-          <Button size="icon" variant="ghost" onClick={() => setPlaying((value) => !value)} aria-label={playing ? "Pause synchronized playback" : "Play synchronized reconstruction"}>{playing ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}</Button>
-          <Button size="icon" variant="ghost" onClick={() => { setPlaying(false); setProgress(0); }} aria-label="Restart synchronized reconstruction"><RotateCcw className="h-4 w-4" /></Button>
+          <Button size="icon" variant="ghost" onClick={togglePlayback} aria-label={playing ? "Pause synchronized playback" : "Play synchronized reconstruction"}>{playing ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}</Button>
+          <Button size="icon" variant="ghost" onClick={() => { filmHandleRef.current?.pause(); filmHandleRef.current?.seek(0); setPlaying(false); setProgress(0); }} aria-label="Restart synchronized reconstruction"><RotateCcw className="h-4 w-4" /></Button>
           <span className="font-mono text-xs text-emerald-300">{formatClock(data.sourceStartSeconds + progress * duration)}</span>
         </div>
         <div className="flex items-center gap-3 bg-[#070b09] px-4 py-3">
-          <input className="h-1.5 flex-1 cursor-pointer accent-emerald-400" aria-label="Synchronized play timeline" type="range" min="0" max="1000" value={Math.round(progress * 1000)} onChange={(event) => { setPlaying(false); setProgress(Number(event.target.value) / 1000); }} />
+          <input className="h-1.5 flex-1 cursor-pointer accent-emerald-400" aria-label="Synchronized play timeline" type="range" min="0" max="1000" value={Math.round(progress * 1000)} onChange={(event) => { const next = Number(event.target.value) / 1000; filmHandleRef.current?.pause(); filmHandleRef.current?.seek(next); setPlaying(false); setProgress(next); }} />
           <span className="font-mono text-xs text-white/40">{Math.round(progress * 100)}%</span>
         </div>
       </section>
@@ -309,14 +394,14 @@ export default function TacticalTwinPage() {
         <main className="min-w-0 space-y-4">
           <div className="grid grid-cols-3 gap-px bg-white/10">
             {(["film", "map", "3d"] as const).map((item) => (
-              <button key={item} onClick={() => setView(item)} className={`px-4 py-3 text-xs font-semibold uppercase tracking-[0.16em] transition-colors ${view === item ? "bg-emerald-400 text-black" : "bg-[#080d0a] text-white/45 hover:text-white"}`}>
+              <button key={item} onClick={() => { if (item === "film" && view !== "film" && playing) setPlaying(false); setView(item); }} className={`px-4 py-3 text-xs font-semibold uppercase tracking-[0.16em] transition-colors ${view === item ? "bg-emerald-400 text-black" : "bg-[#080d0a] text-white/45 hover:text-white"}`}>
                 {item === "film" ? "Original Film" : item === "map" ? "Tactical Map" : "3D Twin"}
               </button>
             ))}
           </div>
 
           {view === "film" ? (
-            <TwinFilmPane sourceType={data.sourceType as TacticalTwinSourceType} youtubeVideoId={data.youtubeVideoId} videoUrl={videoUrl} startSeconds={data.sourceStartSeconds} endSeconds={data.sourceEndSeconds} progress={progress} playing={playing} onProgress={setProgress} />
+            <TwinFilmPane ref={filmHandleRef} sourceType={data.sourceType as TacticalTwinSourceType} youtubeVideoId={data.youtubeVideoId} videoUrl={videoUrl} startSeconds={data.sourceStartSeconds} endSeconds={data.sourceEndSeconds} progress={progress} playing={playing} onProgress={setProgress} />
           ) : null}
           {view === "map" ? (
             <TacticalTwinMap

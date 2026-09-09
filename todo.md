@@ -6,6 +6,7 @@
 - [x] TACTICAL TWIN STAGE 1: Added coach controls to edit player alignment, routes, labels, ball path, mistake/correction markers, and reconstruction status
 - [x] TACTICAL TWIN STAGE 1: Added Build Tactical Twin launch actions from eligible Film Breakdown clips, ranked Highlight Reel clips, and completed Live timeline events
 - [ ] TACTICAL TWIN STAGE 1: Add responsive, accessibility, ownership, validation, and regression coverage; run full test, type-check, build, and production verification
+- [ ] BUG: Verify uploaded Tactical Twin source film visibly decodes after adding native controls, explicit ready/error diagnostics, and direct user-gesture playback instead of silently advancing only the master clock
 
 - [x] DISCOVERY: Analyzed the referenced Higgsfield soccer post and defined Tactical Twin workflows, integration architecture, three build options, accuracy safeguards, and the recommended hybrid implementation path
 
