@@ -38,7 +38,7 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
-async function requestVideo(path: string) {
+async function requestVideo(path: string, range: string | null = "bytes=0-3") {
   const app = express();
   app.use(tacticalTwinVideoRouter);
   const server = await new Promise<http.Server>((resolve) => {
@@ -52,7 +52,7 @@ async function requestVideo(path: string) {
         hostname: "127.0.0.1",
         port: address.port,
         path,
-        headers: { Range: "bytes=0-3", Cookie: "app_session_id=test" },
+        headers: { ...(range ? { Range: range } : {}), Cookie: "app_session_id=test" },
       }, (incoming) => {
         const chunks: Buffer[] = [];
         incoming.on("data", (chunk) => chunks.push(Buffer.from(chunk)));
@@ -97,5 +97,26 @@ describe("Tactical Twin source-film streaming", () => {
     const response = await requestVideo("/api/tactical-twin/video/77");
     expect(response.status).toBe(404);
     expect(signedUrlMock).not.toHaveBeenCalled();
+  });
+
+  it("converts an initial browser request without Range into a bounded 4 MB metadata request", async () => {
+    globalThis.fetch = vi.fn(async (_url, init) => {
+      const upstreamRange = (init?.headers as Record<string, string>).Range;
+      expect(upstreamRange).toBe("bytes=0-4194303");
+      return new Response(new Uint8Array([9, 8, 7, 6]), {
+        status: 206,
+        headers: {
+          "accept-ranges": "bytes",
+          "content-length": "4",
+          "content-range": "bytes 0-3/228464608",
+          "content-type": "video/mp4",
+        },
+      });
+    }) as typeof fetch;
+
+    const response = await requestVideo("/api/tactical-twin/video/77", null);
+    expect(response.status).toBe(206);
+    expect(response.headers["accept-ranges"]).toBe("bytes");
+    expect([...response.body]).toEqual([9, 8, 7, 6]);
   });
 });

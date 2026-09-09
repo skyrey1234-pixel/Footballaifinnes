@@ -16,6 +16,7 @@ const FORWARDED_RESPONSE_HEADERS = [
   "etag",
   "last-modified",
 ] as const;
+const DEFAULT_BROWSER_RANGE = "bytes=0-4194303";
 
 function keyFromStorageUrl(value: string | null | undefined) {
   if (!value?.startsWith("/manus-storage/")) return null;
@@ -68,6 +69,7 @@ async function streamTacticalTwinVideo(req: Request, res: Response) {
 
     const headers: Record<string, string> = { "Accept-Encoding": "identity" };
     if (typeof req.headers.range === "string") headers.Range = normalizeLiveReplayRange(req.headers.range) ?? req.headers.range;
+    else if (req.method !== "HEAD") headers.Range = DEFAULT_BROWSER_RANGE;
     if (typeof req.headers["if-range"] === "string") headers["If-Range"] = req.headers["if-range"];
 
     const upstream = await fetch(signedUrl, {
