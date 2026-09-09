@@ -1,4 +1,4 @@
-import { int, json, mysqlEnum, mysqlTable, text, timestamp, uniqueIndex, varchar } from "drizzle-orm/mysql-core";
+import { bigint, int, json, mysqlEnum, mysqlTable, text, timestamp, uniqueIndex, varchar } from "drizzle-orm/mysql-core";
 
 /**
  * Core user table backing auth flow.
@@ -363,6 +363,50 @@ export const liveAnalysisEvents = mysqlTable(
 
 export type LiveAnalysisEvent = typeof liveAnalysisEvents.$inferSelect;
 export type InsertLiveAnalysisEvent = typeof liveAnalysisEvents.$inferInsert;
+
+// ============ TACTICAL TWIN STAGE 1 ============
+
+// One owner-scoped, coach-editable reconstruction per source play. The original
+// footage remains evidence; this record stores the derived tactical geometry.
+export const playReconstructions = mysqlTable(
+  "play_reconstructions",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    userId: int("userId").notNull(),
+    sourceKind: varchar("sourceKind", { length: 32 }).notNull(),
+    sourceKey: varchar("sourceKey", { length: 191 }).notNull(),
+    gameSessionId: int("gameSessionId"),
+    liveSessionId: int("liveSessionId"),
+    liveEventId: int("liveEventId"),
+    sourceType: varchar("sourceType", { length: 32 }).notNull(),
+    sourceTitle: varchar("sourceTitle", { length: 255 }).notNull(),
+    sourceDescription: text("sourceDescription"),
+    sourceStartSeconds: int("sourceStartSeconds").default(0).notNull(),
+    sourceEndSeconds: int("sourceEndSeconds").default(12).notNull(),
+    youtubeVideoId: varchar("youtubeVideoId", { length: 64 }),
+    videoUrl: text("videoUrl"),
+    title: varchar("title", { length: 255 }).notNull(),
+    formation: varchar("formation", { length: 96 }).default("Unknown Formation").notNull(),
+    playType: varchar("playType", { length: 32 }).default("unknown").notNull(),
+    target: varchar("target", { length: 96 }),
+    defenseScheme: varchar("defenseScheme", { length: 96 }).default("4-3").notNull(),
+    players: json("players").notNull(),
+    ballPath: json("ballPath").notNull(),
+    markers: json("markers").notNull(),
+    coachingNotes: text("coachingNotes"),
+    confidence: int("confidence").default(0).notNull(),
+    status: mysqlEnum("status", ["draft", "reviewed"]).default("draft").notNull(),
+    coachVerified: int("coachVerified").default(0).notNull(),
+    createdAt: bigint("createdAt", { mode: "number" }).notNull(),
+    updatedAt: bigint("updatedAt", { mode: "number" }).notNull(),
+  },
+  (table) => ({
+    ownerSourceUnique: uniqueIndex("twin_owner_source_unique").on(table.userId, table.sourceKey),
+  }),
+);
+
+export type PlayReconstruction = typeof playReconstructions.$inferSelect;
+export type InsertPlayReconstruction = typeof playReconstructions.$inferInsert;
 
 // Shared trust layer for the 15 advanced analytics modules. Module-specific
 // tables store the analysis payload; this table records what evidence supports

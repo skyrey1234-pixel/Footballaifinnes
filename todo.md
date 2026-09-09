@@ -1,5 +1,12 @@
 # TacticalEdge AI — Project TODO
 
+- [x] TACTICAL TWIN STAGE 1: Defined an owner-scoped reconstruction record that saves source clip timing, play metadata, editable player positions/routes, ball path, annotations, and confidence state
+- [x] TACTICAL TWIN STAGE 1: Added protected tRPC create, read, update, and source-event procedures with database helpers and cleanup behavior
+- [x] TACTICAL TWIN STAGE 1: Built a cinematic Reconstruction Studio with synchronized Film, Tactical Map, and 3D Twin views
+- [x] TACTICAL TWIN STAGE 1: Added coach controls to edit player alignment, routes, labels, ball path, mistake/correction markers, and reconstruction status
+- [x] TACTICAL TWIN STAGE 1: Added Build Tactical Twin launch actions from eligible Film Breakdown clips, ranked Highlight Reel clips, and completed Live timeline events
+- [ ] TACTICAL TWIN STAGE 1: Add responsive, accessibility, ownership, validation, and regression coverage; run full test, type-check, build, and production verification
+
 - [x] DISCOVERY: Analyzed the referenced Higgsfield soccer post and defined Tactical Twin workflows, integration architecture, three build options, accuracy safeguards, and the recommended hybrid implementation path
 
 - [x] BUG: Fixed production Live View “The play() request was interrupted by a new load request” race with a synchronous startup lock, stale-request cancellation, disabled Starting Camera/Replay/Screen Picker state, safe AbortError handling, and clean pause/end lifecycle; verified real production camera and upload replay start without interruption

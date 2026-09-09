@@ -29,6 +29,12 @@ interface Play3DVisualizerProps {
   wrongPath?: Array<[number, number]>;
   /** Optional correct-path line: solid green line showing the right execution (2D coords) */
   correctPath?: Array<[number, number]>;
+  /** Optional 0..1 timeline supplied by a synchronized parent workspace. */
+  externalProgress?: number;
+  /** Receives timeline changes made from the built-in scrubber. */
+  onProgressChange?: (progress: number) => void;
+  /** Hide duplicate transport buttons when a parent workspace owns playback. */
+  hideTransport?: boolean;
 }
 
 type CameraPreset = "sideline" | "endzone" | "birdseye" | "qb";
@@ -91,6 +97,9 @@ export default function Play3DVisualizer({
   annotations,
   wrongPath,
   correctPath,
+  externalProgress,
+  onProgressChange,
+  hideTransport = false,
 }: Play3DVisualizerProps) {
   const mountRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<{
@@ -105,6 +114,8 @@ export default function Play3DVisualizer({
   const [preset, setPreset] = useState<CameraPreset>("sideline");
   const progressRef = useRef(0);
   const playingRef = useRef(false);
+  const externalProgressRef = useRef<number | undefined>(externalProgress);
+  const onProgressChangeRef = useRef(onProgressChange);
   const speedRef = useRef(1);
   const [speed, setSpeed] = useState(1);
   const [scrub, setScrub] = useState(0); // 0-100 mirrored for the timeline UI
@@ -113,6 +124,15 @@ export default function Play3DVisualizer({
   const [showCorrect, setShowCorrect] = useState(true);
   const showCorrectRef = useRef(true);
   const PLAY_DURATION = 3000;
+
+  useEffect(() => {
+    externalProgressRef.current = externalProgress;
+    onProgressChangeRef.current = onProgressChange;
+    if (externalProgress === undefined) return;
+    const normalized = Math.max(0, Math.min(1, externalProgress));
+    progressRef.current = normalized;
+    setScrub(Math.round(normalized * 100));
+  }, [externalProgress]);
 
   const phaseLabel = scrub < 5 ? "PRE-SNAP" : scrub < 45 ? "DEVELOPMENT" : scrub < 90 ? "BALL IN FLIGHT" : "RESULT";
 
@@ -457,13 +477,14 @@ export default function Play3DVisualizer({
       const dt = now - lastTime;
       lastTime = now;
 
-      if (playingRef.current) {
+      if (playingRef.current && externalProgressRef.current === undefined) {
         progressRef.current = Math.min(progressRef.current + (dt / PLAY_DURATION) * speedRef.current, 1);
         if (progressRef.current >= 1) {
           playingRef.current = false;
           setIsPlaying(false);
         }
         setScrub(Math.round(progressRef.current * 100));
+        onProgressChangeRef.current?.(progressRef.current);
       }
 
       const prog = progressRef.current;
@@ -658,7 +679,8 @@ export default function Play3DVisualizer({
     setIsPlaying(false);
     progressRef.current = v / 100;
     setScrub(v);
-  }, []);
+    onProgressChange?.(v / 100);
+  }, [onProgressChange]);
 
   const toggleRoutes = useCallback(() => {
     setShowRoutes((r) => {
@@ -690,7 +712,7 @@ export default function Play3DVisualizer({
           <Badge variant="outline" className="text-[10px] border-gray-700 text-gray-400">{formation}</Badge>
           <Badge variant="outline" className="text-[10px] border-gray-700 text-gray-400 uppercase">{playType}</Badge>
         </div>
-        <div className="flex items-center gap-1.5">
+        {!hideTransport && <div className="flex items-center gap-1.5">
           <Button size="sm" variant="outline" className="h-7 gap-1.5 text-xs" onClick={handlePlay}>
             {isPlaying ? <Pause className="h-3 w-3" /> : <Play className="h-3 w-3" />}
             {isPlaying ? "Pause" : "Run Play"}
@@ -701,7 +723,7 @@ export default function Play3DVisualizer({
           <Button size="sm" variant="outline" className="h-7 text-xs w-12" onClick={cycleSpeed}>
             {speed}x
           </Button>
-        </div>
+        </div>}
       </div>
 
       {/* 3D Canvas */}

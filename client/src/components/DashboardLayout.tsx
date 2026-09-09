@@ -20,7 +20,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { useIsMobile } from "@/hooks/useMobile";
-import { LayoutDashboard, PlusCircle, LogOut, PanelLeft, Crosshair, TrendingUp, Gamepad2, Radio } from "lucide-react";
+import { LayoutDashboard, PlusCircle, LogOut, PanelLeft, Crosshair, TrendingUp, Gamepad2, Radio, Boxes } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation, Redirect } from "wouter";
 import { DashboardLayoutSkeleton } from './DashboardLayoutSkeleton';
@@ -30,6 +30,7 @@ const menuItems = [
   { icon: LayoutDashboard, label: "Sessions", path: "/" },
   { icon: PlusCircle, label: "New Analysis", path: "/new" },
   { icon: Radio, label: "Live View", path: "/live" },
+  { icon: Boxes, label: "Tactical Twin", path: "/twins" },
   { icon: TrendingUp, label: "Season Intel", path: "/season" },
   { icon: Gamepad2, label: "Scouting Challenge", path: "/challenge" },
 ];
@@ -92,7 +93,7 @@ function DashboardLayoutContent({
   const isCollapsed = state === "collapsed";
   const [isResizing, setIsResizing] = useState(false);
   const sidebarRef = useRef<HTMLDivElement>(null);
-  const activeMenuItem = menuItems.find(item => item.path === location);
+  const activeMenuItem = menuItems.find(item => item.path === location || (item.path === "/twins" && location.startsWith("/twin/")));
   const isMobile = useIsMobile();
 
   useEffect(() => {
@@ -153,7 +154,7 @@ function DashboardLayoutContent({
           <SidebarContent className="gap-0">
             <SidebarMenu className="px-2 py-1">
               {menuItems.map(item => {
-                const isActive = location === item.path;
+                const isActive = location === item.path || (item.path === "/twins" && location.startsWith("/twin/"));
                 return (
                   <SidebarMenuItem key={item.path}>
                     <SidebarMenuButton

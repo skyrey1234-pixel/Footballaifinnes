@@ -3,9 +3,10 @@ import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Film, Sparkles, Loader2, RefreshCw, Flame, Shield, Zap, Trophy, TrendingUp, Star } from "lucide-react";
+import { Film, Sparkles, Loader2, RefreshCw, Flame, Shield, Zap, Trophy, TrendingUp, Star, Boxes } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { useLocation } from "wouter";
 
 interface Clip {
   rank: number;
@@ -41,6 +42,7 @@ function fmtTime(secs: number): string {
 }
 
 export default function HighlightReelTab({ sessionId, session }: { sessionId: number; session: SessionInfo }) {
+  const [, setLocation] = useLocation();
   const utils = trpc.useUtils();
   const { data, isLoading } = trpc.highlightReel.get.useQuery({ sessionId });
   const generateMutation = trpc.highlightReel.generate.useMutation({
@@ -49,6 +51,13 @@ export default function HighlightReelTab({ sessionId, session }: { sessionId: nu
       toast.success("Highlight reel generated!");
     },
     onError: (e) => toast.error(e.message),
+  });
+  const twinMutation = trpc.tacticalTwin.createFromFilm.useMutation({
+    onSuccess: (twin) => {
+      toast.success("Tactical Twin draft created");
+      setLocation(`/twin/${twin.id}`);
+    },
+    onError: (error) => toast.error(error.message),
   });
 
   const clips = useMemo(() => ((data?.clips as Clip[] | undefined) || []).slice().sort((a, b) => a.rank - b.rank), [data]);
@@ -155,6 +164,23 @@ export default function HighlightReelTab({ sessionId, session }: { sessionId: nu
                 <h4 className="font-bold text-white">{active.title}</h4>
                 <p className="text-sm text-gray-400 mt-1">{active.description}</p>
                 {active.players && <p className="text-xs text-gray-500 mt-2">Key players: {active.players}</p>}
+                <Button
+                  className="mt-4 w-full gap-2 bg-emerald-400 text-black hover:bg-emerald-300"
+                  disabled={twinMutation.isPending}
+                  onClick={() => twinMutation.mutate({
+                    sessionId,
+                    sourceKind: "highlight_reel",
+                    sourceIndex: activeIdx,
+                    title: active.title,
+                    description: active.description,
+                    startSeconds: Math.max(0, Math.floor(active.timestamp)),
+                    durationSeconds: Math.max(5, Math.min(30, Math.round(active.duration || 12))),
+                    confidence: Math.max(0, Math.min(100, Math.round(active.impactScore))),
+                  })}
+                >
+                  {twinMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Boxes className="h-4 w-4" />}
+                  Build Tactical Twin
+                </Button>
               </CardContent>
             </Card>
           )}

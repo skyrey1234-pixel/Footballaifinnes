@@ -16,6 +16,8 @@ import Sim3DTest from "./pages/Sim3DTest";
 import LiveViewPage from "./pages/LiveViewPage";
 import AnalyticsPage from "./pages/AnalyticsPage";
 import LiveTvPage from "./pages/LiveTvPage";
+import TacticalTwinLibraryPage from "./pages/TacticalTwinLibraryPage";
+import TacticalTwinPage from "./pages/TacticalTwinPage";
 
 function Router() {
   return (
@@ -31,6 +33,8 @@ function Router() {
             <Route path="/season" component={SeasonDashboard} />
             <Route path="/challenge" component={ScoutingChallenge} />
             <Route path="/live" component={LiveViewPage} />
+            <Route path="/twins" component={TacticalTwinLibraryPage} />
+            <Route path="/twin/:id" component={TacticalTwinPage} />
             <Route path="/analytics/:id" component={AnalyticsPage} />
             <Route path="/session/:id" component={SessionPage} />
             <Route path="/warroom/:id" component={WarRoomPage} />

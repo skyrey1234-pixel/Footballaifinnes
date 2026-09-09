@@ -4,10 +4,12 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Eye, EyeOff, RefreshCw, Loader2, ChevronDown, ChevronUp, AlertTriangle, CheckCircle, Star } from "lucide-react";
+import { Eye, EyeOff, RefreshCw, Loader2, ChevronDown, ChevronUp, AlertTriangle, CheckCircle, Star, Boxes } from "lucide-react";
 import { useAuth } from "@/_core/hooks/useAuth";
 import AnnotationCanvas from "./AnnotationCanvas";
 import ClipPlayer from "./ClipPlayer";
+import { useLocation } from "wouter";
+import { toast } from "sonner";
 
 type Highlight = {
   timestamp: string;
@@ -87,6 +89,7 @@ const filterTabs = [
 ];
 
 export default function FilmBreakdown({ session, report }: FilmBreakdownProps) {
+  const [, setLocation] = useLocation();
   const highlights = (report.highlights as Highlight[]) || [];
   // Ensure all highlights have accurate seconds values
   const processedHighlights = useMemo(() => {
@@ -102,6 +105,13 @@ export default function FilmBreakdown({ session, report }: FilmBreakdownProps) {
   const [showAltPlay, setShowAltPlay] = useState<Record<number, boolean>>({});
 
   const annotateMutation = trpc.ai.annotateHighlight.useMutation();
+  const twinMutation = trpc.tacticalTwin.createFromFilm.useMutation({
+    onSuccess: (twin) => {
+      toast.success("Tactical Twin draft created");
+      setLocation(`/twin/${twin.id}`);
+    },
+    onError: (error) => toast.error(error.message),
+  });
   const reanalyzeMutation = trpc.sessions.reanalyze.useMutation({
     onSuccess: () => {
       // Reload the page to show updated analysis
@@ -249,20 +259,39 @@ export default function FilmBreakdown({ session, report }: FilmBreakdownProps) {
                       <p className="text-xs text-muted-foreground">{session.sourceType === "youtube" ? "~" : ""}{highlight.timestamp} &middot; {highlight.category}</p>
                     </div>
                   </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="gap-2 text-xs"
-                    onClick={() => handleAnnotate(originalIndex, highlight)}
-                    disabled={annotateMutation.isPending && expandedHighlight === originalIndex}
-                  >
-                    {annotateMutation.isPending && expandedHighlight === originalIndex ? (
-                      <Loader2 className="h-3 w-3 animate-spin" />
-                    ) : (
-                      <Eye className="h-3 w-3" />
-                    )}
-                    Watch with AI Annotations
-                  </Button>
+                  <div className="flex flex-wrap justify-end gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="gap-2 text-xs"
+                      onClick={() => handleAnnotate(originalIndex, highlight)}
+                      disabled={annotateMutation.isPending && expandedHighlight === originalIndex}
+                    >
+                      {annotateMutation.isPending && expandedHighlight === originalIndex ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      ) : (
+                        <Eye className="h-3 w-3" />
+                      )}
+                      Watch with AI Annotations
+                    </Button>
+                    <Button
+                      size="sm"
+                      className="gap-2 bg-emerald-400 text-xs text-black hover:bg-emerald-300"
+                      disabled={twinMutation.isPending}
+                      onClick={() => twinMutation.mutate({
+                        sessionId: session.id,
+                        sourceKind: "film_highlight",
+                        sourceIndex: originalIndex,
+                        title: highlight.title,
+                        description: highlight.note,
+                        startSeconds: highlight.seconds,
+                        durationSeconds: 12,
+                      })}
+                    >
+                      {twinMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Boxes className="h-3 w-3" />}
+                      Build Tactical Twin
+                    </Button>
+                  </div>
                 </div>
 
                 {/* Description */}

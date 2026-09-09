@@ -1,7 +1,7 @@
 import { eq, desc } from "drizzle-orm";
 import { sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, users, gameSessions, scoutingReports, playerProfiles, mistakeAnalyses, highlightReels, formationAnalytics, presnapsReads, turnoverPredictors, heatMapAnalytics, routeTreeAnalytics, blockingAnalytics, momentumAnalytics, gapAnalytics, injuryImpactAnalytics, penaltyAnalytics, redZoneAnalytics, thirdDownAnalytics, twoMinuteAnalytics, situationalAnalytics, playerComparisons, liveGameSessions, liveAnalysisEvents, advancedAnalyticsRuns, type InsertGameSession, type InsertScoutingReport, type InsertPlayerProfile, type InsertLiveGameSession, type InsertLiveAnalysisEvent, type InsertAdvancedAnalyticsRun } from "../drizzle/schema";
+import { InsertUser, users, gameSessions, scoutingReports, playerProfiles, mistakeAnalyses, highlightReels, formationAnalytics, presnapsReads, turnoverPredictors, heatMapAnalytics, routeTreeAnalytics, blockingAnalytics, momentumAnalytics, gapAnalytics, injuryImpactAnalytics, penaltyAnalytics, redZoneAnalytics, thirdDownAnalytics, twoMinuteAnalytics, situationalAnalytics, playerComparisons, liveGameSessions, liveAnalysisEvents, playReconstructions, advancedAnalyticsRuns, type InsertGameSession, type InsertScoutingReport, type InsertPlayerProfile, type InsertLiveGameSession, type InsertLiveAnalysisEvent, type InsertPlayReconstruction, type InsertAdvancedAnalyticsRun } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -165,6 +165,7 @@ export async function deleteGameSession(id: number) {
   for (const table of analyticsTables) {
     await db.delete(table).where(eq(table.sessionId, id));
   }
+  await db.delete(playReconstructions).where(eq(playReconstructions.gameSessionId, id));
   await db.delete(scoutingReports).where(eq(scoutingReports.sessionId, id));
   await db.delete(gameSessions).where(eq(gameSessions.id, id));
 }
@@ -603,6 +604,9 @@ export async function deleteLiveGameSession(id: number, userId: number) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
   await db
+    .delete(playReconstructions)
+    .where(sql`${playReconstructions.liveSessionId} = ${id} AND ${playReconstructions.userId} = ${userId}`);
+  await db
     .delete(liveAnalysisEvents)
     .where(sql`${liveAnalysisEvents.liveSessionId} = ${id} AND ${liveAnalysisEvents.userId} = ${userId}`);
   await db
@@ -628,6 +632,17 @@ export async function getLiveAnalysisEventByWindow(liveSessionId: number, userId
     .select()
     .from(liveAnalysisEvents)
     .where(sql`${liveAnalysisEvents.liveSessionId} = ${liveSessionId} AND ${liveAnalysisEvents.userId} = ${userId} AND ${liveAnalysisEvents.windowIndex} = ${windowIndex}`)
+    .limit(1);
+  return rows[0];
+}
+
+export async function getLiveAnalysisEvent(id: number, liveSessionId: number, userId: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const rows = await db
+    .select()
+    .from(liveAnalysisEvents)
+    .where(sql`${liveAnalysisEvents.id} = ${id} AND ${liveAnalysisEvents.liveSessionId} = ${liveSessionId} AND ${liveAnalysisEvents.userId} = ${userId}`)
     .limit(1);
   return rows[0];
 }
@@ -662,6 +677,68 @@ export async function saveLiveAnalysisEvent(data: InsertLiveAnalysisEvent) {
       latencyMs: data.latencyMs,
     },
   });
+}
+
+// ===== Tactical Twin Stage 1 =====
+
+export async function createPlayReconstruction(data: InsertPlayReconstruction) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const result = await db.insert(playReconstructions).values(data);
+  return result[0].insertId;
+}
+
+export async function listPlayReconstructions(userId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select()
+    .from(playReconstructions)
+    .where(eq(playReconstructions.userId, userId))
+    .orderBy(desc(playReconstructions.updatedAt));
+}
+
+export async function getPlayReconstruction(id: number, userId: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const rows = await db
+    .select()
+    .from(playReconstructions)
+    .where(sql`${playReconstructions.id} = ${id} AND ${playReconstructions.userId} = ${userId}`)
+    .limit(1);
+  return rows[0];
+}
+
+export async function getPlayReconstructionBySourceKey(userId: number, sourceKey: string) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const rows = await db
+    .select()
+    .from(playReconstructions)
+    .where(sql`${playReconstructions.userId} = ${userId} AND ${playReconstructions.sourceKey} = ${sourceKey}`)
+    .limit(1);
+  return rows[0];
+}
+
+export async function updatePlayReconstruction(
+  id: number,
+  userId: number,
+  data: Partial<Pick<InsertPlayReconstruction, "title" | "formation" | "playType" | "target" | "defenseScheme" | "players" | "ballPath" | "markers" | "coachingNotes" | "confidence" | "status" | "coachVerified" | "updatedAt">>,
+) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db
+    .update(playReconstructions)
+    .set(data)
+    .where(sql`${playReconstructions.id} = ${id} AND ${playReconstructions.userId} = ${userId}`);
+}
+
+export async function deletePlayReconstruction(id: number, userId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db
+    .delete(playReconstructions)
+    .where(sql`${playReconstructions.id} = ${id} AND ${playReconstructions.userId} = ${userId}`);
 }
 
 export async function saveAdvancedAnalyticsRun(data: InsertAdvancedAnalyticsRun) {
