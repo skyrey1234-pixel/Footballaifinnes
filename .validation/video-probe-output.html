@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>video-probe</title></head>
+  <body>
+    <pre id="status">{"events":["loadstart","suspend","durationchange","loadedmetadata","seeking","play","waiting","suspend","seeked","loadeddata","canplay","playing","canplaythrough"],"readyState":4,"networkState":1,"currentTime":44.966557,"duration":600.233333,"paused":false,"error":null,"videoWidth":1920,"videoHeight":1080}</pre>
+    <video id="video" muted="" playsinline="" preload="auto" src="https://tacticalai-yt2mojug.manus.space/manus-storage/videos/1788447845067-segment_001.mp4"></video>
+    <script>
+      const video = document.getElementById('video');
+      const status = document.getElementById('status');
+      const events = [];
+      const render = () => {
+        status.textContent = JSON.stringify({
+          events,
+          readyState: video.readyState,
+          networkState: video.networkState,
+          currentTime: video.currentTime,
+          duration: video.duration,
+          paused: video.paused,
+          error: video.error ? { code: video.error.code, message: video.error.message } : null,
+          videoWidth: video.videoWidth,
+          videoHeight: video.videoHeight,
+        });
+      };
+      ['loadstart','durationchange','loadedmetadata','loadeddata','canplay','canplaythrough','seeking','seeked','play','playing','waiting','stalled','suspend','error'].forEach((name) => {
+        video.addEventListener(name, () => { events.push(name); render(); });
+      });
+      video.addEventListener('loadedmetadata', async () => {
+        video.currentTime = 30;
+        try { await video.play(); } catch (error) { events.push(`play-rejected:${error.name}:${error.message}`); render(); }
+      }, { once: true });
+      video.src = 'https://tacticalai-yt2mojug.manus.space/manus-storage/videos/1788447845067-segment_001.mp4';
+      video.load();
+      setInterval(render, 250);
+    </script>
+  
+
+</body></html>

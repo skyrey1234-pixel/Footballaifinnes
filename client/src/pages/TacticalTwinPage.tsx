@@ -219,10 +219,6 @@ export default function TacticalTwinPage() {
   const [, setLocation] = useLocation();
   const utils = trpc.useUtils();
   const { data, isLoading } = trpc.tacticalTwin.get.useQuery({ id }, { enabled: id > 0 });
-  const livePlayback = trpc.live.playbackUrl.useQuery(
-    { id: data?.liveSessionId ?? 0 },
-    { enabled: Boolean(data?.liveSessionId && data.sourceType === "upload"), staleTime: 4 * 60 * 1000 },
-  );
   const [draft, setDraft] = useState<TwinDraftState | null>(null);
   const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
   const [tool, setTool] = useState<TwinEditorTool>("select");
@@ -343,7 +339,7 @@ export default function TacticalTwinPage() {
     return <div className="grid min-h-[70vh] place-items-center"><Loader2 className="h-8 w-8 animate-spin text-emerald-400" /></div>;
   }
 
-  const videoUrl = data.liveSessionId && data.sourceType === "upload" ? livePlayback.data?.url ?? null : data.videoUrl;
+  const videoUrl = data.sourceType === "upload" ? `/api/tactical-twin/video/${data.id}` : data.videoUrl;
   const threePlayers = draft.players.map(toPlayerPos);
   const threeAnnotations = draft.markers.map((marker) => ({
     kind: marker.kind === "mistake" ? "wrong" as const : "right" as const,

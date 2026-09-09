@@ -9,6 +9,7 @@ import { appRouter } from "../routers";
 import { uploadRouter } from "../uploadRoute";
 import { webhookRouter } from "../webhookRoute";
 import { liveVideoRouter } from "../liveVideoRoute";
+import { tacticalTwinVideoRouter } from "../tacticalTwinVideoRoute";
 import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
 
@@ -46,6 +47,8 @@ async function startServer() {
   app.use(uploadRouter);
   // Authenticated same-origin byte-range streaming for Live View canvas capture.
   app.use(liveVideoRouter);
+  // Owner-scoped byte-range streaming for Tactical Twin source film.
+  app.use(tacticalTwinVideoRouter);
   // tRPC API
   app.use(
     "/api/trpc",
