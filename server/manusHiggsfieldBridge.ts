@@ -201,5 +201,11 @@ export async function getManusHiggsfieldReplayStatus(taskId: string): Promise<Br
 }
 
 export async function cancelManusHiggsfieldReplay(taskId: string) {
-  await manusRequest("/v2/task.stop", { method: "POST", body: JSON.stringify({ task_id: taskId }) });
+  try {
+    await manusRequest("/v2/task.stop", { method: "POST", body: JSON.stringify({ task_id: taskId }) });
+  } catch (error) {
+    if (!(error instanceof Error) || !error.message.includes("(404)")) throw error;
+    await new Promise((resolve) => setTimeout(resolve, 1_200));
+    await manusRequest("/v2/task.stop", { method: "POST", body: JSON.stringify({ task_id: taskId }) });
+  }
 }

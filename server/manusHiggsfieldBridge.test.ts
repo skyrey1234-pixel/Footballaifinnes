@@ -121,4 +121,17 @@ describe("Manus Higgsfield connector bridge", () => {
     expect(String(fetchMock.mock.calls[0][0])).toBe("https://api.manus.ai/v2/task.stop");
     expect(JSON.parse(String(fetchMock.mock.calls[0][1]?.body))).toEqual({ task_id: "task-123" });
   });
+
+  it("retries one transient task-stop 404 caused by task-create eventual consistency", async () => {
+    fetchMock
+      .mockResolvedValueOnce(response({ ok: false, error: { message: "Task not visible yet" } }, 404))
+      .mockResolvedValueOnce(response({ ok: true }));
+    await cancelManusHiggsfieldReplay("task-eventual");
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock.mock.calls.map(([url]) => String(url))).toEqual([
+      "https://api.manus.ai/v2/task.stop",
+      "https://api.manus.ai/v2/task.stop",
+    ]);
+    expect(JSON.parse(String(fetchMock.mock.calls[1][1]?.body))).toEqual({ task_id: "task-eventual" });
+  });
 });
