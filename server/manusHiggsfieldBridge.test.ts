@@ -9,6 +9,7 @@ import {
   getManusHiggsfieldReplayStatus,
   MANUS_HIGGSFIELD_CONNECTOR_ID,
   submitManusHiggsfieldReplay,
+  submitManusHiggsfieldStatusRecovery,
 } from "./manusHiggsfieldBridge";
 
 function response(body: unknown, status = 200) {
@@ -70,6 +71,39 @@ describe("Manus Higgsfield connector bridge", () => {
       providerJobId: "hf-job-123",
       outputUrl: "https://media.example/replay.mp4",
     });
+  });
+
+  it("flags completed provider jobs with a missing MP4 URL for non-generative recovery", async () => {
+    fetchMock.mockResolvedValueOnce(response({
+      ok: true,
+      messages: [{
+        type: "structured_output_result",
+        structured_output_result: {
+          success: true,
+          value: { status: "completed", providerJobId: "hf-job-paid", outputUrl: "", error: "" },
+          error: null,
+        },
+      }],
+    }));
+    await expect(getManusHiggsfieldReplayStatus("task-original")).resolves.toMatchObject({
+      status: "in_progress",
+      providerJobId: "hf-job-paid",
+      outputUrl: null,
+      recoveryNeeded: true,
+    });
+  });
+
+  it("creates one private read-only recovery task without media generation or file upload", async () => {
+    fetchMock.mockResolvedValueOnce(response({ ok: true, task_id: "task-recovery", task_url: "https://manus.im/app/task-recovery" }));
+    await expect(submitManusHiggsfieldStatusRecovery({ exportId: 810001, providerJobId: "hf-job-paid" })).resolves.toEqual({
+      taskId: "task-recovery",
+      taskUrl: "https://manus.im/app/task-recovery",
+    });
+    const payload = JSON.parse(String(fetchMock.mock.calls[0][1]?.body));
+    expect(payload.message.connectors).toEqual([MANUS_HIGGSFIELD_CONNECTOR_ID]);
+    expect(payload.message.content).toHaveLength(1);
+    expect(payload.message.content[0].text).toContain("Do not generate, regenerate, upload, or spend any credits");
+    expect(payload.message.content[0].text).toContain("Never create a second generation");
   });
 
   it("confirms a pending paid connector action because the coach already clicked Generate", async () => {

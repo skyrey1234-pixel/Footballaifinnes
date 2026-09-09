@@ -11,6 +11,7 @@ type BridgeStatus = {
   providerJobId?: string | null;
   outputUrl?: string | null;
   error?: string | null;
+  recoveryNeeded?: boolean;
 };
 
 type TaskEvent = {
@@ -106,6 +107,47 @@ export async function submitManusHiggsfieldReplay(input: {
   return { taskId, taskUrl: body.task_url ? String(body.task_url) : null };
 }
 
+export async function submitManusHiggsfieldStatusRecovery(input: {
+  exportId: number;
+  providerJobId: string;
+}) {
+  const instruction = [
+    `Recover the existing Higgsfield result for TacticalEdge export #${input.exportId}.`,
+    `The already-paid Higgsfield provider job ID is ${input.providerJobId}.`,
+    "Do not generate, regenerate, upload, or spend any credits. Use only the read-only Higgsfield job_status action for that exact provider job ID.",
+    "If the provider job is still rendering, wait and poll the same job until it reaches a terminal state. Never create a second generation.",
+    "Return completed with the exact provider job ID and final HTTPS MP4 output URL, or failed with the provider error and no output URL.",
+  ].join("\n\n");
+  const body = await manusRequest("/v2/task.create", {
+    method: "POST",
+    body: JSON.stringify({
+      title: `Recover TacticalEdge cinematic export #${input.exportId}`,
+      interactive_mode: false,
+      hide_in_task_list: true,
+      share_visibility: "private",
+      agent_profile: "manus-1.6",
+      message: {
+        connectors: [MANUS_HIGGSFIELD_CONNECTOR_ID],
+        content: [{ type: "text", text: instruction }],
+      },
+      structured_output_schema: {
+        type: "object",
+        properties: {
+          status: { type: "string", enum: ["completed", "failed"] },
+          providerJobId: { type: "string" },
+          outputUrl: { type: "string" },
+          error: { type: "string" },
+        },
+        required: ["status", "providerJobId", "outputUrl", "error"],
+        additionalProperties: false,
+      },
+    }),
+  });
+  const taskId = String(body.task_id ?? "");
+  if (!taskId) throw new Error("Manus did not return a task ID for the Higgsfield recovery task");
+  return { taskId, taskUrl: body.task_url ? String(body.task_url) : null };
+}
+
 function isHttpsUrl(value: unknown) {
   try {
     return new URL(String(value)).protocol === "https:";
@@ -122,11 +164,22 @@ export async function getManusHiggsfieldReplayStatus(taskId: string): Promise<Br
   if (structured) {
     const value = structured.value ?? {};
     const outputUrl = isHttpsUrl(value.outputUrl) ? String(value.outputUrl) : null;
+    const providerJobId = value.providerJobId ? String(value.providerJobId).slice(0, 120) : null;
+    if (structured.success === true && value.status === "completed" && providerJobId && !outputUrl) {
+      return {
+        status: "in_progress",
+        taskId,
+        providerJobId,
+        outputUrl: null,
+        error: null,
+        recoveryNeeded: true,
+      };
+    }
     const completed = structured.success === true && value.status === "completed" && Boolean(outputUrl);
     return {
       status: completed ? "completed" : "failed",
       taskId,
-      providerJobId: value.providerJobId ? String(value.providerJobId).slice(0, 120) : null,
+      providerJobId,
       outputUrl,
       error: completed ? null : String(value.error ?? structured.error ?? "Connector task did not return a completed MP4").slice(0, 600),
     };

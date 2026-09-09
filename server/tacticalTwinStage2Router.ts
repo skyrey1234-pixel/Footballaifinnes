@@ -29,6 +29,7 @@ import {
   hasManusHiggsfieldBridge,
   MANUS_HIGGSFIELD_MODEL,
   submitManusHiggsfieldReplay,
+  submitManusHiggsfieldStatusRecovery,
 } from "./manusHiggsfieldBridge";
 
 const unitPointSchema = z.object({
@@ -608,6 +609,30 @@ export const tacticalTwinStage2Router = router({
       let retainedRequestId = cinematicExport.providerRequestId;
       if (viaManus) {
         const result = await getManusHiggsfieldReplayStatus(cinematicExport.providerRequestId);
+        if (result.recoveryNeeded && result.providerJobId) {
+          const recovery = await submitManusHiggsfieldStatusRecovery({
+            exportId: cinematicExport.id,
+            providerJobId: result.providerJobId,
+          });
+          const currentProvenance = cinematicExport.provenance && typeof cinematicExport.provenance === "object" && !Array.isArray(cinematicExport.provenance)
+            ? cinematicExport.provenance as Record<string, unknown>
+            : {};
+          await db.updateTwinCinematicExport(cinematicExport.id, ctx.user.id, {
+            providerRequestId: recovery.taskId,
+            statusUrl: recovery.taskUrl,
+            cancelUrl: null,
+            status: "in_progress",
+            errorMessage: null,
+            completedAt: null,
+            provenance: {
+              ...currentProvenance,
+              recoveredProviderJobId: result.providerJobId,
+              recoveryMode: "read_only_job_status",
+            },
+            updatedAt: Date.now(),
+          });
+          return requireExport(cinematicExport.id, ctx.user.id);
+        }
         providerOutput = result.outputUrl ?? null;
         terminalStatus = result.status;
         errorMessage = result.error?.slice(0, 600) ?? null;
