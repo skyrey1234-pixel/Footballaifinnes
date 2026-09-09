@@ -144,8 +144,9 @@ const TwinFilmPane = forwardRef<TwinFilmHandle, {
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
-    if (Math.abs(video.currentTime - desiredTime) > (playing ? 0.9 : 0.15)) video.currentTime = desiredTime;
     if (!playing) video.pause();
+    if (video.readyState < HTMLMediaElement.HAVE_METADATA) return;
+    if (Math.abs(video.currentTime - desiredTime) > (playing ? 0.9 : 0.15)) video.currentTime = desiredTime;
   }, [desiredTime, playing]);
 
   useEffect(() => {
