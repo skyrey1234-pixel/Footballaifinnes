@@ -4,7 +4,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { trpc } from "@/lib/trpc";
 import { QRCodeSVG } from "qrcode.react";
 import { Clapperboard, Copy, Download, Film, Link2, Loader2, RefreshCw, Share2, Sparkles, Trash2, WandSparkles, XCircle } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 type CinematicStyle = "broadcast_cinematic" | "sideline_impact" | "all_22_orbit";
@@ -16,49 +16,6 @@ const cinematicStyles: Array<{ id: CinematicStyle; title: string; note: string }
   { id: "all_22_orbit", title: "All-22 Orbit", note: "Elevated camera reveal of spacing and leverage" },
 ];
 
-function waitForMedia(video: HTMLVideoElement, event: "loadedmetadata" | "seeked", timeoutMs = 25_000) {
-  return new Promise<void>((resolve, reject) => {
-    let timer = 0;
-    const cleanup = () => {
-      window.clearTimeout(timer);
-      video.removeEventListener(event, onEvent);
-      video.removeEventListener("error", onError);
-    };
-    const onEvent = () => { cleanup(); resolve(); };
-    const onError = () => { cleanup(); reject(new Error("The source frame could not be decoded for cinematic export.")); };
-    timer = window.setTimeout(() => { cleanup(); reject(new Error(`Timed out waiting for source film ${event}.`)); }, timeoutMs);
-    video.addEventListener(event, onEvent, { once: true });
-    video.addEventListener("error", onError, { once: true });
-  });
-}
-
-async function captureCinematicFrame(video: HTMLVideoElement, timestampSeconds: number, aspectRatio: AspectRatio) {
-  video.pause();
-  if (video.readyState < HTMLMediaElement.HAVE_METADATA) {
-    video.load();
-    await waitForMedia(video, "loadedmetadata");
-  }
-  if (Math.abs(video.currentTime - timestampSeconds) > 0.04) {
-    const waiting = waitForMedia(video, "seeked");
-    video.currentTime = Math.max(0, timestampSeconds);
-    await waiting;
-  }
-  if (!video.videoWidth || !video.videoHeight) throw new Error("No decoded source frame is available yet.");
-
-  const canvas = document.createElement("canvas");
-  canvas.width = aspectRatio === "9:16" ? 720 : 1280;
-  canvas.height = aspectRatio === "9:16" ? 1280 : 720;
-  const context = canvas.getContext("2d", { alpha: false });
-  if (!context) throw new Error("This browser cannot prepare the cinematic source frame.");
-  context.fillStyle = "#020605";
-  context.fillRect(0, 0, canvas.width, canvas.height);
-  const scale = Math.min(canvas.width / video.videoWidth, canvas.height / video.videoHeight);
-  const width = video.videoWidth * scale;
-  const height = video.videoHeight * scale;
-  context.drawImage(video, (canvas.width - width) / 2, (canvas.height - height) / 2, width, height);
-  return canvas.toDataURL("image/jpeg", 0.84);
-}
-
 function statusClass(status: string) {
   if (status === "completed") return "border-emerald-400/30 bg-emerald-400/10 text-emerald-200";
   if (["failed", "nsfw", "canceled"].includes(status)) return "border-red-400/25 bg-red-400/8 text-red-200";
@@ -68,19 +25,16 @@ function statusClass(status: string) {
 export function TacticalTwinCinematicPanel({
   reconstructionId,
   sourceType,
-  captureUrl,
   sourceStartSeconds,
   durationSeconds,
   progress,
 }: {
   reconstructionId: number;
   sourceType: string;
-  captureUrl?: string | null;
   sourceStartSeconds: number;
   durationSeconds: number;
   progress: number;
 }) {
-  const captureVideoRef = useRef<HTMLVideoElement>(null);
   const [style, setStyle] = useState<CinematicStyle>("broadcast_cinematic");
   const [aspectRatio, setAspectRatio] = useState<AspectRatio>("16:9");
   const [duration, setDuration] = useState<5 | 10>(5);
@@ -140,20 +94,15 @@ export function TacticalTwinCinematicPanel({
   }, [activeExport?.id, activeExport?.status, refreshMutation]);
 
   const approvedTracking = trackingJobs.data?.find((job) => job.status === "approved") ?? null;
-  const canCapture = sourceType === "upload" && Boolean(captureUrl);
+  const canCapture = sourceType === "upload";
   const canGenerate = canCapture && Boolean(configuration.data?.configured);
 
   const queueExport = async () => {
-    if (!canGenerate || !captureVideoRef.current) {
+    if (!canGenerate) {
       toast.error(configuration.data?.connectorEnabledNotice ?? "App-scoped Higgsfield authorization is required.");
       return;
     }
     try {
-      const sourceImageDataUrl = await captureCinematicFrame(
-        captureVideoRef.current,
-        sourceStartSeconds + progress * durationSeconds,
-        aspectRatio,
-      );
       await createMutation.mutateAsync({
         reconstructionId,
         trackingJobId: approvedTracking?.id ?? null,
@@ -161,7 +110,7 @@ export function TacticalTwinCinematicPanel({
         aspectRatio,
         durationSeconds: duration,
         coachPrompt: coachPrompt.trim() || undefined,
-        sourceImageDataUrl,
+        sourceFrameTimestampSeconds: sourceStartSeconds + progress * durationSeconds,
       });
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Could not prepare cinematic export");
@@ -175,7 +124,6 @@ export function TacticalTwinCinematicPanel({
 
   return (
     <section className="border border-fuchsia-400/20 bg-[radial-gradient(circle_at_85%_0%,rgba(217,70,239,.18),transparent_38%),linear-gradient(140deg,#110819,#050607_62%)] p-4 md:p-5">
-      {captureUrl ? <video ref={captureVideoRef} src={captureUrl} crossOrigin="anonymous" muted playsInline preload="auto" className="pointer-events-none fixed left-[-9999px] top-0 h-px w-px opacity-0" /> : null}
       <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
         <div>
           <p className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.22em] text-fuchsia-300"><WandSparkles className="h-4 w-4" />Stage 2 · Higgsfield cinematic export</p>

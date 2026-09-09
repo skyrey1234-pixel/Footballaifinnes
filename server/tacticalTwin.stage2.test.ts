@@ -223,6 +223,31 @@ describe("Tactical Twin Stage 2", () => {
     await db.deleteTwinTrackingJob(unapprovedJobId, 41);
   });
 
+  it("extracts the cinematic keyframe on the server when the browser does not provide one", async () => {
+    const owner = appRouter.createCaller(context(41));
+    extractFramesMock.mockResolvedValueOnce([{
+      ...capturedFrame(0),
+      dataUrl: `data:image/jpeg;base64,${Buffer.alloc(2_000, 9).toString("base64")}`,
+    }]);
+    const cinematicExport = await owner.tacticalTwinStage2.createExport({
+      reconstructionId,
+      style: "broadcast_cinematic",
+      aspectRatio: "16:9",
+      durationSeconds: 5,
+      sourceFrameTimestampSeconds: 12.5,
+    });
+    expect(extractFramesMock).toHaveBeenCalledWith(expect.objectContaining({
+      reconstructionId,
+      sourceStartSeconds: 12.5,
+      samplingFps: 1,
+      startFrameIndex: 0,
+      frameCount: 1,
+    }));
+    expect(cinematicExport.provenance).toMatchObject({ sourceFrameTimestampSeconds: 12.5 });
+    expect(cinematicExport.status).toBe("queued");
+    await db.deleteTwinCinematicExport(cinematicExport.id, 41);
+  });
+
   it("submits a labeled cinematic interpretation, recovers completion, and retains the MP4", async () => {
     const owner = appRouter.createCaller(context(41));
     const sourceImageDataUrl = `data:image/jpeg;base64,${Buffer.alloc(2_000, 8).toString("base64")}`;

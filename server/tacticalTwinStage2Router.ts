@@ -453,7 +453,8 @@ export const tacticalTwinStage2Router = router({
       aspectRatio: z.enum(["16:9", "9:16"]).default("16:9"),
       durationSeconds: z.union([z.literal(5), z.literal(10)]).default(5),
       coachPrompt: z.string().trim().max(500).optional(),
-      sourceImageDataUrl: z.string().min(1_000).max(4_200_000),
+      sourceImageDataUrl: z.string().min(1_000).max(4_200_000).optional(),
+      sourceFrameTimestampSeconds: z.number().min(0).max(86_400).optional(),
     }))
     .mutation(async ({ input, ctx }) => {
       const reconstruction = await requireReconstruction(input.reconstructionId, ctx.user.id);
@@ -494,7 +495,26 @@ export const tacticalTwinStage2Router = router({
         };
       }
 
-      const decoded = decodeSourceFrame(input.sourceImageDataUrl);
+      const sourceFrameTimestampSeconds = Math.min(
+        Math.max(input.sourceFrameTimestampSeconds ?? reconstruction.sourceStartSeconds, reconstruction.sourceStartSeconds),
+        Math.max(reconstruction.sourceStartSeconds, reconstruction.sourceEndSeconds - (1 / 30)),
+      );
+      let sourceImageDataUrl = input.sourceImageDataUrl;
+      if (!sourceImageDataUrl) {
+        const [sourceFrame] = await extractTwinTrackingFrameBatch({
+          reconstructionId: reconstruction.id,
+          userId: ctx.user.id,
+          sourceStartSeconds: sourceFrameTimestampSeconds,
+          samplingFps: 1,
+          startFrameIndex: 0,
+          frameCount: 1,
+        });
+        sourceImageDataUrl = sourceFrame?.dataUrl;
+      }
+      if (!sourceImageDataUrl) {
+        throw new TRPCError({ code: "PRECONDITION_FAILED", message: "The selected source frame could not be extracted from the uploaded film." });
+      }
+      const decoded = decodeSourceFrame(sourceImageDataUrl);
       const sourceImage = await storagePut(
         `tactical-twin/${reconstruction.id}/cinematic/source-${Date.now()}.${decoded.contentType === "image/webp" ? "webp" : "jpg"}`,
         decoded.bytes,
@@ -539,7 +559,7 @@ export const tacticalTwinStage2Router = router({
         outputUrl: null,
         thumbnailFileKey: sourceImage.key,
         provenance: {
-          sourceFrameTimestampSeconds: reconstruction.sourceStartSeconds,
+          sourceFrameTimestampSeconds,
           sourceReconstructionId: reconstruction.id,
           sourceTrackingJobId: input.trackingJobId ?? null,
           approvedTrackingSummary,
