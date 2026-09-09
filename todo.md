@@ -16,6 +16,7 @@
 - [x] TACTICAL TWIN STAGE 2: Cinematic exports now reject unapproved tracking jobs and inject coach-approved anonymous frame/confidence/unit/ball/calibration summaries plus saved 22-player Twin geometry into the provider prompt and provenance
 - [x] TACTICAL TWIN STAGE 2: Added explicit Stage 2 eligibility badges to Film Breakdown, Highlight Reel, and Live evidence plus owner-scoped live tracking/export status badges in the Twin library; rendering and ownership regressions pass
 - [ ] BUG: Production Auto Track times out waiting for the hidden source video `loadedmetadata`; make capture-media startup resilient to cached/early metadata events and verify a real tracked production batch
+- [ ] BUG: Production server-assisted Auto Track reaches the new extraction path but fails with `spawn ffmpeg ENOENT`; add a production-safe FFmpeg runtime, verify bounded frame extraction, and complete a real tracking batch
 - [ ] TACTICAL TWIN STAGE 2: Add ownership, token, validation, timeout, retry, cleanup, and regression coverage; run full tests, type-check, production build, desktop/mobile verification, and real authorized Higgsfield export validation
 
 - [x] BUG: Fixed Tactical Twin `/twin/30001` maximum-update-depth crash by removing per-frame child state feedback, deriving 3D scrub display from the parent timeline, memoizing scene inputs, and keeping one timeline owner; 25/25 test files and 107/107 tests pass, and production 3D playback completed to 0:42/100% before stable Map and Film transitions
