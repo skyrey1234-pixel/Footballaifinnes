@@ -1,6 +1,7 @@
 # TacticalEdge AI — Project TODO
 
-- [ ] BUG: Fix Tactical Twin `/twin/30001` maximum-update-depth crash caused by the synchronized playback tick/state lifecycle; add regression coverage and verify Film, Map, and 3D playback in production
+- [x] BUG: Fixed Tactical Twin `/twin/30001` maximum-update-depth crash by removing per-frame child state feedback, deriving 3D scrub display from the parent timeline, memoizing scene inputs, and keeping one timeline owner; 25/25 test files and 107/107 tests pass, and production 3D playback completed to 0:42/100% before stable Map and Film transitions
+- [x] VALIDATION: Captured explicit deployed 3D-view evidence showing the parent at 0:42/100% and the 3D timeline at RESULT/100%; Tactical Map rendered the same completed geometry and Original Film mounted afterward without a maximum-update-depth warning
 
 - [x] TACTICAL TWIN STAGE 1: Defined an owner-scoped reconstruction record that saves source clip timing, play metadata, editable player positions/routes, ball path, annotations, and confidence state
 - [x] TACTICAL TWIN STAGE 1: Added protected tRPC create, read, update, and source-event procedures with database helpers and cleanup behavior
