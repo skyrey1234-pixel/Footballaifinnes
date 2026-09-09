@@ -153,6 +153,9 @@ describe("Tactical Twin Stage 2", () => {
     trackingJobId = first.id;
     expect(repeated.id).toBe(first.id);
     expect(first.totalFrames).toBe(5);
+    const forced = await owner.tacticalTwinStage2.startTracking({ reconstructionId, samplingFps: 1, sourceFps: 30, forceRestart: true });
+    expect(forced.id).not.toBe(first.id);
+    await db.deleteTwinTrackingJob(forced.id, 41);
     await expect(appRouter.createCaller(context(42)).tacticalTwinStage2.tracking({ jobId: first.id })).rejects.toMatchObject({ code: "NOT_FOUND" });
   });
 

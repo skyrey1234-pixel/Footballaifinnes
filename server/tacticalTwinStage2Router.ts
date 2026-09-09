@@ -122,15 +122,18 @@ export const tacticalTwinStage2Router = router({
       reconstructionId: z.number().int().positive(),
       samplingFps: z.number().int().min(1).max(3).default(2),
       sourceFps: z.number().int().min(12).max(120).default(30),
+      forceRestart: z.boolean().default(false),
     }))
     .mutation(async ({ input, ctx }) => {
       const reconstruction = await requireReconstruction(input.reconstructionId, ctx.user.id);
       if (!reconstruction.videoUrl && !reconstruction.youtubeVideoId) {
         throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Automatic tracking needs stored source film. Local camera and Screen Share frames are not retained." });
       }
-      const existing = await db.listTwinTrackingJobs(input.reconstructionId, ctx.user.id);
-      const resumable = existing.find((job) => ["queued", "capturing", "analyzing", "review"].includes(job.status));
-      if (resumable) return resumable;
+      if (!input.forceRestart) {
+        const existing = await db.listTwinTrackingJobs(input.reconstructionId, ctx.user.id);
+        const resumable = existing.find((job) => ["queued", "capturing", "analyzing", "review"].includes(job.status));
+        if (resumable) return resumable;
+      }
 
       const clipDurationSeconds = Math.max(1, reconstruction.sourceEndSeconds - reconstruction.sourceStartSeconds);
       const totalFrames = Math.min(90, Math.max(1, Math.ceil(clipDurationSeconds * input.samplingFps)));

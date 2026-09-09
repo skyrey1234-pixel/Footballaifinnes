@@ -101,8 +101,16 @@ export function TacticalTwinTrackingPanel({
   const averageConfidence = frames.length
     ? Math.round(frames.reduce((sum, frame) => sum + frame.frameConfidence, 0) / frames.length)
     : 0;
+  const positiveLegacyCandidates = frames.flatMap((frame) => [
+    frame.frameConfidence,
+    ...(Array.isArray(frame.players) ? (frame.players as TwinTrackedPlayer[]).flatMap((player) => [player.imagePoint.confidence, player.fieldPoint?.confidence ?? 0]) : []),
+  ]).filter((value) => value > 0);
+  const legacyUnitScaleConfidence = frames.length > 0
+    && positiveLegacyCandidates.length > 0
+    && positiveLegacyCandidates.every((value) => value <= 1)
+    && (calibration?.confidence ?? 0) <= 1;
 
-  const runTracking = async () => {
+  const runTracking = async (forceRestart = false) => {
     if (!canTrack) {
       toast.error("Automatic tracking currently requires stored uploaded football film.");
       return;
@@ -111,7 +119,8 @@ export function TacticalTwinTrackingPanel({
     setRunning(true);
     setStatusMessage("Preparing secure server-assisted frame extraction…");
     try {
-      const job = await startMutation.mutateAsync({ reconstructionId, samplingFps: 2, sourceFps: 30 });
+      const job = await startMutation.mutateAsync({ reconstructionId, samplingFps: 2, sourceFps: 30, forceRestart });
+      if (forceRestart) await jobsQuery.refetch();
       let processedFrames = (await utils.tacticalTwinStage2.tracking.fetch({ jobId: job.id })).frames.length;
       while (processedFrames < job.totalFrames) {
         if (stoppedRef.current) throw new Error("Tracking paused by coach.");
@@ -162,12 +171,13 @@ export function TacticalTwinTrackingPanel({
         </div>
         <div className="flex flex-wrap gap-2">
           {currentJob?.status === "failed" ? <Button variant="outline" className="gap-2 border-amber-300/30 text-amber-200" onClick={async () => { await retryMutation.mutateAsync({ jobId: currentJob.id }); await jobsQuery.refetch(); void runTracking(); }}><RefreshCw className="h-4 w-4" />Retry failed batch</Button> : null}
-          <Button className="gap-2 bg-cyan-300 text-slate-950 hover:bg-cyan-200" disabled={!canTrack || running || currentJob?.status === "approved"} onClick={() => void runTracking()}>{running ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}{currentJob ? "Resume Auto Track" : "Auto Track This Play"}</Button>
+          <Button className="gap-2 bg-cyan-300 text-slate-950 hover:bg-cyan-200" disabled={!canTrack || running || currentJob?.status === "approved"} onClick={() => void runTracking(legacyUnitScaleConfidence)}>{running ? <Loader2 className="h-4 w-4 animate-spin" /> : legacyUnitScaleConfidence ? <RefreshCw className="h-4 w-4" /> : <Sparkles className="h-4 w-4" />}{legacyUnitScaleConfidence ? "Reprocess Confidence" : currentJob ? "Resume Auto Track" : "Auto Track This Play"}</Button>
           {currentJob && frames.length > 0 ? <Button variant="outline" className="gap-2 border-emerald-400/30 text-emerald-200" disabled={approveMutation.isPending || currentJob.status === "approved"} onClick={() => approveMutation.mutate({ jobId: currentJob.id })}><BadgeCheck className="h-4 w-4" />{currentJob.status === "approved" ? "Coach Approved" : "Approve Tracks"}</Button> : null}
         </div>
       </div>
 
       {!canTrack ? <div className="mt-4 flex gap-3 border border-amber-300/20 bg-amber-300/5 p-4 text-xs leading-5 text-amber-100/70"><ShieldAlert className="mt-0.5 h-4 w-4 shrink-0" /><span>Automatic tracking needs stored uploaded film. Camera and Screen Share Twins remain local-only and cannot be retroactively tracked.</span></div> : null}
+      {legacyUnitScaleConfidence ? <div className="mt-4 flex gap-3 border border-amber-300/20 bg-amber-300/5 p-4 text-xs leading-5 text-amber-100/70"><ShieldAlert className="mt-0.5 h-4 w-4 shrink-0" /><span>This review set was created before percentage confidence was enforced. Reprocess Confidence creates a new corrected job and preserves this original evidence for audit history.</span></div> : null}
 
       <div className="mt-5 grid gap-3 md:grid-cols-4">
         <div className="border border-white/10 bg-black/25 p-3"><p className="text-[9px] uppercase tracking-[0.16em] text-white/30">Job state</p><p className="mt-2 text-sm font-semibold uppercase text-cyan-200">{currentJob?.status ?? "ready"}</p></div>
