@@ -242,7 +242,10 @@ export default function TacticalTwinPage() {
   const [draft, setDraft] = useState<TwinDraftState | null>(null);
   const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
   const [tool, setTool] = useState<TwinEditorTool>("select");
-  const [view, setView] = useState<"film" | "map" | "3d">("map");
+  const [view, setView] = useState<"film" | "map" | "3d">(() => {
+    const requestedView = new URLSearchParams(window.location.search).get("view");
+    return requestedView === "film" || requestedView === "3d" ? requestedView : "map";
+  });
   const [progress, setProgress] = useState(0);
   const [playing, setPlaying] = useState(false);
   const playbackFrameRef = useRef<number | null>(null);

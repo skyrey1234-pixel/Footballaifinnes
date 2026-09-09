@@ -1,0 +1,36 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Tactical Twin visual playback probe</title>
+    <style>
+      body { margin: 0; background: #020605; color: white; font-family: Arial, sans-serif; }
+      main { width: 1280px; min-height: 720px; padding-top: 24px; margin: 0 auto; }
+      h1 { margin: 0 32px 16px; font-size: 24px; }
+      video { display: block; width: 1180px; height: 620px; margin: 0 auto; background: black; object-fit: contain; }
+      pre { position: fixed; left: 48px; top: 68px; z-index: 2; max-width: 1080px; padding: 10px 12px; background: rgba(0,0,0,.82); color: #6ee7b7; font-size: 12px; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Tactical Twin — Production Source Film</h1>
+      <pre id="status">starting</pre>
+      <video id="video" muted playsinline preload="auto" controls></video>
+    </main>
+    <script>
+      const video = document.getElementById("video");
+      const status = document.getElementById("status");
+      const events = [];
+      const render = () => {
+        status.textContent = JSON.stringify({ events, readyState: video.readyState, currentTime: video.currentTime, duration: video.duration, paused: video.paused, error: video.error?.code ?? null, size: `${video.videoWidth}x${video.videoHeight}` });
+      };
+      ["loadstart","durationchange","loadedmetadata","loadeddata","canplay","canplaythrough","seeking","seeked","play","playing","waiting","stalled","suspend","error"].forEach((name) => video.addEventListener(name, () => { events.push(name); render(); }));
+      video.addEventListener("loadedmetadata", async () => {
+        try { await video.play(); } catch (error) { events.push(`play-rejected:${error.name}`); render(); }
+      }, { once: true });
+      video.src = "[VIDEO_URL]#t=30.000";
+      video.load();
+      setInterval(render, 250);
+    </script>
+  </body>
+</html>
