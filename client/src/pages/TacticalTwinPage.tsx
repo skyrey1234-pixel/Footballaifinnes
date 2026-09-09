@@ -233,6 +233,7 @@ export default function TacticalTwinPage() {
   const playbackStartedAtRef = useRef(0);
   const playbackStartProgressRef = useRef(0);
   const filmHandleRef = useRef<TwinFilmHandle>(null);
+  const nativeFilmTimeline = view === "film" && data?.sourceType === "upload";
 
   useEffect(() => {
     if (!data) return;
@@ -255,7 +256,7 @@ export default function TacticalTwinPage() {
 
   const duration = Math.max(1, (data?.sourceEndSeconds ?? 1) - (data?.sourceStartSeconds ?? 0));
   useEffect(() => {
-    if (!playing) {
+    if (!playing || nativeFilmTimeline) {
       if (playbackFrameRef.current !== null) cancelAnimationFrame(playbackFrameRef.current);
       playbackFrameRef.current = null;
       return;
@@ -277,7 +278,7 @@ export default function TacticalTwinPage() {
     return () => {
       if (playbackFrameRef.current !== null) cancelAnimationFrame(playbackFrameRef.current);
     };
-  }, [duration, playing]);
+  }, [duration, nativeFilmTimeline, playing]);
 
   const updateMutation = trpc.tacticalTwin.update.useMutation({
     onSuccess: async () => {
