@@ -1,5 +1,7 @@
 # TacticalEdge AI — Project TODO
 
+- [x] DISCOVERY: Analyzed the referenced Higgsfield soccer post and defined Tactical Twin workflows, integration architecture, three build options, accuracy safeguards, and the recommended hybrid implementation path
+
 - [x] BUG: Fixed production Live View “The play() request was interrupted by a new load request” race with a synchronous startup lock, stale-request cancellation, disabled Starting Camera/Replay/Screen Picker state, safe AbortError handling, and clean pause/end lifecycle; verified real production camera and upload replay start without interruption
 - [x] BUG: Camera and Screen Share now resume after both persisted currentVideoSecond and the latest analyzed five-second window; production camera session reopened at 4:50 instead of window 0 and persisted a new non-colliding window 59 event
 - [x] BUG: Sparse browser video-frame callbacks now retain 60 seconds of evidence and submit the newest completed window that actually has frames; production window 59 persisted with inputFrameCount=1, 28.2-second latency, and exactly two predictions after callbacks skipped a boundary
