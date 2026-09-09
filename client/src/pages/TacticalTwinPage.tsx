@@ -467,14 +467,14 @@ export default function TacticalTwinPage() {
       <TacticalTwinTrackingPanel
         reconstructionId={id}
         sourceType={data.sourceType}
-        captureUrl={playback.data?.captureUrl ?? null}
+        captureUrl={videoUrl ?? playback.data?.captureUrl ?? null}
         sourceStartSeconds={data.sourceStartSeconds}
       />
 
       <TacticalTwinCinematicPanel
         reconstructionId={id}
         sourceType={data.sourceType}
-        captureUrl={playback.data?.captureUrl ?? null}
+        captureUrl={videoUrl ?? playback.data?.captureUrl ?? null}
         sourceStartSeconds={data.sourceStartSeconds}
         durationSeconds={duration}
         progress={progress}

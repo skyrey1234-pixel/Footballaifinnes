@@ -264,6 +264,7 @@ export function TacticalTwinTrackingPanel({
         <video
           ref={captureVideoRef}
           src={captureSourceUrl(captureUrl, sourceStartSeconds)}
+          crossOrigin="anonymous"
           muted
           playsInline
           preload="auto"
@@ -277,7 +278,7 @@ export function TacticalTwinTrackingPanel({
         <div className="mt-5 grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
           <div>
             <div className="relative min-h-[320px] bg-black md:min-h-[420px]">
-              <video ref={captureVideoRef} src={captureUrl ?? undefined} muted playsInline preload="metadata" className="h-[320px] w-full bg-black object-contain md:h-[420px]" controls />
+              <video ref={captureVideoRef} src={captureUrl ?? undefined} crossOrigin="anonymous" muted playsInline preload="metadata" className="h-[320px] w-full bg-black object-contain md:h-[420px]" controls />
               <TrackingOverlay players={editingPlayers} ball={editingBall} />
             </div>
             <div className="mt-3 flex items-center gap-3">

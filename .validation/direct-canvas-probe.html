@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+  <head><meta charset="utf-8"><title>direct canvas probe</title></head>
+  <body>
+    <pre id="status">starting</pre>
+    <video id="video" muted playsinline preload="auto" crossorigin="anonymous"></video>
+    <canvas id="canvas" width="640" height="360"></canvas>
+    <script>
+      const video = document.getElementById("video");
+      const canvas = document.getElementById("canvas");
+      const status = document.getElementById("status");
+      const events = [];
+      const render = (extra = {}) => {
+        status.textContent = JSON.stringify({ events, readyState: video.readyState, networkState: video.networkState, videoWidth: video.videoWidth, videoHeight: video.videoHeight, currentTime: video.currentTime, error: video.error ? { code: video.error.code, message: video.error.message } : null, ...extra });
+      };
+      ["loadstart", "loadedmetadata", "loadeddata", "canplay", "seeking", "seeked", "error"].forEach((name) => video.addEventListener(name, () => { events.push(name); render(); }));
+      video.addEventListener("loadedmetadata", () => { video.currentTime = 30; }, { once: true });
+      video.addEventListener("seeked", () => {
+        try {
+          canvas.getContext("2d").drawImage(video, 0, 0, 640, 360);
+          const jpeg = canvas.toDataURL("image/jpeg", 0.7);
+          render({ canvasReadable: jpeg.startsWith("data:image/jpeg"), jpegLength: jpeg.length });
+        } catch (error) {
+          render({ canvasReadable: false, canvasError: `${error.name}: ${error.message}` });
+        }
+      }, { once: true });
+      video.src = "https://tacticalai-yt2mojug.manus.space/manus-storage/videos/1788447845067-segment_001.mp4#t=30";
+      video.load();
+      setInterval(() => render(), 250);
+    </script>
+  </body>
+</html>

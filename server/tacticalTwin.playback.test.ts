@@ -42,6 +42,11 @@ describe("Tactical Twin synchronized playback regression", () => {
     expect(source).toContain('preload="auto"');
     expect(source).toContain('captureSourceUrl(captureUrl, sourceStartSeconds)');
     expect(source).toContain('video.play().catch(() => undefined)');
+    expect(source).toContain('crossOrigin="anonymous"');
     expect(source).not.toContain('preload="metadata" className="hidden"');
+  });
+
+  it("uses the direct signed playback source for Stage 2 canvas capture with proxy fallback", () => {
+    expect(twinPageSource).toContain("captureUrl={videoUrl ?? playback.data?.captureUrl ?? null}");
   });
 });

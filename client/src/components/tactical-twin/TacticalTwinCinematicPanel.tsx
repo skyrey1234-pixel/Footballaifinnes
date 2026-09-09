@@ -175,7 +175,7 @@ export function TacticalTwinCinematicPanel({
 
   return (
     <section className="border border-fuchsia-400/20 bg-[radial-gradient(circle_at_85%_0%,rgba(217,70,239,.18),transparent_38%),linear-gradient(140deg,#110819,#050607_62%)] p-4 md:p-5">
-      {captureUrl ? <video ref={captureVideoRef} src={captureUrl} muted playsInline preload="metadata" className="hidden" /> : null}
+      {captureUrl ? <video ref={captureVideoRef} src={captureUrl} crossOrigin="anonymous" muted playsInline preload="auto" className="pointer-events-none fixed left-[-9999px] top-0 h-px w-px opacity-0" /> : null}
       <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
         <div>
           <p className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.22em] text-fuchsia-300"><WandSparkles className="h-4 w-4" />Stage 2 · Higgsfield cinematic export</p>
