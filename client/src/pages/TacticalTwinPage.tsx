@@ -101,6 +101,7 @@ const TwinFilmPane = forwardRef<TwinFilmHandle, {
   const [mediaMessage, setMediaMessage] = useState("Loading source film…");
   const duration = Math.max(1, endSeconds - startSeconds);
   const desiredTime = startSeconds + progress * duration;
+  const playbackVideoUrl = videoUrl ? `${videoUrl}#t=${Math.max(0, startSeconds).toFixed(3)}` : null;
 
   const seekMedia = useCallback((nextProgress: number) => {
     const normalized = Math.max(0, Math.min(1, nextProgress));
@@ -167,19 +168,33 @@ const TwinFilmPane = forwardRef<TwinFilmHandle, {
     );
   }
 
-  if (sourceType === "upload" && videoUrl) {
+  if (sourceType === "upload" && playbackVideoUrl) {
     return (
       <div className="relative min-h-[520px] bg-black">
-        <video
-          ref={videoRef}
-          src={videoUrl}
+          <video
+            ref={videoRef}
+            src={playbackVideoUrl}
           className="h-[520px] w-full bg-black object-contain"
           playsInline
           controls
           preload="auto"
           onLoadStart={() => { setMediaState("loading"); setMediaMessage("Loading source film…"); }}
-          onLoadedMetadata={(event) => { event.currentTarget.currentTime = desiredTime; }}
-          onLoadedData={() => { setMediaState("ready"); setMediaMessage("Source film ready"); }}
+          onLoadedData={(event) => {
+            if (Math.abs(event.currentTarget.currentTime - desiredTime) > 0.5) {
+              setMediaState("loading");
+              setMediaMessage("Seeking to source play…");
+              event.currentTarget.currentTime = desiredTime;
+              return;
+            }
+            setMediaState("ready");
+            setMediaMessage("Source film ready");
+          }}
+          onSeeked={(event) => {
+            if (event.currentTarget.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
+              setMediaState(event.currentTarget.paused ? "ready" : "playing");
+              setMediaMessage(event.currentTarget.paused ? "Source film ready" : "Source film playing");
+            }
+          }}
           onCanPlay={() => { setMediaState((current) => current === "playing" ? current : "ready"); setMediaMessage((current) => current === "Source film playing" ? current : "Source film ready"); }}
           onPlaying={() => { setMediaState("playing"); setMediaMessage("Source film playing"); }}
           onWaiting={() => { setMediaState("loading"); setMediaMessage("Buffering source film…"); }}
