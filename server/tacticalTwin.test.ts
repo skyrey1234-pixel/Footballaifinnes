@@ -1,4 +1,12 @@
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+const signedUrlMock = vi.hoisted(() => vi.fn(async (key: string) => `https://storage.example/${key}?signed=1`));
+
+vi.mock("./storage", () => ({
+  storageGetSignedUrl: signedUrlMock,
+  storageGet: vi.fn(),
+  storagePut: vi.fn(),
+}));
+
 import { appRouter } from "./routers";
 import * as db from "./db";
 import type { TrpcContext } from "./_core/context";
@@ -34,6 +42,7 @@ describe("Tactical Twin Stage 1", () => {
       opponentName: "Twin Test Opponent",
       sourceType: "upload",
       videoUrl: "https://example.invalid/twin-test.mp4",
+      videoFileKey: "videos/twin-test.mp4",
       status: "complete",
     });
     liveSessionId = await db.createLiveGameSession({
@@ -134,6 +143,17 @@ describe("Tactical Twin Stage 1", () => {
       startSeconds: 55,
       durationSeconds: 12,
     })).rejects.toMatchObject({ code: "NOT_FOUND" });
+  });
+
+  it("returns a fresh direct signed playback URL only for the owning coach", async () => {
+    const owner = appRouter.createCaller(context(1));
+    const playback = await owner.tacticalTwin.playbackUrl({ id: filmTwinId });
+    expect(playback.url).toBe("https://storage.example/videos/twin-test.mp4?signed=1");
+    expect(playback.expiresAt).toBeGreaterThan(Date.now());
+    expect(signedUrlMock).toHaveBeenCalledWith("videos/twin-test.mp4");
+
+    const otherCoach = appRouter.createCaller(context(2));
+    await expect(otherCoach.tacticalTwin.playbackUrl({ id: filmTwinId })).rejects.toMatchObject({ code: "NOT_FOUND" });
   });
 
   it("saves coach edits and promotes a verified Twin to reviewed status", async () => {

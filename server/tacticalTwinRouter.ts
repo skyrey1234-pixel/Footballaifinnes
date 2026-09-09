@@ -7,7 +7,7 @@ import {
 } from "../shared/tacticalTwin";
 import { protectedProcedure, router } from "./_core/trpc";
 import * as db from "./db";
-import { createTacticalTwinPlaybackToken } from "./tacticalTwinPlaybackToken";
+import { storageGetSignedUrl } from "./storage";
 
 const sourceKindSchema = z.enum(["film_highlight", "highlight_reel"]);
 const playTypeSchema = z.enum(["pass", "run", "screen", "rpo", "special_teams", "unknown"]);
@@ -51,6 +51,25 @@ async function requireOwnedGameSession(sessionId: number, userId: number) {
   return session;
 }
 
+function keyFromStorageUrl(value: string | null | undefined) {
+  if (!value?.startsWith("/manus-storage/")) return null;
+  return decodeURIComponent(value.slice("/manus-storage/".length));
+}
+
+async function resolveOwnedSourceVideoKey(reconstruction: Awaited<ReturnType<typeof db.getPlayReconstruction>>, userId: number) {
+  if (!reconstruction || reconstruction.sourceType !== "upload") return null;
+  if (reconstruction.gameSessionId) {
+    const session = await requireOwnedGameSession(reconstruction.gameSessionId, userId);
+    return session.videoFileKey || keyFromStorageUrl(session.videoUrl) || keyFromStorageUrl(reconstruction.videoUrl);
+  }
+  if (reconstruction.liveSessionId) {
+    const session = await db.getLiveGameSession(reconstruction.liveSessionId, userId);
+    if (!session || session.sourceType !== "upload") return null;
+    return session.videoFileKey || keyFromStorageUrl(session.videoUrl) || keyFromStorageUrl(reconstruction.videoUrl);
+  }
+  return keyFromStorageUrl(reconstruction.videoUrl);
+}
+
 async function returnCreatedOrExisting(userId: number, sourceKey: string, insert: () => Promise<number>) {
   const existing = await db.getPlayReconstructionBySourceKey(userId, sourceKey);
   if (existing) return existing;
@@ -85,8 +104,10 @@ export const tacticalTwinRouter = router({
       if (reconstruction.sourceType !== "upload") {
         throw new TRPCError({ code: "BAD_REQUEST", message: "This Tactical Twin does not have stored source film" });
       }
-      const { token, expiresAt } = createTacticalTwinPlaybackToken(reconstruction.id, ctx.user.id);
-      return { url: `/api/tactical-twin/video/${reconstruction.id}?access=${encodeURIComponent(token)}`, expiresAt };
+      const videoFileKey = await resolveOwnedSourceVideoKey(reconstruction, ctx.user.id);
+      if (!videoFileKey) throw new TRPCError({ code: "NOT_FOUND", message: "Tactical Twin source film not found" });
+      const url = await storageGetSignedUrl(videoFileKey);
+      return { url, expiresAt: Date.now() + 50 * 60 * 1_000 };
     }),
 
   createFromFilm: protectedProcedure
