@@ -23,6 +23,13 @@ import {
   type TwinTrackedPlayer,
 } from "../shared/tacticalTwinStage2";
 import { extractTwinTrackingFrameBatch } from "./tacticalTwinFrameExtraction";
+import {
+  cancelManusHiggsfieldReplay,
+  getManusHiggsfieldReplayStatus,
+  hasManusHiggsfieldBridge,
+  MANUS_HIGGSFIELD_MODEL,
+  submitManusHiggsfieldReplay,
+} from "./manusHiggsfieldBridge";
 
 const unitPointSchema = z.object({
   x: z.number().min(0).max(1),
@@ -417,11 +424,13 @@ export const tacticalTwinStage2Router = router({
     }),
 
   exportConfiguration: protectedProcedure.query(() => ({
-    configured: hasHiggsfieldCredentials(),
+    configured: hasHiggsfieldCredentials() || hasManusHiggsfieldBridge(),
     provider: "Higgsfield",
-    model: HIGGSFIELD_VIDEO_PATH,
-    integrationMode: "app_api_credentials" as const,
-    connectorEnabledNotice: "Your Manus Higgsfield connector remains enabled for agent work. Published TacticalEdge exports use separate app-scoped server authorization and never copy the connector OAuth token.",
+    model: hasHiggsfieldCredentials() ? HIGGSFIELD_VIDEO_PATH : MANUS_HIGGSFIELD_MODEL,
+    integrationMode: hasHiggsfieldCredentials() ? "app_api_credentials" as const : "manus_connector_bridge" as const,
+    connectorEnabledNotice: hasManusHiggsfieldBridge()
+      ? "The secure TacticalEdge connector bridge is ready. Generate launches one private Higgsfield task and retains the completed MP4 in this Twin."
+      : "Your Manus Higgsfield connector remains enabled for agent work. Add the server-side Manus bridge key to enable one-click exports without copying the connector OAuth token.",
     durations: [5, 10] as const,
     outputNotice: "Cinematic outputs are generative interpretations and are retained in TacticalEdge storage after completion.",
   })),
@@ -448,8 +457,10 @@ export const tacticalTwinStage2Router = router({
       if (reconstruction.sourceType !== "upload") {
         throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Cinematic export requires stored uploaded source film." });
       }
-      if (!hasHiggsfieldCredentials()) {
-        throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Connect the TacticalEdge Higgsfield API credentials to create cinematic replays." });
+      const directHiggsfield = hasHiggsfieldCredentials();
+      const manusBridge = hasManusHiggsfieldBridge();
+      if (!directHiggsfield && !manusBridge) {
+        throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Connect the TacticalEdge Higgsfield bridge to create cinematic replays." });
       }
       let approvedTrackingSummary: Record<string, unknown> | null = null;
       if (input.trackingJobId) {
@@ -515,7 +526,7 @@ export const tacticalTwinStage2Router = router({
         statusUrl: null,
         cancelUrl: null,
         status: "draft",
-        model: HIGGSFIELD_VIDEO_PATH,
+        model: directHiggsfield ? HIGGSFIELD_VIDEO_PATH : MANUS_HIGGSFIELD_MODEL,
         prompt,
         style: input.style,
         aspectRatio: input.aspectRatio,
@@ -541,21 +552,14 @@ export const tacticalTwinStage2Router = router({
       });
 
       try {
-        const baseUrl = externalBaseUrl(ctx.req);
-        const result = await submitHiggsfieldReplay({
-          sourceImageKey: sourceImage.key,
-          prompt,
-          durationSeconds: input.durationSeconds,
-          webhookUrl: baseUrl ? `${baseUrl}/api/webhooks/higgsfield` : null,
-        });
-        await db.updateTwinCinematicExport(exportId, ctx.user.id, {
-          providerRequestId: result.request_id,
-          statusUrl: result.status_url ?? null,
-          cancelUrl: result.cancel_url ?? null,
-          status: result.status === "in_progress" ? "in_progress" : "queued",
-          submittedAt: Date.now(),
-          updatedAt: Date.now(),
-        });
+        if (directHiggsfield) {
+          const baseUrl = externalBaseUrl(ctx.req);
+          const result = await submitHiggsfieldReplay({ sourceImageKey: sourceImage.key, prompt, durationSeconds: input.durationSeconds, webhookUrl: baseUrl ? `${baseUrl}/api/webhooks/higgsfield` : null });
+          await db.updateTwinCinematicExport(exportId, ctx.user.id, { providerRequestId: result.request_id, statusUrl: result.status_url ?? null, cancelUrl: result.cancel_url ?? null, status: result.status === "in_progress" ? "in_progress" : "queued", submittedAt: Date.now(), updatedAt: Date.now() });
+        } else {
+          const result = await submitManusHiggsfieldReplay({ exportId, sourceImageKey: sourceImage.key, prompt, durationSeconds: input.durationSeconds, aspectRatio: input.aspectRatio });
+          await db.updateTwinCinematicExport(exportId, ctx.user.id, { providerRequestId: result.taskId, statusUrl: result.taskUrl, cancelUrl: null, status: "queued", submittedAt: Date.now(), updatedAt: Date.now() });
+        }
         return requireExport(exportId, ctx.user.id);
       } catch (error) {
         const message = error instanceof Error ? error.message : "Higgsfield export submission failed";
@@ -570,22 +574,41 @@ export const tacticalTwinStage2Router = router({
       const cinematicExport = await requireExport(input.exportId, ctx.user.id);
       if (!cinematicExport.providerRequestId) return cinematicExport;
       if (cinematicExport.status === "completed" && cinematicExport.outputFileKey) return cinematicExport;
-      if (!hasHiggsfieldCredentials()) throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Higgsfield credentials are not configured" });
+      const viaManus = cinematicExport.model === MANUS_HIGGSFIELD_MODEL;
+      if (!viaManus && !hasHiggsfieldCredentials()) throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Higgsfield credentials are not configured" });
 
-      const result = await getHiggsfieldReplayStatus(cinematicExport.providerRequestId);
-      const providerOutput = higgsfieldOutputUrl(result);
-      const terminalStatus = ["completed", "failed", "nsfw", "canceled"].includes(result.status) ? result.status : result.status === "in_progress" ? "in_progress" : "queued";
+      let providerOutput: string | null = null;
+      let terminalStatus: "queued" | "in_progress" | "completed" | "failed" | "nsfw" | "canceled" = "queued";
+      let statusUrl = cinematicExport.statusUrl;
+      let cancelUrl = cinematicExport.cancelUrl;
+      let errorMessage: string | null = null;
+      let retainedRequestId = cinematicExport.providerRequestId;
+      if (viaManus) {
+        const result = await getManusHiggsfieldReplayStatus(cinematicExport.providerRequestId);
+        providerOutput = result.outputUrl ?? null;
+        terminalStatus = result.status;
+        errorMessage = result.error?.slice(0, 600) ?? null;
+        retainedRequestId = result.providerJobId || cinematicExport.providerRequestId;
+        cancelUrl = null;
+      } else {
+        const result = await getHiggsfieldReplayStatus(cinematicExport.providerRequestId);
+        providerOutput = higgsfieldOutputUrl(result);
+        terminalStatus = ["completed", "failed", "nsfw", "canceled"].includes(result.status) ? result.status : result.status === "in_progress" ? "in_progress" : "queued";
+        statusUrl = result.status_url ?? cinematicExport.statusUrl;
+        cancelUrl = result.cancel_url ?? cinematicExport.cancelUrl;
+        errorMessage = result.error?.slice(0, 600) ?? null;
+      }
       const update: Parameters<typeof db.updateTwinCinematicExport>[2] = {
         status: terminalStatus,
-        statusUrl: result.status_url ?? cinematicExport.statusUrl,
-        cancelUrl: result.cancel_url ?? cinematicExport.cancelUrl,
+        statusUrl,
+        cancelUrl,
         outputUrl: providerOutput ?? cinematicExport.outputUrl,
-        errorMessage: result.error?.slice(0, 600) ?? null,
+        errorMessage,
         completedAt: ["completed", "failed", "nsfw", "canceled"].includes(terminalStatus) ? Date.now() : null,
         updatedAt: Date.now(),
       };
       if (terminalStatus === "completed" && providerOutput && !cinematicExport.outputFileKey) {
-        const stored = await retainHiggsfieldVideo({ requestId: cinematicExport.providerRequestId, sourceUrl: providerOutput, reconstructionId: cinematicExport.reconstructionId });
+        const stored = await retainHiggsfieldVideo({ requestId: retainedRequestId, sourceUrl: providerOutput, reconstructionId: cinematicExport.reconstructionId });
         update.outputFileKey = stored.key;
         update.outputUrl = stored.url;
       }
@@ -598,7 +621,8 @@ export const tacticalTwinStage2Router = router({
     .mutation(async ({ input, ctx }) => {
       const cinematicExport = await requireExport(input.exportId, ctx.user.id);
       if (cinematicExport.providerRequestId && ["queued", "in_progress"].includes(cinematicExport.status)) {
-        await cancelHiggsfieldReplay(cinematicExport.providerRequestId);
+        if (cinematicExport.model === MANUS_HIGGSFIELD_MODEL) await cancelManusHiggsfieldReplay(cinematicExport.providerRequestId);
+        else await cancelHiggsfieldReplay(cinematicExport.providerRequestId);
       }
       await db.updateTwinCinematicExport(cinematicExport.id, ctx.user.id, { status: "canceled", completedAt: Date.now(), updatedAt: Date.now() });
       return requireExport(cinematicExport.id, ctx.user.id);

@@ -183,13 +183,13 @@ export function TacticalTwinCinematicPanel({
           <p className="mt-2 max-w-2xl text-xs leading-5 text-white/45">TacticalEdge sends one approved source frame to Higgsfield, tracks the asynchronous render, then retains the completed MP4 for preview, download, and secure sharing. Generated motion is labeled as cinematic interpretation—not verified film evidence.</p>
         </div>
         <div className={`border px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.14em] ${configuration.data?.configured ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-200" : "border-amber-300/25 bg-amber-300/8 text-amber-100"}`}>
-          {configuration.isLoading ? "Checking Higgsfield…" : configuration.data?.configured ? "App bridge ready" : "Connector on · app bridge required"}
+          {configuration.isLoading ? "Checking Higgsfield…" : configuration.data?.configured ? configuration.data.integrationMode === "manus_connector_bridge" ? "Connector bridge ready" : "App bridge ready" : "Connector on · bridge required"}
         </div>
       </div>
 
       {!configuration.data?.configured ? (
         <div className="mt-4 border border-amber-300/20 bg-amber-300/5 p-4 text-xs leading-5 text-amber-100/70">
-          <strong className="text-amber-100">Your Higgsfield connector is already enabled.</strong> It authorizes Manus-agent work, not arbitrary production-server requests. TacticalEdge will not copy that OAuth token. One-click exports activate when an app-scoped server bridge is connected.
+          <strong className="text-amber-100">Your Higgsfield connector is already enabled.</strong> {configuration.data?.connectorEnabledNotice}
         </div>
       ) : null}
 

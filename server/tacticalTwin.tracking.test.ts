@@ -105,6 +105,22 @@ ${JSON.stringify({
     expect(result.frames[0].players[0]).toMatchObject({ trackId: "D1", unit: "defense", jerseyNumber: null });
     expect(result.frames[0].ball).toMatchObject({ visible: true, possessedByTrackId: "D1" });
     expect(result.calibration).toMatchObject({ quality: "low", confidence: 40 });
+    const requestPayload = JSON.stringify(invokeMock.mock.calls[0]?.[0] ?? {});
+    expect(requestPayload).toContain("integer percentage from 0 to 100");
+    expect(requestPayload).toContain("never output 0-to-1 unit-scale confidence");
+  });
+
+  it("rescales an entirely unit-range compact confidence envelope without changing zero evidence", async () => {
+    invokeMock.mockResolvedValueOnce({ choices: [{ message: { content: JSON.stringify({
+      f: [{ i: 5, p: [{ id: "O1", u: "offense", j: "", b: [0.2, 0.2, 0.05, 0.1], q: [0.22, 0.3, 0.82], g: [0, 0, 0], o: false }], a: { v: false, b: [0, 0, 0, 0], q: [0, 0, 0], g: [0, 0, 0], h: "" }, c: 0.74 }],
+      k: { q: "low", c: 0.51, ip: [], fp: [] },
+      l: ["Wide angle"],
+    }) } }] });
+    const result = await analyzeTwinFrameBatch({ frames: [sourceFrame(5)] });
+    expect(result.frames[0].frameConfidence).toBe(74);
+    expect(result.frames[0].players[0].imagePoint.confidence).toBe(82);
+    expect(result.frames[0].players[0].fieldPoint).toBeNull();
+    expect(result.calibration.confidence).toBe(51);
   });
 
   it("rejects malformed model output and caps each request to the supported batch size", async () => {

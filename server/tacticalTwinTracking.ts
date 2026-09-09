@@ -84,9 +84,10 @@ function parseJson(raw: string): RawTrackingResult {
   throw new Error(`Tracking model returned invalid JSON: ${trimmed.slice(0, 220)}`);
 }
 
-function compactPoint(value: unknown) {
+function compactPoint(value: unknown, unitScaleConfidence = false) {
   const row = Array.isArray(value) ? value : [];
-  return { x: Number(row[0]) || 0, y: Number(row[1]) || 0, confidence: Number(row[2]) || 0 };
+  const rawConfidence = Number(row[2]) || 0;
+  return { x: Number(row[0]) || 0, y: Number(row[1]) || 0, confidence: unitScaleConfidence ? rawConfidence * 100 : rawConfidence };
 }
 
 function compactBox(value: unknown) {
@@ -97,31 +98,46 @@ function compactBox(value: unknown) {
 function expandCompactTracking(raw: string): RawTrackingResult {
   const compact = parseJson(raw) as unknown as CompactTrackingResult;
   if (!Array.isArray(compact.f)) return compact as unknown as RawTrackingResult;
+  const confidenceValues = [
+    ...(compact.f ?? []).flatMap((frame) => [
+      Number(frame.c) || 0,
+      ...(frame.p ?? []).flatMap((player) => [Number(player.q?.[2]) || 0, Number(player.g?.[2]) || 0]),
+      Number(frame.a?.q?.[2]) || 0,
+      Number(frame.a?.g?.[2]) || 0,
+    ]),
+    Number(compact.k?.c) || 0,
+  ];
+  const positiveConfidences = confidenceValues.filter((value) => value > 0);
+  const unitScaleConfidence = positiveConfidences.length > 0 && positiveConfidences.every((value) => value <= 1);
+  const confidence = (value: unknown) => {
+    const rawValue = Number(value) || 0;
+    return unitScaleConfidence ? rawValue * 100 : rawValue;
+  };
   return {
     frames: compact.f.map((frame) => ({
       frameIndex: Number(frame.i) || 0,
-      frameConfidence: Number(frame.c) || 0,
+      frameConfidence: confidence(frame.c),
       players: (frame.p ?? []).map((player) => ({
         trackId: player.id ?? "",
         unit: player.u ?? "unknown",
         label: `${player.u ?? "Player"} ${player.id ?? ""}`.trim(),
         jerseyNumber: player.j ?? "",
         bbox: compactBox(player.b),
-        imagePoint: compactPoint(player.q),
-        fieldPoint: compactPoint(player.g),
+        imagePoint: compactPoint(player.q, unitScaleConfidence),
+        fieldPoint: compactPoint(player.g, unitScaleConfidence),
         occluded: Boolean(player.o),
       })),
       ball: {
         visible: Boolean(frame.a?.v),
         bbox: compactBox(frame.a?.b),
-        imagePoint: compactPoint(frame.a?.q),
-        fieldPoint: compactPoint(frame.a?.g),
+        imagePoint: compactPoint(frame.a?.q, unitScaleConfidence),
+        fieldPoint: compactPoint(frame.a?.g, unitScaleConfidence),
         possessedByTrackId: frame.a?.h ?? "",
       },
     })),
     calibration: {
       quality: compact.k?.q as TwinFieldCalibration["quality"],
-      confidence: Number(compact.k?.c) || 0,
+      confidence: confidence(compact.k?.c),
       imagePoints: (compact.k?.ip ?? []).map((point) => ({ x: Number(point[0]) || 0, y: Number(point[1]) || 0 })),
       fieldPoints: (compact.k?.fp ?? []).map((point) => ({ x: Number(point[0]) || 0, y: Number(point[1]) || 0 })),
     },
@@ -256,7 +272,7 @@ Rules:
 2. Assign anonymous stable track IDs such as O1, D1, U1, or REF1. Reuse prior track IDs only when position and appearance support the association. Never invent a name. A jersey number may be returned only when clearly readable; otherwise null.
 3. Classify unit as offense, defense, official, or unknown. If possession/team is unclear, use unknown instead of guessing. Use an empty jerseyNumber string when unreadable.
 4. Detect the football only when visible. When hidden or uncertain, visible=false, possessedByTrackId="", and return zero-confidence placeholder points/box. Never hallucinate a ball.
-5. Estimate normalized field coordinates only when field lines support it. Use confidence=0 and x=0,y=0 when unavailable. Confidence must fall when perspective, occlusion, blur, or camera movement weakens the estimate.
+5. Estimate normalized field coordinates only when field lines support it. Use confidence=0 and x=0,y=0 when unavailable. Every confidence value must be an integer percentage from 0 to 100: 0 means unsupported, 100 means completely certain. Never use a unit-scale 0-to-1 confidence. Confidence must fall when perspective, occlusion, blur, or camera movement weakens the estimate.
 6. Return one result for every supplied frame index. Include concise limitations. This is computer-vision assistance for coach review, not verified player identity or official tracking data.
 
 Output only the requested JSON.`;
@@ -341,7 +357,7 @@ Output only the requested JSON.`;
     },
   });
 
-  const compactPrompt = `${prompt}\nReturn ONLY compact JSON in this exact shape: {"f":[{"i":FRAME_INDEX,"p":[{"id":"O1","u":"offense|defense|official|unknown","j":"","b":[x,y,width,height],"q":[footX,footY,confidence],"g":[fieldX,fieldY,confidence],"o":false}],"a":{"v":false,"b":[0,0,0,0],"q":[0,0,0],"g":[0,0,0],"h":""},"c":0}],"k":{"q":"unavailable|low|moderate|high","c":0,"ip":[],"fp":[]},"l":["limitation"]}. Include every supplied frame exactly once. Keep numbers to 2 decimals, omit prose, never use an entities key, and stay under 12000 output tokens.`;
+  const compactPrompt = `${prompt}\nReturn ONLY compact JSON in this exact shape: {"f":[{"i":FRAME_INDEX,"p":[{"id":"O1","u":"offense|defense|official|unknown","j":"","b":[x,y,width,height],"q":[footX,footY,confidencePercent],"g":[fieldX,fieldY,confidencePercent],"o":false}],"a":{"v":false,"b":[0,0,0,0],"q":[0,0,0],"g":[0,0,0],"h":""},"c":frameConfidencePercent}],"k":{"q":"unavailable|low|moderate|high","c":calibrationConfidencePercent,"ip":[],"fp":[]},"l":["limitation"]}. Every confidence is an integer percentage from 0 to 100; never output 0-to-1 unit-scale confidence. Include every supplied frame exactly once. Keep coordinates to 2 decimals, omit prose, never use an entities key, and stay under 12000 output tokens.`;
   const requestCompactTracking = (model: string) => invokeLLM({
     model,
     maxTokens: 16_384,
