@@ -29,4 +29,15 @@ describe("Tactical Twin synchronized playback regression", () => {
     expect(twinPageSource).toContain("externalProgress={progress} hideTransport");
     expect(twinPageSource).not.toContain("externalProgress={progress} onProgressChange={setProgress}");
   });
+
+  it("registers automatic-tracking metadata readiness before reloading the capture source", () => {
+    const source = readFileSync(new URL("../client/src/components/tactical-twin/TacticalTwinTrackingPanel.tsx", import.meta.url), "utf8");
+    const waitIndex = source.indexOf('const metadataReady = waitForEvent(video, "loadedmetadata", 45_000)');
+    const loadIndex = source.indexOf("video.load();", waitIndex);
+    const awaitIndex = source.indexOf("await metadataReady;", loadIndex);
+    expect(waitIndex).toBeGreaterThan(-1);
+    expect(loadIndex).toBeGreaterThan(waitIndex);
+    expect(awaitIndex).toBeGreaterThan(loadIndex);
+    expect(source).toContain('eventName === "loadedmetadata" && target.readyState >= HTMLMediaElement.HAVE_METADATA');
+  });
 });

@@ -22,6 +22,7 @@ function formatTimestamp(milliseconds: number) {
 }
 
 function waitForEvent(target: HTMLMediaElement, eventName: "loadedmetadata" | "seeked", timeoutMs = 20_000) {
+  if (eventName === "loadedmetadata" && target.readyState >= HTMLMediaElement.HAVE_METADATA) return Promise.resolve();
   return new Promise<void>((resolve, reject) => {
     let timer = 0;
     const cleanup = () => {
@@ -34,6 +35,7 @@ function waitForEvent(target: HTMLMediaElement, eventName: "loadedmetadata" | "s
     timer = window.setTimeout(() => { cleanup(); reject(new Error(`Timed out waiting for source film ${eventName}.`)); }, timeoutMs);
     target.addEventListener(eventName, onEvent, { once: true });
     target.addEventListener("error", onError, { once: true });
+    if (eventName === "loadedmetadata" && target.readyState >= HTMLMediaElement.HAVE_METADATA) queueMicrotask(onEvent);
   });
 }
 
@@ -170,8 +172,9 @@ export function TacticalTwinTrackingPanel({
       const video = captureVideoRef.current;
       video.pause();
       if (video.readyState < HTMLMediaElement.HAVE_METADATA) {
+        const metadataReady = waitForEvent(video, "loadedmetadata", 45_000);
         video.load();
-        await waitForEvent(video, "loadedmetadata");
+        await metadataReady;
       }
 
       const uncaptured: CapturedFrame[] = [];
