@@ -39,5 +39,9 @@ describe("Tactical Twin synchronized playback regression", () => {
     expect(loadIndex).toBeGreaterThan(waitIndex);
     expect(awaitIndex).toBeGreaterThan(loadIndex);
     expect(source).toContain('eventName === "loadedmetadata" && target.readyState >= HTMLMediaElement.HAVE_METADATA');
+    expect(source).toContain('preload="auto"');
+    expect(source).toContain('captureSourceUrl(captureUrl, sourceStartSeconds)');
+    expect(source).toContain('video.play().catch(() => undefined)');
+    expect(source).not.toContain('preload="metadata" className="hidden"');
   });
 });

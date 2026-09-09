@@ -68,6 +68,10 @@ function captureVideoFrame(video: HTMLVideoElement, frameIndex: number, timestam
   };
 }
 
+function captureSourceUrl(url: string, startSeconds: number) {
+  return `${url}#t=${Math.max(0, startSeconds).toFixed(3)}`;
+}
+
 function TrackingOverlay({ players, ball }: { players: TwinTrackedPlayer[]; ball: TwinTrackedBall }) {
   return (
     <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="pointer-events-none absolute inset-0 h-full w-full" aria-label="Automatic player and ball tracking overlay">
@@ -173,8 +177,11 @@ export function TacticalTwinTrackingPanel({
       video.pause();
       if (video.readyState < HTMLMediaElement.HAVE_METADATA) {
         const metadataReady = waitForEvent(video, "loadedmetadata", 45_000);
+        const playAttempt = video.play().catch(() => undefined);
         video.load();
         await metadataReady;
+        video.pause();
+        void playAttempt;
       }
 
       const uncaptured: CapturedFrame[] = [];
@@ -254,7 +261,16 @@ export function TacticalTwinTrackingPanel({
       <p className="mt-2 font-mono text-[10px] uppercase tracking-[0.1em] text-cyan-200/70">{statusMessage}</p>
 
       {canTrack && captureUrl && frames.length === 0 ? (
-        <video ref={captureVideoRef} src={captureUrl} muted playsInline preload="metadata" className="hidden" />
+        <video
+          ref={captureVideoRef}
+          src={captureSourceUrl(captureUrl, sourceStartSeconds)}
+          muted
+          playsInline
+          preload="auto"
+          tabIndex={-1}
+          aria-hidden="true"
+          className="pointer-events-none fixed left-[-9999px] top-0 h-px w-px opacity-0"
+        />
       ) : null}
 
       {selectedFrame && editingPlayers && editingBall ? (
