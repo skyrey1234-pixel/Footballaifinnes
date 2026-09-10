@@ -1,7 +1,16 @@
 import { appRouter } from "./routers";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import * as db from "./db";
-import { asLiveText, buildRecoveredLiveResult, normalizeLiveResult, parseLiveJson, type LiveWindowResult } from "./liveAnalysis";
+import {
+  asLiveText,
+  buildRecoveredLiveResult,
+  normalizeLiveResult,
+  parseLiveJson,
+  shouldAttemptLiveStructuredRetry,
+  type LiveWindowResult,
+} from "./liveAnalysis";
+import { getLiveAnalysisRecoveryMessage, persistLiveWindowResult } from "./liveRouter";
+import { normalizeLiveGameMemory } from "./liveMemory";
 import type { TrpcContext } from "./_core/context";
 
 const adminContext = {
@@ -112,6 +121,51 @@ describe("Live Game Intelligence", () => {
     expect(recovered.nextPlayProbabilities.reduce((sum, row) => sum + row.probability, 0)).toBe(100);
     expect(recovered.confidence).toBe(0);
     expect(recovered.alerts[0]).toMatch(/recovery/i);
+  });
+
+  it("skips a compact structured retry when too little request budget remains", () => {
+    expect(shouldAttemptLiveStructuredRetry(32_000)).toBe(true);
+    expect(shouldAttemptLiveStructuredRetry(32_001)).toBe(false);
+  });
+
+  it("persists a timed-out five-second window as a recovered event without polluting learned memory", async () => {
+    const sessionId = await db.createLiveGameSession({
+      userId: 1,
+      name: "Recovered live timeout",
+      opponentName: "Timeout Opponent",
+      sourceType: "camera",
+      status: "ready",
+      analysisIntervalSeconds: 5,
+    });
+    try {
+      const situation = { quarter: "1st", clock: "11:55", down: 1, distance: 10, yardLine: "50", ourScore: 0, opponentScore: 0, possession: "unknown" as const };
+      const result = buildRecoveredLiveResult({ situation, frames: ["frame"], gameMemory: null });
+      const recoveryMessage = getLiveAnalysisRecoveryMessage(new Error("Live AI window timed out after 55 seconds"));
+      const persisted = await persistLiveWindowResult({
+        sessionId,
+        userId: 1,
+        windowIndex: 4,
+        windowStartSeconds: 20,
+        windowEndSeconds: 25,
+        inputFrameCount: 1,
+        situation,
+        result,
+        analysisStartedAt: Date.now() - 55_000,
+        recoveryMessage,
+      });
+
+      expect(persisted.recovered).toBe(true);
+      expect(persisted.event?.nextPlayProbabilities).toHaveLength(2);
+      expect(persisted.event?.confidence).toBe(0);
+      expect(persisted.event?.inputFrameCount).toBe(1);
+
+      const session = await db.getLiveGameSession(sessionId, 1);
+      expect(session?.currentVideoSecond).toBe(25);
+      expect(session?.errorMessage).toMatch(/saved a recovery window/i);
+      expect(normalizeLiveGameMemory(session?.gameMemory).totalWindows).toBe(0);
+    } finally {
+      await db.deleteLiveGameSession(sessionId, 1);
+    }
   });
 
   it("prevents viewers from creating a live session", async () => {

@@ -11,6 +11,8 @@ import {
 
 export const LIVE_VISION_MODEL = "gemini-3-flash-preview";
 export const LIVE_WINDOW_SECONDS = 5;
+export const LIVE_ANALYSIS_BUDGET_MS = 50_000;
+export const LIVE_COMPACT_RETRY_BUDGET_MS = 18_000;
 
 export type LiveSituation = {
   quarter: string;
@@ -114,6 +116,13 @@ export function asLiveText(content: unknown) {
     return content.map((part) => typeof part === "object" && part && "text" in part ? String(part.text) : "").join("");
   }
   return content ? JSON.stringify(content) : "";
+}
+
+export function shouldAttemptLiveStructuredRetry(
+  elapsedMs: number,
+  totalBudgetMs = LIVE_ANALYSIS_BUDGET_MS,
+) {
+  return Math.max(0, elapsedMs) + LIVE_COMPACT_RETRY_BUDGET_MS <= totalBudgetMs;
 }
 
 function topLabel(values: Record<string, number> | undefined) {
@@ -231,6 +240,7 @@ export async function analyzeLiveWindow(input: {
   situation: LiveSituation;
   gameMemory?: LiveGameMemory | null;
 }): Promise<LiveWindowResult> {
+  const analysisStartedAt = Date.now();
   const imageParts = input.frames.slice(0, 4).map((url) => ({
     type: "image_url" as const,
     image_url: { url, detail: "low" as const },
@@ -344,12 +354,21 @@ Every output is an AI estimate for coach verification. Never claim a full-game p
     return normalizeLiveResult(parseLiveJson(raw));
   } catch (firstError) {
     console.warn("[Live Intelligence] Retrying incomplete structured response", firstError);
+    if (!shouldAttemptLiveStructuredRetry(Date.now() - analysisStartedAt)) {
+      console.warn("[Live Intelligence] Structured retry skipped to preserve the live-window deadline");
+      return buildRecoveredLiveResult({ situation: input.situation, frames: input.frames, gameMemory: memory });
+    }
     try {
-      response = await invokeLLM({
-        ...request,
-        maxTokens: 8_192,
-        messages: [...messages, { role: "user" as const, content: "The prior JSON was incomplete. Return the exact same schema again, compactly: two predictions, at most three list items per section, four impact players, three matchups, three alerts, and four evidence observations. Output JSON only." }],
-      });
+      response = await Promise.race([
+        invokeLLM({
+          ...request,
+          maxTokens: 8_192,
+          messages: [...messages, { role: "user" as const, content: "The prior JSON was incomplete. Return the exact same schema again, compactly: two predictions, at most three list items per section, four impact players, three matchups, three alerts, and four evidence observations. Output JSON only." }],
+        }),
+        new Promise<never>((_, reject) => {
+          setTimeout(() => reject(new Error("Live compact structured retry timed out")), LIVE_COMPACT_RETRY_BUDGET_MS);
+        }),
+      ]);
       const raw = asLiveText(response.choices?.[0]?.message?.content);
       if (!raw) throw new Error("Live vision retry returned no content");
       return normalizeLiveResult(parseLiveJson(raw));

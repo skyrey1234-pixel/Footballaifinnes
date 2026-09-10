@@ -1,5 +1,7 @@
 # TacticalEdge AI — Project TODO
 
+- [ ] BUG: Fix Live session 2310001 five-second `analyzeWindow` failure so malformed, empty, timed-out, or provider-rejected AI responses persist a recoverable evidence event, keep exactly two predictions, and allow subsequent windows to continue without surfacing a mutation error
+
 - [x] TACTICAL TWIN STAGE 2: Verified the enabled Higgsfield integration is a non-editable OAuth MCP connector for Manus-agent operations; the published TacticalEdge server cannot safely invoke or extract it, and two tool-catalog attempts reached the remote endpoint but timed out
 - [x] TACTICAL TWIN STAGE 2: Removed the duplicate-account assumption and documented the secure production boundary: use the enabled connector for Manus operations, while one-click in-app generation requires either app-scoped Higgsfield Cloud credentials or a separate Manus API/Open App bridge
 - [x] TACTICAL TWIN STAGE 2: Defined additive owner-scoped tracking jobs, per-frame player/ball tracks, calibration metadata, coach corrections, cinematic export jobs, retained media records, and hashed expiring share tokens

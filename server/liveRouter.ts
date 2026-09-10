@@ -2,7 +2,13 @@ import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
 import * as db from "./db";
-import { analyzeLiveWindow, LIVE_WINDOW_SECONDS, type LiveSituation } from "./liveAnalysis";
+import {
+  analyzeLiveWindow,
+  buildRecoveredLiveResult,
+  LIVE_WINDOW_SECONDS,
+  type LiveSituation,
+  type LiveWindowResult,
+} from "./liveAnalysis";
 import { mergeLiveGameMemory, normalizeLiveGameMemory } from "./liveMemory";
 import { createLivePlaybackToken } from "./livePlaybackToken";
 import { createLiveTvToken, verifyLiveTvToken } from "./liveTvToken";
@@ -32,6 +38,76 @@ async function requireOwnedSession(id: number, userId: number) {
   const session = await db.getLiveGameSession(id, userId);
   if (!session) throw new TRPCError({ code: "NOT_FOUND", message: "Live session not found" });
   return session;
+}
+
+export function getLiveAnalysisRecoveryMessage(error: unknown) {
+  const technicalMessage = error instanceof Error ? error.message : "Live analysis failed";
+  return technicalMessage.includes("timed out")
+    ? "The AI read took too long. TacticalEdge saved a recovery window, kept the feed running, and will analyze the next five-second window automatically."
+    : "The AI read was incomplete. TacticalEdge saved a recovery window, kept the feed running, and will analyze the next five-second window automatically.";
+}
+
+export async function persistLiveWindowResult(input: {
+  sessionId: number;
+  userId: number;
+  windowIndex: number;
+  windowStartSeconds: number;
+  windowEndSeconds: number;
+  inputFrameCount: number;
+  situation: LiveSituation;
+  result: LiveWindowResult;
+  analysisStartedAt: number;
+  recoveryMessage?: string | null;
+}) {
+  const currentSession = await db.getLiveGameSession(input.sessionId, input.userId);
+  if (!currentSession) return { event: undefined, duplicate: false, canceled: true, recovered: Boolean(input.recoveryMessage) };
+
+  const recovered = Boolean(input.recoveryMessage);
+  const gameMemory = recovered
+    ? normalizeLiveGameMemory(currentSession.gameMemory)
+    : mergeLiveGameMemory(currentSession.gameMemory, input.result, input.windowIndex);
+
+  await db.saveLiveAnalysisEvent({
+    liveSessionId: input.sessionId,
+    userId: input.userId,
+    windowIndex: input.windowIndex,
+    windowStartSeconds: input.windowStartSeconds,
+    windowEndSeconds: input.windowEndSeconds,
+    visibleAction: input.result.visibleAction,
+    teamPhase: input.result.teamPhase,
+    phaseReason: input.result.phaseReason,
+    formation: input.result.formation,
+    personnel: input.result.personnel,
+    defensiveLook: input.result.defensiveLook,
+    playCall: input.result.playCall,
+    predictionSummary: input.result.predictionSummary,
+    nextPlayProbabilities: input.result.nextPlayProbabilities,
+    offenseInsights: input.result.offenseInsights,
+    defenseInsights: input.result.defenseInsights,
+    impactPlayers: input.result.impactPlayers,
+    keyMatchups: input.result.keyMatchups,
+    tendencyShift: input.result.tendencyShift,
+    counterCall: input.result.counterCall,
+    riskLevel: input.result.riskLevel,
+    alerts: input.result.alerts,
+    evidence: input.result.evidence,
+    confidence: input.result.confidence,
+    inputFrameCount: input.inputFrameCount,
+    latencyMs: Date.now() - input.analysisStartedAt,
+  });
+  await db.updateLiveGameSession(input.sessionId, input.userId, {
+    status: currentSession.status === "ready" ? "live" : currentSession.status,
+    currentVideoSecond: Math.max(currentSession.currentVideoSecond, input.windowEndSeconds),
+    situation: currentSession.status === "live" || currentSession.status === "ready"
+      ? input.situation
+      : currentSession.situation,
+    gameMemory,
+    latestSummary: input.result.predictionSummary,
+    errorMessage: input.recoveryMessage ?? null,
+    startedAt: currentSession.startedAt ?? new Date(),
+  });
+  const event = await db.getLiveAnalysisEventByWindow(input.sessionId, input.userId, input.windowIndex);
+  return { event, duplicate: false, canceled: false, recovered };
 }
 
 export const liveRouter = router({
@@ -181,9 +257,11 @@ export const liveRouter = router({
       const existing = await db.getLiveAnalysisEventByWindow(input.id, ctx.user.id, input.windowIndex);
       if (existing) return { event: existing, duplicate: true };
 
+      const analysisStartedAt = Date.now();
+      let result: LiveWindowResult | null = null;
+      let analysisError: unknown = null;
       try {
-        const analysisStartedAt = Date.now();
-        const result = await Promise.race([
+        result = await Promise.race([
           analyzeLiveWindow({
             opponentName: session.opponentName,
             windowStartSeconds: input.windowStartSeconds,
@@ -196,70 +274,38 @@ export const liveRouter = router({
             setTimeout(() => reject(new Error("Live AI window timed out after 55 seconds")), 55_000);
           }),
         ]);
-
-        // Re-read lifecycle state after the model returns. A coach may pause,
-        // end, or delete the session while the request is in flight.
-        const currentSession = await db.getLiveGameSession(input.id, ctx.user.id);
-        if (!currentSession) return { event: undefined, duplicate: false, canceled: true };
-        const gameMemory = mergeLiveGameMemory(currentSession.gameMemory, result, input.windowIndex);
-
-        await db.saveLiveAnalysisEvent({
-          liveSessionId: input.id,
-          userId: ctx.user.id,
-          windowIndex: input.windowIndex,
-          windowStartSeconds: input.windowStartSeconds,
-          windowEndSeconds: input.windowEndSeconds,
-          visibleAction: result.visibleAction,
-          teamPhase: result.teamPhase,
-          phaseReason: result.phaseReason,
-          formation: result.formation,
-          personnel: result.personnel,
-          defensiveLook: result.defensiveLook,
-          playCall: result.playCall,
-          predictionSummary: result.predictionSummary,
-          nextPlayProbabilities: result.nextPlayProbabilities,
-          offenseInsights: result.offenseInsights,
-          defenseInsights: result.defenseInsights,
-          impactPlayers: result.impactPlayers,
-          keyMatchups: result.keyMatchups,
-          tendencyShift: result.tendencyShift,
-          counterCall: result.counterCall,
-          riskLevel: result.riskLevel,
-          alerts: result.alerts,
-          evidence: result.evidence,
-          confidence: result.confidence,
-          inputFrameCount: input.frames.length,
-          latencyMs: Date.now() - analysisStartedAt,
-        });
-        await db.updateLiveGameSession(input.id, ctx.user.id, {
-          status: currentSession.status === "ready" ? "live" : currentSession.status,
-          currentVideoSecond: Math.max(currentSession.currentVideoSecond, input.windowEndSeconds),
-          situation: currentSession.status === "live" || currentSession.status === "ready"
-            ? input.situation
-            : currentSession.situation,
-          gameMemory,
-          latestSummary: result.predictionSummary,
-          errorMessage: null,
-          startedAt: currentSession.startedAt ?? new Date(),
-        });
-        const event = await db.getLiveAnalysisEventByWindow(input.id, ctx.user.id, input.windowIndex);
-        return { event, duplicate: false, canceled: false };
       } catch (error) {
+        analysisError = error;
         console.error("[Live Intelligence] Window analysis failed", {
           liveSessionId: input.id,
           windowIndex: input.windowIndex,
           error,
         });
-        const technicalMessage = error instanceof Error ? error.message : "Live analysis failed";
-        const publicMessage = technicalMessage.includes("timed out")
-          ? "The AI read took too long. TacticalEdge kept the feed running and will try the next five-second window automatically."
-          : "The last AI read was incomplete. TacticalEdge kept the feed running and will retry automatically.";
-        await db.updateLiveGameSession(input.id, ctx.user.id, { errorMessage: publicMessage });
-        throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
-          message: "This five-second window could not be analyzed. Playback can continue and the next window will retry.",
+      }
+
+      const recoveryMessage = analysisError ? getLiveAnalysisRecoveryMessage(analysisError) : null;
+      if (!result) {
+        const latestSession = await db.getLiveGameSession(input.id, ctx.user.id);
+        if (!latestSession) return { event: undefined, duplicate: false, canceled: true, recovered: true };
+        result = buildRecoveredLiveResult({
+          situation: input.situation as LiveSituation,
+          frames: input.frames,
+          gameMemory: normalizeLiveGameMemory(latestSession.gameMemory),
         });
       }
+
+      return persistLiveWindowResult({
+        sessionId: input.id,
+        userId: ctx.user.id,
+        windowIndex: input.windowIndex,
+        windowStartSeconds: input.windowStartSeconds,
+        windowEndSeconds: input.windowEndSeconds,
+        inputFrameCount: input.frames.length,
+        situation: input.situation as LiveSituation,
+        result,
+        analysisStartedAt,
+        recoveryMessage,
+      });
     }),
 
   delete: adminProcedure
