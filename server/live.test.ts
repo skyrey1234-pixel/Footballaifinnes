@@ -4,6 +4,7 @@ import * as db from "./db";
 import {
   asLiveText,
   buildRecoveredLiveResult,
+  isRecoveredLiveResult,
   normalizeLiveResult,
   parseLiveJson,
   shouldAttemptLiveStructuredRetry,
@@ -121,6 +122,8 @@ describe("Live Game Intelligence", () => {
     expect(recovered.nextPlayProbabilities.reduce((sum, row) => sum + row.probability, 0)).toBe(100);
     expect(recovered.confidence).toBe(0);
     expect(recovered.alerts[0]).toMatch(/recovery/i);
+    expect(isRecoveredLiveResult(recovered)).toBe(true);
+    expect(isRecoveredLiveResult(liveResult())).toBe(false);
   });
 
   it("skips a compact structured retry when too little request budget remains", () => {

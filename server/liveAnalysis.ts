@@ -184,6 +184,12 @@ export function buildRecoveredLiveResult(input: {
   });
 }
 
+export function isRecoveredLiveResult(result: LiveWindowResult) {
+  return result.confidence === 0
+    && result.nextPlayProbabilities.length === 2
+    && result.alerts.some((alert) => /recovery|temporarily unavailable/i.test(alert));
+}
+
 export function normalizeLiveResult(result: LiveWindowResult): LiveWindowResult {
   const rawConfidence = Number(result.confidence) || 0;
   const confidence = rawConfidence > 0 && rawConfidence <= 1

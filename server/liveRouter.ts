@@ -5,6 +5,7 @@ import * as db from "./db";
 import {
   analyzeLiveWindow,
   buildRecoveredLiveResult,
+  isRecoveredLiveResult,
   LIVE_WINDOW_SECONDS,
   type LiveSituation,
   type LiveWindowResult,
@@ -283,7 +284,11 @@ export const liveRouter = router({
         });
       }
 
-      const recoveryMessage = analysisError ? getLiveAnalysisRecoveryMessage(analysisError) : null;
+      const recoveryMessage = analysisError
+        ? getLiveAnalysisRecoveryMessage(analysisError)
+        : result && isRecoveredLiveResult(result)
+          ? getLiveAnalysisRecoveryMessage(new Error("Live structured response recovered"))
+          : null;
       if (!result) {
         const latestSession = await db.getLiveGameSession(input.id, ctx.user.id);
         if (!latestSession) return { event: undefined, duplicate: false, canceled: true, recovered: true };
